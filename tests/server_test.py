@@ -1,4 +1,5 @@
 import unittest
+from .. modules.server import Server, ServerWithGCI
 
 class ServerTest(unittest.TestCase):
 

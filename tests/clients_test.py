@@ -1,4 +1,5 @@
 import unittest
+from .. modules.clients import Clients, Request
 
 class RequestTest(unittest.TestCase):
 

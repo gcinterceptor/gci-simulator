@@ -1,4 +1,5 @@
 import unittest
+from .. modules.garbage import GC, STWGC, GCI
 
 class GCITest(unittest.TestCase):
 
