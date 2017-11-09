@@ -1,5 +1,5 @@
 import simpy
-from .. modules.garbage import GC, STWGC
+from modules.garbage import GC, STWGC
 
 class Server(object):
 
