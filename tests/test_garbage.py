@@ -1,7 +1,7 @@
 import unittest
 from .. modules.garbage import GC, STWGC, GCI
 
-class GCITest(unittest.TestCase):
+class TestGCI(unittest.TestCase):
 
     @classmethod
     def setUp(self):
@@ -10,7 +10,7 @@ class GCITest(unittest.TestCase):
     def test_algumaCoisa(self):
         pass
 
-class GCTest(unittest.TestCase):
+class TestGC(unittest.TestCase):
 
     @classmethod
     def setUp(self):
@@ -19,7 +19,7 @@ class GCTest(unittest.TestCase):
     def test_algumaCoisa(self):
         pass
 
-class STWGCTest(unittest.TestCase):
+class TestSTWGC(unittest.TestCase):
 
     @classmethod
     def setUp(self):

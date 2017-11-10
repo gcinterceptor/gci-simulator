@@ -7,15 +7,20 @@ class Request(object):
         self.memory = memory
         self.client = client
         self.done = False
-        self._sent_time = 0
-        self._done_time = 0
+        self._done_time = None
+        self._sent_time = None
+        self._processed_time = None
 
     def run(self, env, heap):
         yield env.timeout(self.duration)
         yield heap.put(self.memory)
+        self.processed_at(env.now)
 
     def sent_at(self, time):
         self._sent_time = time
+
+    def processed_at(self, time):
+        self._processed_time = time
 
     def done_at(self, time):
         self._done_time = time

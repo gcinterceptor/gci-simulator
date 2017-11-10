@@ -4,7 +4,7 @@ sys.path.append("..") # the problem of imports from modeles
 import unittest
 from modules.server import Server, ServerWithGCI
 
-class ServerTest(unittest.TestCase):
+class TestServer(unittest.TestCase):
 
     @classmethod
     def setUp(self):
@@ -13,7 +13,7 @@ class ServerTest(unittest.TestCase):
     def test_algumaCoisa(self):
         pass
 
-class ServerWithGCITest(unittest.TestCase):
+class TestServerWithGCI(unittest.TestCase):
 
     @classmethod
     def setUp(self):
