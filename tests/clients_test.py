@@ -42,7 +42,7 @@ class RequestTest(unittest.TestCase):
         sent_at = self.env.now
         request.sent_at(self.env.now)
         # check if the sent_at is set correctly
-        self.assertTrue(sent_at == request._sent, "Expected value: " + str(sent_at) + ", received value: " + str(request._sent))
+        self.assertTrue(sent_at == request._sent_time, "Expected value: " + str(sent_at) + ", received value: " + str(request._sent_time))
 
         yield self.env.timeout(5) # Esse yield está atrapalhando os testes
         self.assertTrue(False) # Deveria quebrar o teste
@@ -50,7 +50,7 @@ class RequestTest(unittest.TestCase):
         done_at = self.env.now
         request.done_at(self.env.now)
         # check if the done_at is set correctly
-        self.assertTrue(done_at + 1 == request._done, "Expected value: " + str(done_at) + ", received value: " + str(request._done))
+        self.assertTrue(done_at + 1 == request._done_time, "Expected value: " + str(done_at) + ", received value: " + str(request._done_time))
 
 class ClientsTest(unittest.TestCase):
 

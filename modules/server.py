@@ -8,6 +8,7 @@ class Server(object):
 
         self.process_time = process_time
         self.queue = simpy.Store(env, queue_limite) # the queue of requests
+        self.remaining_queue = simpy.Store(env, queue_limite)  # the queue of requests
         self.heap = simpy.Container(env, heap_limit, init=0) # our trash heap
 
         self.processed_requests = 0
@@ -21,13 +22,20 @@ class Server(object):
     def run(self):
         try:
             while True:
-                if len(self.queue.items) > 0:  # check if there is any request to be processed
+                if len(self.remaining_queue.items) > 0:
+                    request = yield self.remaining_queue.get()  # get a request from store
+                    if request.done:
+                        yield self.heap.get(request.memory) # remove trash that shouldn't be added...
+                    yield self.env.process(self.process_request(request))
+
+                elif len(self.queue.items) > 0:  # check if there is any request to be processed
                     request = yield self.queue.get()  # get a request from store
                     yield self.env.process(self.process_request(request))
 
                 yield self.env.timeout(self.process_time)  # wait for...
 
         except simpy.Interrupt:
+            yield self.remaining_queue.put(request)
             yield self.env.timeout(self.process_time) # wait for...
 
     def process_request(self, request):
@@ -37,7 +45,6 @@ class Server(object):
         self.processed_requests += 1
 
     def request_arrived(self, request):
-        """ What if the server is no available?  I'll (David) solve it"""
         if self.gci.shed_requests:
             print("At %.3f, SERVER Server shedding request" % self.env.now)
             yield self.env.process(request.client.refused_request(request, self.gci.estimated_shed_time(self)))
