@@ -6,16 +6,24 @@ class Request(object):
         self.duration = duration
         self.memory = memory
         self.client = client
+        self.done = False
+        self._done_time = None
+        self._sent_time = None
+        self._processed_time = None
 
     def run(self, env, heap):
         yield env.timeout(self.duration)
         yield heap.put(self.memory)
+        self.processed_at(env.now)
 
     def sent_at(self, time):
-        self.sent_at = time
+        self._sent_time = time
 
-    def done_time(self, time):
-        self.done_time = time
+    def processed_at(self, time):
+        self._processed_time = time
+
+    def done_at(self, time):
+        self._done_time = time
 
 class Clients(object):
 
@@ -56,8 +64,8 @@ class Clients(object):
 
     def sucess_request(self, request):
         print("At %.3f, CLIENTS request successful attended" % self.env.now)
-        print("At %.3f, CLIENTS Service time: %.3f" % (self.env.now, self.env.now - request.sent_at))
-        request.done_time(self.env.now)
+        print("At %.3f, CLIENTS Service time: %.3f" % (self.env.now, self.env.now - request._sent_time))
+        request.done_at(self.env.now)
         self.requests.append(request)
         yield self.env.timeout(0)
 

@@ -14,3 +14,4 @@ clients = Clients(env, server, requests)
 env.run(until=SIM_DURATION)
 
 print("remaining request in queue: %i" % len(server.queue.items))
+print("Processed value %.3f" % requests[0]._processed_time)
