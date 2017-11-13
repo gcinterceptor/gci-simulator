@@ -3,7 +3,7 @@ import simpy
 class Request(object):
     def __init__(self, created_at, duration, memory, client):
         self.created_at = created_at
-        self.duration = duration
+        self.service_time = duration
         self.memory = memory
         self.client = client
         self.done = False
@@ -12,7 +12,7 @@ class Request(object):
         self._processed_time = None
 
     def run(self, env, heap):
-        yield env.timeout(self.duration)
+        yield env.timeout(self.service_time)
         yield heap.put(self.memory)
         self.processed_at(env.now)
 
@@ -27,14 +27,14 @@ class Request(object):
 
 class Clients(object):
 
-    def __init__(self, env, server, requests, process_time=0.00001, create_request_rate=0.01, max_requests=float("inf")):
+    def __init__(self, env, server, requests, process_time=0.00001, create_request_rate=0.01, max_requests=float("inf"), duration=0.035, memory=0.02):
         self.env = env
         self.server = server
         self.requests = requests
         self.process_time = process_time
         self.queue = simpy.Store(env)  # the queue of requests
         self.action = env.process(self.send_request())
-        self.create_request = env.process(self.create_request(create_request_rate, max_requests))
+        self.create_request = env.process(self.create_request(create_request_rate, max_requests, duration, memory))
 
     def send_request(self):
         while True:
@@ -45,12 +45,10 @@ class Clients(object):
 
             yield self.env.timeout(self.process_time) # wait for...
 
-    def create_request(self, create_request_rate, max_requests):
+    def create_request(self, create_request_rate, max_requests, duration, memory):
         """ Create requests """
         count = 1
         while count <= max_requests:
-            duration = 0.035
-            memory = 0.02
             request = Request(self.env.now, duration, memory, self)
             print("At %.3f, CLIENTS a client made a request" % self.env.now)
             yield self.queue.put(request)

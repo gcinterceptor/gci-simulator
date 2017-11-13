@@ -1,6 +1,7 @@
+import sys            # These two first lines, fixes
+sys.path.append("..") # the problem of imports from modeles
+import unittest, simpy
 from modules import Request
-import unittest
-import simpy
 
 class TestRequest(unittest.TestCase):
 

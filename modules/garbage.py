@@ -9,52 +9,36 @@ class GC(object):
         self.sleep = sleep
         self.collect_exe = None
 
-    def run(self):
+    def run(self, server):
         try:
             while True:
                 if self.heap.level >= self.threshold:
-                    self.env.process(self.collect())
+                    self.collect_exe = self.env.process(self.collect(server))
+
                 yield self.env.timeout(self.sleep)
 
         except simpy.Interrupt:
             yield self.env.timeout(self.sleep)  # wait for...
 
+    def collect(self, server):
+        print("At %.3f, GC GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
 
-    def collect(self):
-        print("At %.3f, CGC GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
+        #server.action.interrupt()
 
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
             yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
 
-        print("At %.3f, CGC GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
+        print("At %.3f, GC GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
+
+        server.action = self.env.process(server.run())
+        server.gc_times_performed += 1
 
     def gc_execution_time_by_trash(self, trash):
         """ implement the way to calculate the execution time of Garbage Collector """
         return trash
 
-class STWGC(GC):
-
-    def __init__(self, env, server, threshold=1, sleep=2):
-        super().__init__(env, server.heap, threshold, sleep)
-        self.server = server
-
-    def collect(self):
-        print("At %.3f, STWGC GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
-
-        self.server.action.interrupt()
-        if self.server.gc.collect_exe:
-            self.server.gc.collect_exe.interrupt()
-
-        while self.heap.level > 0:                                          # while threshold is empty...
-            trash = self.heap.level                                         # keeps the amount of trash
-            yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
-            yield self.heap.get(trash)                                      # discards the trash
-
-        self.server.action = self.env.process(self.server.run())
-
-        print("At %.3f, STWGC GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
 
 class GCI(object):
 
@@ -84,12 +68,9 @@ class GCI(object):
                     # wait for the queue to get empty.
                     yield self.env.process(self.check_request_queue(server))
 
-                    if self.server.stwgc.collect_exe:
-                        self.server.stwgcc.collect_exe.interrupt()
-
-                    # run STWGC
+                    # run GC
                     gc_start_time = self.env.now
-                    yield self.env.process(server.stwgc.collect())
+                    yield self.env.process(server.gc.collect(server))
                     gc_end_time = self.env.now
 
                     # leave server

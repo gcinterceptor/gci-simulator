@@ -1,5 +1,5 @@
 import simpy
-from modules.garbage import GC, STWGC
+from modules import GC
 
 class Server(object):
 
@@ -8,16 +8,15 @@ class Server(object):
 
         self.process_time = process_time
         self.queue = simpy.Store(env, queue_limite) # the queue of requests
-        self.remaining_queue = simpy.Store(env, queue_limite)  # the queue of requests
+        self.remaining_queue = simpy.Store(env, queue_limite)  # the queue of interrupted requests
         self.heap = simpy.Container(env, heap_limit, init=0) # our trash heap
 
         self.processed_requests = 0
         self.action = env.process(self.run())
 
         self.gc = GC(self.env, self.heap)
-        self.gc_process = self.env.process(self.gc.run())
-        self.stwgc = STWGC(self.env, self)
-        self.stwgc_process = self.env.process(self.stwgc.run())
+        self.gc_process = self.env.process(self.gc.run(self))
+        self.gc_times_performed = 0
 
     def run(self):
         try:
@@ -45,14 +44,9 @@ class Server(object):
         self.processed_requests += 1
 
     def request_arrived(self, request):
-        if self.gci.shed_requests:
-            print("At %.3f, SERVER Server shedding request" % self.env.now)
-            yield self.env.process(request.client.refused_request(request, self.gci.estimated_shed_time(self)))
-
-        else:
-            print("At %.3f, SERVER Request stored at Server" % self.env.now)
-            yield self.env.process(request.client.successfully_sent(request))
-            yield self.queue.put(request)   # put the request at the end of the queue
+        print("At %.3f, SERVER Request stored at Server" % self.env.now)
+        yield self.env.process(request.client.successfully_sent(request))
+        yield self.queue.put(request)   # put the request at the end of the queue
 
 class ServerWithGCI(Server):
 
@@ -60,6 +54,7 @@ class ServerWithGCI(Server):
         super().__init__(env, process_time, queue_limite, heap_limit)
         self.gci = gci
         self.gci_process = env.process(self.gci.run(self))
+        self.gci_times_performed = 0
 
     def request_arrived(self, request):
         if self.gci.shed_requests:
