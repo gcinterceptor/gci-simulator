@@ -1,6 +1,6 @@
+from modules import Request
 import unittest
 import simpy
-from .. modules.clients import Request
 
 class TestRequest(unittest.TestCase):
 

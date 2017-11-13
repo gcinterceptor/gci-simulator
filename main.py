@@ -1,6 +1,4 @@
-from modules.clients import Clients
-from modules.server import ServerWithGCI
-from modules.garbage import GCI
+from modules import Clients, ServerWithGCI, GCI
 import simpy
 
 SIM_DURATION = 10
