@@ -2,40 +2,34 @@ import simpy
 
 class GC(object):
 
-    def __init__(self, env, heap, threshold=0.9, sleep=2):
+    def __init__(self, env, heap, threshold=0.9, sleep=0.02):
         self.env = env
         self.heap = heap
         self.threshold = threshold
         self.sleep = sleep
-        self.collect_exe = None
+        self.collect_exe = False
         self.times_performed = 0
 
     def run(self, server):
-        try:
-            while True:
-                if self.heap.level >= self.threshold:
-                    self.collect_exe = self.env.process(self.collect(server))
-                    self.times_performed += 1
+        while True:
+            if self.heap.level >= self.threshold:
+                yield self.env.process(self.collect(server))
+                self.times_performed += 1
 
-                yield self.env.timeout(self.sleep)
-
-        except simpy.Interrupt:
-            yield self.env.timeout(self.sleep)  # wait for...
+            yield self.env.timeout(self.sleep) # wait for...
 
     def collect(self, server):
         print("At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
-
         #server.action.interrupt()
-
+        self.collect_exe = True
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
             yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
 
+        self.collect_exe = False
         print("At %.3f, GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
-
-
-        server.action = self.env.process(server.run())
+        #server.action = self.env.process(server.run())
 
     def gc_execution_time_by_trash(self, trash):
         """ implement the way to calculate the execution time of Garbage Collector """
@@ -44,19 +38,18 @@ class GC(object):
 
 class GCI(object):
 
-    def __init__(self, env,  threshold=0.7, check_heap=2, initial_gc_exec_time=0.200):
+    def __init__(self, env,  threshold=0.7, check_heap=2, initial_gc_exec_time=0.200, sleep=0.02):
         self.env = env
         self.threshold = threshold
         self.check_heap = check_heap
         self.gc_exec_time = initial_gc_exec_time
+        self.sleep = sleep
 
         self.shed_requests = False
         self.processed_requests_history = list()
         self.gc_execution_history = list()
         self.history_size = 5
         self.times_performed = 0
-
-        self.sleep = 0.02
 
     def run(self, server):
         while True:
@@ -72,7 +65,11 @@ class GCI(object):
 
                     # run GC
                     gc_start_time = self.env.now
-                    yield self.env.process(server.gc.collect(server))
+                    if server.gc.collect_exe:
+                        while server.gc.collect_exe:
+                            yield self.env.timeout(self.sleep)
+                    else:
+                        yield self.env.process(server.gc.collect(server))
                     gc_end_time = self.env.now
 
                     # leave server

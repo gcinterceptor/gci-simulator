@@ -3,10 +3,10 @@ from modules import GC
 
 class Server(object):
 
-    def __init__(self, env, process_time=0.000001, queue_limite=100, heap_limit=4):
+    def __init__(self, env, sleep=0.000001, queue_limite=100, heap_limit=4):
         self.env = env
 
-        self.process_time = process_time
+        self.sleep = sleep
         self.queue = simpy.Store(env, queue_limite) # the queue of requests
         self.remaining_queue = simpy.Store(env, queue_limite)  # the queue of interrupted requests
         self.heap = simpy.Container(env, heap_limit, init=0) # our trash heap
@@ -16,7 +16,6 @@ class Server(object):
 
         self.gc = GC(self.env, self.heap)
         self.gc_process = self.env.process(self.gc.run(self))
-        self.gc_times_performed = 0
 
     def run(self):
         try:
@@ -31,11 +30,11 @@ class Server(object):
                     request = yield self.queue.get()  # get a request from store
                     yield self.env.process(self.process_request(request))
 
-                yield self.env.timeout(self.process_time)  # wait for...
+                yield self.env.timeout(self.sleep)  # wait for...
 
         except simpy.Interrupt:
             yield self.remaining_queue.put(request)
-            yield self.env.timeout(self.process_time) # wait for...
+            yield self.env.timeout(self.sleep) # wait for...
 
     def process_request(self, request):
         yield self.env.process(request.run(self.env, self.heap))
@@ -50,8 +49,8 @@ class Server(object):
 
 class ServerWithGCI(Server):
 
-    def __init__(self, env, gci, process_time=0.000001, queue_limite=100, heap_limit=4):
-        super().__init__(env, process_time, queue_limite, heap_limit)
+    def __init__(self, env, gci, sleep=0.000001, queue_limite=100, heap_limit=4):
+        super().__init__(env, sleep, queue_limite, heap_limit)
         self.gci = gci
         self.gci_process = env.process(self.gci.run(self))
 
