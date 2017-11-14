@@ -54,7 +54,6 @@ class ServerWithGCI(Server):
         super().__init__(env, process_time, queue_limite, heap_limit)
         self.gci = gci
         self.gci_process = env.process(self.gci.run(self))
-        self.gci_times_performed = 0
 
     def request_arrived(self, request):
         if self.gci.shed_requests:

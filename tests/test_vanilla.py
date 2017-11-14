@@ -12,7 +12,8 @@ class TestVanilla(unittest.TestCase):
         self.requests = list()
 
     def test_not_running_GC(self):
-        self.env_run(1, 1.0, 0.035, 0.08)
+        sim_duration, num_requests, request_duration, request_memoty = 3, 1, 0.035, 0.89
+        self.env_run(sim_duration, num_requests, request_duration, request_memoty)
         request = self.requests[0]
 
         expected = 0.000
@@ -23,9 +24,11 @@ class TestVanilla(unittest.TestCase):
         self.assert_almost_equal(expected, request._processed_time)
         self.assert_almost_equal(expected, request._done_time)
 
+        self.assertEqual(self.server.gc.times_performed, 0)
 
     def test_running_GC(self):
-        self.env_run(1, 1.0, 0.035, 0.1)
+        sim_duration, num_requests, request_duration, request_memoty = 3, 1, 0.035, 0.9
+        self.env_run(sim_duration, num_requests, request_duration, request_memoty)
         request = self.requests[0]
 
         expected = 0.000
@@ -35,6 +38,8 @@ class TestVanilla(unittest.TestCase):
         expected = 0.035
         self.assert_almost_equal(expected, request._processed_time)
         self.assert_almost_equal(expected, request._done_time)
+
+        self.assertEqual(self.server.gc.times_performed, 1)
 
     def assert_almost_equal(self, expected, received, delta=0.0001):
         msg = "Expected value: " + str(expected) + ", received value: " + str(received)
