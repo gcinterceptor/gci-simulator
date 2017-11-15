@@ -1,5 +1,5 @@
 import simpy
-from modules import GC
+from modules import GC, GCI
 
 class Server(object):
 
@@ -49,17 +49,21 @@ class Server(object):
 
 class ServerWithGCI(Server):
 
-    def __init__(self, env, gci, sleep=0.000001, queue_limite=100, heap_limit=4):
+    def __init__(self, env, sleep=0.000001, queue_limite=100, heap_limit=4):
         super().__init__(env, sleep, queue_limite, heap_limit)
-        self.gci = gci
-        self.gci_process = env.process(self.gci.run(self))
+        self.gci = GCI(self.env, self)
 
     def request_arrived(self, request):
+
+        self.gci.check()
+        yield self.env.timeout(self.sleep)  # wait for...
+
         if self.gci.shed_requests:
             print("At %.3f, SERVER Server shedding request" % self.env.now)
-            yield self.env.process(request.client.refused_request(request, self.gci.estimated_shed_time(self)))
+            yield self.env.process(request.client.refused_request(request, self.gci.estimated_shed_time()))
 
         else:
             print("At %.3f, SERVER Request stored at Server" % self.env.now)
             yield self.env.process(request.client.successfully_sent(request))
             yield self.queue.put(request)   # put the request at the end of the queue
+

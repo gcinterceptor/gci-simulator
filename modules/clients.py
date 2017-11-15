@@ -1,9 +1,9 @@
 import simpy
 
 class Request(object):
-    def __init__(self, created_at, duration, memory, client):
+    def __init__(self, created_at, service_time, memory, client):
         self.created_at = created_at
-        self.service_time = duration
+        self.service_time = service_time
         self.memory = memory
         self.client = client
         self.done = False
@@ -27,14 +27,14 @@ class Request(object):
 
 class Clients(object):
 
-    def __init__(self, env, server, requests, process_time=0.00001, create_request_rate=0.01, max_requests=float("inf"), duration=0.035, memory=0.02):
+    def __init__(self, env, server, requests, process_time=0.00001, create_request_rate=0.01, max_requests=float("inf"), service_time=0.035, memory=0.02):
         self.env = env
         self.server = server
         self.requests = requests
         self.process_time = process_time
         self.queue = simpy.Store(env)  # the queue of requests
         self.action = env.process(self.send_request())
-        self.create_request = env.process(self.create_request(create_request_rate, max_requests, duration, memory))
+        self.create_request = env.process(self.create_request(create_request_rate, max_requests, service_time, memory))
 
     def send_request(self):
         while True:
@@ -45,11 +45,11 @@ class Clients(object):
 
             yield self.env.timeout(self.process_time) # wait for...
 
-    def create_request(self, create_request_rate, max_requests, duration, memory):
+    def create_request(self, create_request_rate, max_requests, service_time, memory):
         """ Create requests """
         count = 1
         while count <= max_requests:
-            request = Request(self.env.now, duration, memory, self)
+            request = Request(self.env.now, service_time, memory, self)
             print("At %.3f, CLIENTS a client made a request" % self.env.now)
             yield self.queue.put(request)
             yield self.env.timeout(create_request_rate)

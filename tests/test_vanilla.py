@@ -42,7 +42,7 @@ class TestVanilla(unittest.TestCase):
         self.assertEqual(self.server.gc.times_performed, 0)
 
     def test_small_queue_enough_heap(self):
-        num_requests, request_duration, request_memory = 10, 0.00035, 0.09
+        num_requests, request_duration, request_memory = 10, 0.00035, 0.0900000000001 # for some reason, without that 1, self.server.heap.level is equal to 0.8999999999999998...
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assertEqual(self.server.gc.times_performed, 1)
@@ -66,8 +66,8 @@ class TestVanilla(unittest.TestCase):
         msg = "Expected value: " + str(expected) + ", received value: " + str(received)
         self.assertAlmostEqual(expected, received, msg=msg, delta=delta)
 
-    def env_run(self, sim_duration, max_requests, duration, memory, create_request_rate=0.01):
-        Clients(self.env, self.server, self.requests, create_request_rate=create_request_rate, max_requests=max_requests, duration=duration, memory=memory)
+    def env_run(self, sim_duration, max_requests, service_time, memory, create_request_rate=0.01):
+        Clients(self.env, self.server, self.requests, create_request_rate=create_request_rate, max_requests=max_requests, service_time=service_time, memory=memory)
         self.env.run(until=sim_duration)
 
 
