@@ -10,5 +10,8 @@ clients = Clients(env, server, requests)
 
 env.run(until=SIM_DURATION)
 
+print("heap %.10f" % server.heap.level)
 print("remaining request in queue: %i" % len(server.queue.items))
 print("processed requests %.3f" % len(requests))
+print("GC exe %.i" % server.gc.times_performed)
+print("GCI exe %.i" % server.gci.times_performed)

@@ -14,8 +14,7 @@ class Server(object):
         self.processed_requests = 0
         self.action = env.process(self.run())
 
-        self.gc = GC(self.env, self.heap)
-        self.gc_process = self.env.process(self.gc.run(self))
+        self.gc = GC(self.env, self)
 
     def run(self):
         try:
@@ -38,12 +37,10 @@ class Server(object):
 
     def process_request(self, request):
         yield self.env.process(request.run(self.env, self.heap))
-        print("At %.3f, SERVER Request processed at server" % self.env.now)
         yield self.env.process(request.client.sucess_request(request))
         self.processed_requests += 1
 
     def request_arrived(self, request):
-        print("At %.3f, SERVER Request stored at Server" % self.env.now)
         yield self.env.process(request.client.successfully_sent(request))
         yield self.queue.put(request)   # put the request at the end of the queue
 
@@ -55,16 +52,14 @@ class ServerWithGCI(Server):
 
     def request_arrived(self, request):
 
+        self.env.process(self.gci.check())
+        self.env.timeout(self.sleep)
+
         if self.gci.shed_requests:
-            print("At %.3f, SERVER Server shedding request" % self.env.now)
             yield self.env.process(request.client.refused_request(request, self.gci.estimated_shed_time()))
 
         else:
             yield self.queue.put(request)  # put the request at the end of the queue
-            self.gci.check()
-            yield self.env.timeout(self.sleep)  # wait for...
-
-            print("At %.3f, SERVER Request stored at Server" % self.env.now)
             yield self.env.process(request.client.successfully_sent(request))
 
 
