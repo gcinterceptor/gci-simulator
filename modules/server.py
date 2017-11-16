@@ -33,7 +33,6 @@ class Server(object):
 
         except simpy.Interrupt:
             yield self.remaining_queue.put(request)
-            yield self.env.timeout(self.sleep) # wait for...
 
     def process_request(self, request):
         yield self.env.process(request.run(self.env, self.heap))

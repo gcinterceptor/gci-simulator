@@ -1,7 +1,7 @@
 from modules import Clients, ServerWithGCI, GCI
 import simpy
 
-SIM_DURATION = 10
+SIM_DURATION = 12
 env = simpy.Environment()
 
 server = ServerWithGCI(env)
