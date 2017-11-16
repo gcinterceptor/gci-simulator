@@ -44,8 +44,8 @@ class TestGCI(unittest.TestCase):
         self.assertEqual(self.server.gc.times_performed, 0)
         self.assertEqual(self.server.gci.times_performed, 0)
 
-    def test_three_request_enough_heap(self):
-        num_requests, request_duration, request_memory = 3, 0.0035, 0.35
+    def test_two_request_enough_heap(self):
+        num_requests, request_duration, request_memory = 2, 0.0035, 0.35
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assertEqual(self.server.gc.times_performed, 0)
@@ -59,7 +59,7 @@ class TestGCI(unittest.TestCase):
         self.assertEqual(self.server.gci.times_performed, 0)
 
     def test_small_queue_enough_heap(self):
-        num_requests, request_duration, request_memory = 11, 0.00035, 0.07
+        num_requests, request_duration, request_memory = 10, 0.00035, 0.07
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assertEqual(self.server.gc.times_performed, 0)
@@ -73,7 +73,7 @@ class TestGCI(unittest.TestCase):
         self.assertEqual(self.server.gci.times_performed, 0)
 
     def test_high_queue_enough_heap(self):
-        num_requests, request_duration, request_memory = 101, 0.000035, 0.007
+        num_requests, request_duration, request_memory = 100, 0.000035, 0.007
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assertEqual(self.server.gc.times_performed, 0)

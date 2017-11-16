@@ -55,15 +55,17 @@ class ServerWithGCI(Server):
 
     def request_arrived(self, request):
 
-        self.gci.check()
-        yield self.env.timeout(self.sleep)  # wait for...
-
         if self.gci.shed_requests:
             print("At %.3f, SERVER Server shedding request" % self.env.now)
             yield self.env.process(request.client.refused_request(request, self.gci.estimated_shed_time()))
 
         else:
+            yield self.queue.put(request)  # put the request at the end of the queue
+            self.gci.check()
+            yield self.env.timeout(self.sleep)  # wait for...
+
             print("At %.3f, SERVER Request stored at Server" % self.env.now)
             yield self.env.process(request.client.successfully_sent(request))
-            yield self.queue.put(request)   # put the request at the end of the queue
+
+
 
