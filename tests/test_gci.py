@@ -37,53 +37,52 @@ class TestGCI(unittest.TestCase):
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
-    def test_two_request_low_heap(self):
+    def test_three_request_low_heap(self):
         num_requests, request_duration, request_memory = 2, 0.0035, 0.345
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
-    def test_two_request_enough_heap(self):
-        num_requests, request_duration, request_memory = 2, 0.0035, 0.35
+    def test_three_request_enough_heap(self):
+        num_requests, request_duration, request_memory = 3, 0.0035, 0.35
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 1)
 
     def test_small_queue_low_heap(self):
-        num_requests, request_duration, request_memory = 10, 0.00035, 0.069
+        num_requests, request_duration, request_memory = 11, 0.00035, 0.069
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
     def test_small_queue_enough_heap(self):
-        num_requests, request_duration, request_memory = 10, 0.00035, 0.07
+        num_requests, request_duration, request_memory = 11, 0.00035, 0.07
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 1)
 
     def test_high_queue_low_heap(self):
-        num_requests, request_duration, request_memory = 100, 0.000035, 0.0069
+        num_requests, request_duration, request_memory = 101, 0.000035, 0.0069
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
     def test_high_queue_enough_heap(self):
-        num_requests, request_duration, request_memory = 100, 0.000035, 0.007
+        num_requests, request_duration, request_memory = 101, 0.000035, 0.007
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
         self.env_run(sim_duration, num_requests, request_duration, request_memory)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 1)
 
     def test_multiples_gci_collects(self):
-        num_requests, request_duration, request_memory = 70, 0.001, 0.1
-        sim_duration = self.sim_duration_time(num_requests, request_duration * 10, request_memory)
-        self.env_run(2 * sim_duration, num_requests, request_duration, request_memory, process_time=0.01)
-        print("REQUESTS EXE %.i" % len(self.requests))
+        num_requests, request_duration, request_memory = 71, 0.001, 0.1
+        sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, num_requests, request_duration, request_memory, process_time=0.01)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 10)
 

@@ -54,17 +54,9 @@ class GCI(object):
         self.history_size = 5
         self.times_performed = 0
 
-        self.gci_run = self.env.process(self.run())
-
-    def run(self):
-        while True:
-            yield self.env.process(self.check())
-            yield self.env.timeout(self.sleep)
-
     def check(self):
         if self.server.processed_requests >= self.check_heap:
             if self.server.heap.level >= self.threshold:
-                if not self.shed_requests:
                     yield self.env.process(self.run_gc())
 
     def run_gc(self):
