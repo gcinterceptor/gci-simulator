@@ -2,34 +2,34 @@ import simpy
 
 class GC(object):
 
-    def __init__(self, env, server, threshold=0.9, sleep=0.02):
+    def __init__(self, env, server, threshold=0.9, sleep_time=0.02):
         self.env = env
         self.server = server
         self.heap = server.heap
         self.threshold = threshold
-        self.sleep = sleep
-        self.collect_exe = False
+        self.sleep_time = sleep_time
+        self.collecting_trash = False
         self.times_performed = 0
         self.gc_process = self.env.process(self.run())
 
     def run(self):
         while True:
-            if self.heap.level >= self.threshold and not self.collect_exe:
+            if self.heap.level >= self.threshold and not self.collecting_trash:
                 yield self.env.process(self.collect())
                 self.times_performed += 1
 
-            yield self.env.timeout(self.sleep)  # wait for...
+            yield self.env.timeout(self.sleep_time)  # wait for...
 
     def collect(self):
         print("At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
-        self.collect_exe = True
+        self.collecting_trash = True
         self.server.action.interrupt()
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
             yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
 
-        self.collect_exe = False
+        self.collecting_trash = False
         print("At %.3f, GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
         self.server.action = self.env.process(self.server.run())
 
@@ -40,18 +40,20 @@ class GC(object):
 
 class GCI(object):
 
-    def __init__(self, env, server,  threshold=0.7, check_heap=2, initial_gc_exec_time=0, sleep=0.00002):
+    def __init__(self, env, server,  threshold=0.7, check_heap=2, initial_estimated_gc_exec_time=0.0, sleep_time=0.00002):
         self.env = env
         self.server = server
         self.threshold = threshold
         self.check_heap = check_heap
-        self.gc_exec_time = initial_gc_exec_time
-        self.sleep = sleep
+        self.sleep_time = sleep_time
 
         self.shed_requests = False
+
+        self.estimated_gc_exec_time = initial_estimated_gc_exec_time
         self.processed_requests_history = list()
         self.gc_execution_history = list()
         self.history_size = 5
+
         self.times_performed = 0
 
     def check(self):
@@ -69,35 +71,33 @@ class GCI(object):
 
         # run GC
         gc_start_time = self.env.now
-        if self.server.gc.collect_exe:
-            while self.server.gc.collect_exe:
-                yield self.env.timeout(self.sleep)
+        if self.server.gc.collecting_trash:
+            while self.server.gc.collecting_trash:
+                yield self.env.timeout(self.sleep_time)
         else:
             yield self.env.process(self.server.gc.collect())
         gc_end_time = self.env.now
 
         # leave server
-        self.update_gci_values(gc_end_time - gc_start_time)
         self.shed_requests = False
+        self.update_gci_values(gc_end_time - gc_start_time)
         self.times_performed += 1
         print("At %.3f, GCI finish his job" % (self.env.now))
 
     def check_request_queue(self):
         while len(self.server.queue.items) > 0:
-            yield self.env.timeout(self.sleep)
+            yield self.env.timeout(self.sleep_time)
 
     def estimated_shed_time(self):
-        return self.estimated_request_execution_time() + self.estimated_gc_execution_time()
+        return self.estimated_requests_execution_time() + self.estimated_gc_execution_time()
 
-    def estimated_request_execution_time(self):
-        # implement the way to get the max value of the last five time of requests execution time
-        # history of lasts requests time executions
-        return self.gc_exec_time + len(self.server.queue.items) * 0.001
+    def estimated_requests_execution_time(self):
+        # TODO(David) implement the way to get the max value of the last five time of requests execution time
+        return self.estimated_gc_exec_time + (len(self.server.queue.items) * 0.001)
 
     def estimated_gc_execution_time(self):
-        # implement the way to get the max value of the last five time of requests execution time
-        # history of lasts requests time executions
-        return self.gc_exec_time + self.server.heap.level + len(self.server.queue.items) * 0.1
+        # TODO(David) implement the way to get the max value of the last five time of requests execution time
+        return self.estimated_gc_exec_time + self.server.heap.level + len(self.server.queue.items) * 0.1
 
     def update_gci_values(self, gc_execution_time):
         # update request history
@@ -114,4 +114,4 @@ class GCI(object):
         self.gc_execution_history.append(gc_execution_time)
 
         # update estimated gc execution time
-        self.gc_exec_time = max(self.gc_execution_history)
+        self.estimated_gc_exec_time = max(self.gc_execution_history)

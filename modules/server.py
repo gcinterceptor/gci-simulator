@@ -55,7 +55,7 @@ class ServerWithGCI(Server):
         self.env.timeout(self.sleep)
 
         if self.gci.shed_requests:
-            yield self.env.process(request.client.refused_request(request, self.gci.estimated_shed_time()))
+            yield self.env.process(request.client.shed_request(request, self.gci.estimated_shed_time()))
 
         else:
             yield self.queue.put(request)  # put the request at the end of the queue
