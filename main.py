@@ -13,6 +13,6 @@ env.run(until=SIM_DURATION_SECONDS)
 print("Heap level: %.5f%%" % server.heap.level)
 print("Remaining requests in queue: %i" % len(server.queue.items))
 print("Processed requests: %i" % len(requests))
-print("GC executions: %i" % server.gc.times_performed)
 print("GCI executions: %i" % server.gci.times_performed)
-#print time GCing...
+print("GC executions: %i" % server.gc.times_performed)
+print("GC execution time sum: %.3f seconds" % server.gci.gc_exec_time_sum)

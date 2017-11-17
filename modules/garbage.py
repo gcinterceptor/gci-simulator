@@ -34,7 +34,7 @@ class GC(object):
         self.server.action = self.env.process(self.server.run())
 
     def gc_execution_time_by_trash(self, trash):
-        """ implement the way to calculate the execution time of Garbage Collector """
+        # TODO(David) implement the way to calculate the execution time of Garbage Collector
         return trash
 
 
@@ -55,6 +55,7 @@ class GCI(object):
         self.history_size = 5
 
         self.times_performed = 0
+        self.gc_exec_time_sum = 0
 
     def check(self):
         if self.server.processed_requests >= self.check_heap:
@@ -80,9 +81,13 @@ class GCI(object):
 
         # leave server
         self.shed_requests = False
-        self.update_gci_values(gc_end_time - gc_start_time)
+
+        gc_exec_time = gc_end_time - gc_start_time
+        self.gc_exec_time_sum += gc_exec_time
+        self.update_gci_values(gc_exec_time)
+
         self.times_performed += 1
-        print("At %.3f, GCI finish his job" % (self.env.now))
+        print("At %.3f, GCI finish his job and GC takes %.3f seconds to execute" % (self.env.now, gc_exec_time))
 
     def check_request_queue(self):
         while len(self.server.queue.items) > 0:
