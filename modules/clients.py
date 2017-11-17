@@ -1,9 +1,9 @@
 import simpy
 
 class Request(object):
-    def __init__(self, created_at, request_exec_time, memory, client):
+    def __init__(self, created_at, service_time, memory, client):
         self.created_at = created_at
-        self.execution_time = request_exec_time
+        self.service_time = service_time
         self.memory = memory
         self.client = client
         self.done = False
@@ -12,7 +12,7 @@ class Request(object):
         self._processed_time = None
 
     def run(self, env, heap):
-        yield env.timeout(self.execution_time)
+        yield env.timeout(self.service_time)
         yield heap.put(self.memory)
         self.processed_at(env.now)
 
