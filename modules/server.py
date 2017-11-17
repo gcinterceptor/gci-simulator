@@ -50,16 +50,4 @@ class ServerWithGCI(Server):
         self.gci = GCI(self.env, self)
 
     def request_arrived(self, request):
-
-        self.env.process(self.gci.check())
-        self.env.timeout(self.sleep)
-
-        if self.gci.shed_requests:
-            yield self.env.process(request.client.shed_request(request, self.gci.estimated_shed_time()))
-
-        else:
-            yield self.queue.put(request)  # put the request at the end of the queue
-            yield self.env.process(request.client.successfully_sent(request))
-
-
-
+        yield self.env.process(self.gci.intercept(request))

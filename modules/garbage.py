@@ -11,6 +11,7 @@ class GC(object):
         self.collecting_trash = False
         self.times_performed = 0
         self.collects_performed = 0
+        self.gc_exec_time_sum = 0
         self.gc_process = self.env.process(self.run())
 
     def run(self):
@@ -25,10 +26,13 @@ class GC(object):
         print("At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
         self.collecting_trash = True
         self.server.action.interrupt()
+
+        gc_start_time = self.env.now
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
             yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
+        self.gc_exec_time_sum += (self.env.now - gc_start_time)
 
         self.collecting_trash = False
         print("At %.3f, GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
@@ -58,6 +62,17 @@ class GCI(object):
 
         self.times_performed = 0
         self.gc_exec_time_sum = 0
+
+    def intercept(self, request):
+        self.env.process(self.check())
+        self.env.timeout(self.sleep_time)
+
+        if self.shed_requests:
+            yield self.env.process(request.client.shed_request(request, self.estimated_shed_time()))
+
+        else:
+            yield self.server.queue.put(request)  # put the request at the end of the queue
+            yield self.env.process(request.client.successfully_sent(request))
 
     def check(self):
         if self.server.processed_requests >= self.check_heap:
