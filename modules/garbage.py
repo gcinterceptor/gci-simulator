@@ -17,7 +17,9 @@ class GC(object):
     def run(self):
         while True:
             if self.heap.level >= self.threshold and not self.collecting_trash:
+                gc_start_time = self.env.now
                 yield self.env.process(self.collect())
+                self.gc_exec_time_sum += (self.env.now - gc_start_time)
                 self.times_performed += 1
 
             yield self.env.timeout(self.sleep_time)  # wait for...
@@ -27,12 +29,10 @@ class GC(object):
         self.collecting_trash = True
         self.server.action.interrupt()
 
-        gc_start_time = self.env.now
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
             yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
-        self.gc_exec_time_sum += (self.env.now - gc_start_time)
 
         self.collecting_trash = False
         print("At %.3f, GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
