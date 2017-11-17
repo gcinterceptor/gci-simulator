@@ -10,6 +10,7 @@ class GC(object):
         self.sleep_time = sleep_time
         self.collecting_trash = False
         self.times_performed = 0
+        self.collects_performed = 0
         self.gc_process = self.env.process(self.run())
 
     def run(self):
@@ -32,6 +33,7 @@ class GC(object):
         self.collecting_trash = False
         print("At %.3f, GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
         self.server.action = self.env.process(self.server.run())
+        self.collects_performed += 1
 
     def gc_execution_time_by_trash(self, trash):
         # TODO(David) implement the way to calculate the execution time of Garbage Collector
@@ -75,8 +77,10 @@ class GCI(object):
         if self.server.gc.collecting_trash:
             while self.server.gc.collecting_trash:
                 yield self.env.timeout(self.sleep_time)
-        else:
+
+        elif self.server.heap.level >= self.threshold: # ensure that will only collect if still there is a reason for..
             yield self.env.process(self.server.gc.collect())
+
         gc_end_time = self.env.now
 
         # leave server
