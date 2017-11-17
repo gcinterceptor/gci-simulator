@@ -66,8 +66,8 @@ class TestVanilla(unittest.TestCase):
         msg = "Expected value: " + str(expected) + ", received value: " + str(received)
         self.assertAlmostEqual(expected, received, msg=msg, delta=delta)
 
-    def env_run(self, sim_duration, max_requests, service_time, memory, create_request_rate=0.01):
-        Clients(self.env, self.server, self.requests, create_request_rate=create_request_rate, max_requests=max_requests, service_time=service_time, memory=memory)
+    def env_run(self, sim_duration, max_requests, request_exec_time, memory, create_request_time=0.01):
+        Clients(self.env, self.server, self.requests, create_request_time=create_request_time, max_requests=max_requests, request_exec_time=request_exec_time, memory=memory)
         self.env.run(until=sim_duration)
 
 

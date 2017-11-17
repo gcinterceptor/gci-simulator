@@ -14,7 +14,7 @@ class TestGCI(unittest.TestCase):
     def test_interaction(self):
         num_requests, request_duration, request_memory = 1, 0.035, 0.69
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory, process_time=0.00001)
+        self.env_run(sim_duration, num_requests, request_duration, request_memory, sleep_time=0.00001)
         request = self.requests[0]
         expected = 0.000
         self.assert_almost_equal(expected, request.created_at)
@@ -82,7 +82,7 @@ class TestGCI(unittest.TestCase):
     def test_multiples_gci_collects(self):
         num_requests, request_duration, request_memory = 71, 0.001, 0.1
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory, process_time=0.01)
+        self.env_run(sim_duration, num_requests, request_duration, request_memory, sleep_time=0.01)
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 10)
 
@@ -97,9 +97,9 @@ class TestGCI(unittest.TestCase):
     def sim_duration_time(self, num_requests, request_duration, request_memory, sleep_time=2, create_request_rate=0.01):
         return num_requests * (request_duration + request_memory + create_request_rate) + sleep_time
 
-    def env_run(self, sim_duration, max_requests, service_time, memory, process_time=0.01, create_request_rate=0.01):
-        Clients(self.env, self.server, self.requests, process_time=process_time,
-                create_request_rate=create_request_rate, max_requests=max_requests, service_time=service_time, memory=memory)
+    def env_run(self, sim_duration, max_requests, request_exec_time, memory, sleep_time=0.01, create_request_time=0.01):
+        Clients(self.env, self.server, self.requests, sleep_time=sleep_time,
+                create_request_time=create_request_time, max_requests=max_requests, request_exec_time=request_exec_time, memory=memory)
         self.env.run(until=sim_duration)
 
 
