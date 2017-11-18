@@ -1,10 +1,10 @@
 import simpy
 
 class Request(object):
-    def __init__(self, created_at, service_time, memory, client):
+    def __init__(self, created_at, client, conf):
         self.created_at = created_at
-        self.service_time = service_time
-        self.memory = memory
+        self.service_time = float(conf['service_time'])
+        self.memory = float(conf['memory'])
         self.client = client
         self.done = False
         self._done_time = None
@@ -27,17 +27,17 @@ class Request(object):
 
 class Clients(object):
 
-    def __init__(self, env, server, requests, sleep_time=0.00001, create_request_time=0.01, max_requests=float("inf"), 
-                    request_exec_time=0.0035, memory=0.02):
+    def __init__(self, env, server, requests, conf, requests_conf):
         self.env = env
         self.server = server
         self.requests = requests
-        self.sleep_time = sleep_time
+        self.sleep_time = float(conf['sleep_time'])
         self.queue = simpy.Store(env)               # the queue of requests
-        self.action = env.process(self.send_request())
-        self.create_request = env.process(self.create_requests(create_request_time, max_requests, request_exec_time, memory))
+        self.action = env.process(self.send_requests())
+        self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),
+                                                               float(conf['max_requests']), requests_conf))
 
-    def send_request(self):
+    def send_requests(self):
         while True:
             if len(self.queue.items) > 0:           # check if there is any request to be processed
                 request = yield self.queue.get()    # get a request from store
@@ -45,12 +45,12 @@ class Clients(object):
 
             yield self.env.timeout(self.sleep_time) # wait for...
 
-    def create_requests(self, create_request_time, max_requests, request_exec_time, memory):
+    def create_requests(self, create_request_time, max_requests, requests_conf):
         count_requests = 1
         while count_requests <= max_requests:
-            request = Request(self.env.now, request_exec_time, memory, self)
+            request = Request(self.env.now, self, requests_conf)
             yield self.queue.put(request)
-            yield self.env.timeout(create_request_time)
+            yield self.env.timeout(1.0 / create_request_time)
             count_requests += 1
 
     def successfully_sent(self, request):

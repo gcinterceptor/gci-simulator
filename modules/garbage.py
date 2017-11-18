@@ -2,12 +2,12 @@ import simpy
 
 class GC(object):
 
-    def __init__(self, env, server, threshold=0.9, sleep_time=0.02):
+    def __init__(self, env, server, conf):
         self.env = env
         self.server = server
         self.heap = server.heap
-        self.threshold = threshold
-        self.sleep_time = sleep_time
+        self.threshold = float(conf['threshold'])
+        self.sleep_time = float(conf['sleep_time'])
         self.collecting_trash = False
         self.times_performed = 0
         self.collects_performed = 0
@@ -46,16 +46,15 @@ class GC(object):
 
 class GCI(object):
 
-    def __init__(self, env, server,  threshold=0.7, check_heap=2, initial_estimated_gc_exec_time=0.0, sleep_time=0.00002):
+    def __init__(self, env, server,  conf):
         self.env = env
         self.server = server
-        self.threshold = threshold
-        self.check_heap = check_heap
-        self.sleep_time = sleep_time
+        self.check_heap = int(conf['check_heap'])
+        self.threshold = float(conf['threshold'])
+        self.sleep_time = float(conf['sleep_time'])
+        self.estimated_gc_exec_time = float(conf['initial_estimated_gc_exec_time'])
 
         self.shed_requests = False
-
-        self.estimated_gc_exec_time = initial_estimated_gc_exec_time
         self.processed_requests_history = list()
         self.gc_execution_history = list()
         self.history_size = 5

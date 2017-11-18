@@ -1,19 +1,22 @@
 import sys            # These two first lines, fixes
 sys.path.append("..") # the problem of imports from modeles
-import unittest, simpy
+import unittest, simpy, configparser, os
 from modules import Request
 
 class TestRequest(unittest.TestCase):
 
     @classmethod
     def setUp(self):
+        self.config = configparser.ConfigParser()
+        self.config.read('../configfiles/request.ini')
         self.env = simpy.Environment()
         self.heap = simpy.Container(self.env, 100, init=0)  # our trash heap
         self.SIM_DURATION = 10
 
     def test(self):
         created_at = self.env.now
-        request = Request(created_at, 0.035, 0.02, None) # It just keeps who is his owner, but don't do anything with it. That why it can be None.
+        requests_conf = self.config['request service_time-0.0035 memory-0.02']
+        request = Request(created_at, None, requests_conf) # It just keeps who is his owner, but don't do anything with it. That why it can be None.
 
         sent_at = self.env.now
         request.sent_at(self.env.now)
@@ -40,7 +43,7 @@ class TestRequest(unittest.TestCase):
         self.assert_almost_equal(expected, request.created_at)
         self.assert_almost_equal(expected, request._sent_time)
 
-        expected = 0.035
+        expected = 0.0035
         self.assert_almost_equal(expected, request._processed_time)
 
     def assert_almost_equal(self, expected, received, delta=0.0001):

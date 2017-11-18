@@ -3,18 +3,15 @@ from modules import GC, GCI
 
 class Server(object):
 
-    def __init__(self, env, sleep=0.000001, queue_limite=100, heap_limit=4):
+    def __init__(self, env, conf, gc_conf):
         self.env = env
-
-        self.sleep = sleep
-        self.queue = simpy.Store(env, queue_limite) # the queue of requests
-        self.remaining_queue = simpy.Store(env, queue_limite)  # the queue of interrupted requests
-        self.heap = simpy.Container(env, heap_limit, init=0) # our trash heap
-
+        self.sleep = float(conf['sleep_time'])
+        self.queue = simpy.Store(env) # the queue of requests
+        self.remaining_queue = simpy.Store(env)  # the queue of interrupted requests
+        self.heap = simpy.Container(env) # our trash heap
         self.processed_requests = 0
         self.action = env.process(self.run())
-
-        self.gc = GC(self.env, self)
+        self.gc = GC(self.env, self, gc_conf)
 
     def run(self):
         try:
@@ -45,9 +42,9 @@ class Server(object):
 
 class ServerWithGCI(Server):
 
-    def __init__(self, env, sleep=0.000001, queue_limite=100, heap_limit=4):
-        super().__init__(env, sleep, queue_limite, heap_limit)
-        self.gci = GCI(self.env, self)
+    def __init__(self, env, conf, gc_conf, gci_conf):
+        super().__init__(env, conf, gc_conf)
+        self.gci = GCI(self.env, self, gci_conf)
 
     def request_arrived(self, request):
         yield self.env.process(self.gci.intercept(request))

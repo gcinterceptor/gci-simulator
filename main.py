@@ -1,12 +1,22 @@
 from modules import Clients, ServerWithGCI, GCI
 import simpy
+import configparser
 
 SIM_DURATION_SECONDS = 12
 env = simpy.Environment()
 
-server = ServerWithGCI(env)
+config = configparser.ConfigParser()
+config.read('configfiles/all-main-conf.ini')
+
+gc_conf = config['gc']
+gci_conf = config['gci']
+server_conf = config['server']
+server = ServerWithGCI(env, server_conf, gc_conf, gci_conf)
+
 requests = list()
-clients = Clients(env, server, requests)
+client_conf = config['clients']
+requests_conf = config['request']
+clients = Clients(env, server, requests, client_conf, requests_conf)
 
 env.run(until=SIM_DURATION_SECONDS)
 
