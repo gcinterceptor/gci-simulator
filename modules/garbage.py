@@ -2,124 +2,132 @@ import simpy
 
 class GC(object):
 
-    def __init__(self, env, heap, threshold=0.9, sleep=2):
+    def __init__(self, env, server, threshold=0.9, sleep_time=0.02):
         self.env = env
-        self.heap = heap
+        self.server = server
+        self.heap = server.heap
         self.threshold = threshold
-        self.sleep = sleep
-        self.collect_exe = None
+        self.sleep_time = sleep_time
+        self.collecting_trash = False
+        self.times_performed = 0
+        self.collects_performed = 0
+        self.gc_exec_time_sum = 0
+        self.gc_process = self.env.process(self.run())
 
     def run(self):
-        try:
-            while True:
-                if self.heap.level >= self.threshold:
-                    self.env.process(self.collect())
-                yield self.env.timeout(self.sleep)
+        while True:
+            if self.heap.level >= self.threshold and not self.collecting_trash:
+                gc_start_time = self.env.now
+                yield self.env.process(self.collect())
+                self.gc_exec_time_sum += (self.env.now - gc_start_time)
+                self.times_performed += 1
 
-        except simpy.Interrupt:
-            yield self.env.timeout(self.sleep)  # wait for...
-
+            yield self.env.timeout(self.sleep_time)  # wait for...
 
     def collect(self):
-        print("At %.3f, CGC GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
+        print("At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
+        self.collecting_trash = True
+        self.server.action.interrupt()
 
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
             yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
 
-        print("At %.3f, CGC GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
+        self.collecting_trash = False
+        print("At %.3f, GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
+        self.server.action = self.env.process(self.server.run())
+        self.collects_performed += 1
 
     def gc_execution_time_by_trash(self, trash):
-        """ implement the way to calculate the execution time of Garbage Collector """
+        # TODO(David) implement the way to calculate the execution time of Garbage Collector
         return trash
 
-class STWGC(GC):
-
-    def __init__(self, env, server, threshold=1, sleep=2):
-        super().__init__(env, server.heap, threshold, sleep)
-        self.server = server
-
-    def collect(self):
-        print("At %.3f, STWGC GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
-
-        self.server.action.interrupt()
-        if self.server.gc.collect_exe:
-            self.server.gc.collect_exe.interrupt()
-
-        while self.heap.level > 0:                                          # while threshold is empty...
-            trash = self.heap.level                                         # keeps the amount of trash
-            yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
-            yield self.heap.get(trash)                                      # discards the trash
-
-        self.server.action = self.env.process(self.server.run())
-
-        print("At %.3f, STWGC GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
 
 class GCI(object):
 
-    def __init__(self, env,  threshold=0.7, check_heap=2, initial_gc_exec_time=0.200):
+    def __init__(self, env, server,  threshold=0.7, check_heap=2, initial_estimated_gc_exec_time=0.0, sleep_time=0.00002):
         self.env = env
+        self.server = server
         self.threshold = threshold
         self.check_heap = check_heap
-        self.gc_exec_time = initial_gc_exec_time
+        self.sleep_time = sleep_time
 
         self.shed_requests = False
 
+        self.estimated_gc_exec_time = initial_estimated_gc_exec_time
         self.processed_requests_history = list()
         self.gc_execution_history = list()
         self.history_size = 5
 
-        self.sleep = 0.02
+        self.times_performed = 0
+        self.gc_exec_time_sum = 0
 
-    def run(self, server):
-        while True:
-            if server.processed_requests >= self.check_heap:
-                print("At %.3f, GCI check the heap and it is at %.3f" % (self.env.now, server.heap.level))
+    def intercept(self, request):
+        self.env.process(self.check())
+        self.env.timeout(self.sleep_time)
 
-                if server.heap.level >= self.threshold:
-                    # create an event that will set shed as true and available as false
-                    self.shed_requests = True
+        if self.shed_requests:
+            yield self.env.process(request.client.shed_request(request, self.estimated_shed_time()))
 
-                    # wait for the queue to get empty.
-                    yield self.env.process(self.check_request_queue(server))
+        else:
+            yield self.server.queue.put(request)  # put the request at the end of the queue
+            yield self.env.process(request.client.successfully_sent(request))
 
-                    if self.server.stwgc.collect_exe:
-                        self.server.stwgcc.collect_exe.interrupt()
+    def check(self):
+        if self.server.processed_requests >= self.check_heap:
+            if self.server.heap.level >= self.threshold:
+                    yield self.env.process(self.run_gc())
 
-                    # run STWGC
-                    gc_start_time = self.env.now
-                    yield self.env.process(server.stwgc.collect())
-                    gc_end_time = self.env.now
+    def run_gc(self):
+        print("At %.3f, GCI check the heap and it is at %.3f" % (self.env.now, self.server.heap.level))
+        # create an event that will set shed as true and available as false
+        self.shed_requests = True
 
-                    # leave server
-                    self.update_gci_values(gc_end_time - gc_start_time, server)
-                    self.shed_requests = False
+        # wait for the queue to get empty.
+        yield self.env.process(self.check_request_queue())
 
-            yield self.env.timeout(self.sleep)
+        # run GC
+        gc_start_time = self.env.now
+        if self.server.gc.collecting_trash:
+            while self.server.gc.collecting_trash:
+                yield self.env.timeout(self.sleep_time)
 
-    def check_request_queue(self, server):
-        while len(server.queue.items) > 0:
-            yield self.env.timeout(self.sleep)
+        elif self.server.heap.level >= self.threshold: # ensure that will only collect if still there is a reason for..
+            yield self.env.process(self.server.gc.collect())
 
-    def estimated_shed_time(self, server):
-        return self.env.now + self.estimated_request_execution_time(server) + self.estimated_gc_execution_time(server)
+        gc_end_time = self.env.now
 
-    def estimated_request_execution_time(self, server):
-        # implement the way to get the max value of the last five time of requests execution time
-        # history of lasts requests time executions
-        return self.gc_exec_time + len(server.queue.items) * 0.035
+        # leave server
+        self.shed_requests = False
 
-    def estimated_gc_execution_time(self, server):
-        # implement the way to get the max value of the last five time of requests execution time
-        # history of lasts requests time executions
-        return self.gc_exec_time + server.heap.level + len(server.queue.items) * 0.01
+        gc_exec_time = gc_end_time - gc_start_time
+        self.gc_exec_time_sum += gc_exec_time
+        self.update_gci_values(gc_exec_time)
 
-    def update_gci_values(self, gc_execution_time, server):
+        self.times_performed += 1
+        print("At %.3f, GCI finish his job and GC takes %.3f seconds to execute" % (self.env.now, gc_exec_time))
+
+    def check_request_queue(self):
+        while len(self.server.queue.items) > 0:
+            yield self.env.timeout(self.sleep_time)
+
+    def estimated_shed_time(self):
+        return self.estimated_requests_execution_time() + self.estimated_gc_execution_time()
+
+    def estimated_requests_execution_time(self):
+        # TODO(David) implement the way to get the max value of the last five time of requests execution time
+        return self.estimated_gc_exec_time + (len(self.server.queue.items) * 0.001)
+
+    def estimated_gc_execution_time(self):
+        # TODO(David) implement the way to get the max value of the last five time of requests execution time
+        return self.estimated_gc_exec_time + self.server.heap.level + len(self.server.queue.items) * 0.1
+
+    def update_gci_values(self, gc_execution_time):
         # update request history
         if (len(self.processed_requests_history) == self.history_size):
             del self.processed_requests_history[0]
-        self.processed_requests_history.append(server.processed_requests)
+        self.processed_requests_history.append(self.server.processed_requests)
 
         # update Check Heap value
         self.check_heap = min(self.processed_requests_history)
@@ -130,4 +138,4 @@ class GCI(object):
         self.gc_execution_history.append(gc_execution_time)
 
         # update estimated gc execution time
-        self.gc_exec_time = max(self.gc_execution_history)
+        self.estimated_gc_exec_time = max(self.gc_execution_history)

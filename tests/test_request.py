@@ -1,6 +1,7 @@
+import sys            # These two first lines, fixes
+sys.path.append("..") # the problem of imports from modeles
+import unittest, simpy
 from modules import Request
-import unittest
-import simpy
 
 class TestRequest(unittest.TestCase):
 
@@ -23,7 +24,7 @@ class TestRequest(unittest.TestCase):
         # check if the created_at is set correctly
         self.assert_true(expected_value, request.created_at)
 
-        expected_value = request.duration
+        expected_value = request.service_time
         # check if the running time of the request is correct
         self.assert_true(expected_value, request._processed_time)
 
@@ -34,6 +35,17 @@ class TestRequest(unittest.TestCase):
         expected_value = sent_at
         # check if the sent_at is set correctly
         self.assert_true(expected_value, request._sent_time)
+
+        expected = 0.000
+        self.assert_almost_equal(expected, request.created_at)
+        self.assert_almost_equal(expected, request._sent_time)
+
+        expected = 0.035
+        self.assert_almost_equal(expected, request._processed_time)
+
+    def assert_almost_equal(self, expected, received, delta=0.0001):
+        msg = "Expected value: " + str(expected) + ", received value: " + str(received)
+        self.assertAlmostEqual(expected, received, msg=msg, delta=delta)
 
     def assert_true(self, expected, received):
         self.assertTrue(expected == received, "Expected value: " + str(expected) + ", received value: " + str(received))
