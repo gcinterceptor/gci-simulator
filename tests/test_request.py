@@ -1,21 +1,21 @@
-import sys            # These two first lines, fixes
-sys.path.append("..") # the problem of imports from modeles
-import unittest, simpy, configparser, os
+import sys
+sys.path.append("..") # fixes the problem of imports from modeles
+
+import unittest, simpy
 from modules import Request
+from util import getConfig
 
 class TestRequest(unittest.TestCase):
 
     @classmethod
     def setUp(self):
-        self.config = configparser.ConfigParser()
-        self.config.read('../configfiles/request.ini')
         self.env = simpy.Environment()
         self.heap = simpy.Container(self.env, 100, init=0)  # our trash heap
         self.SIM_DURATION = 10
 
     def test(self):
         created_at = self.env.now
-        requests_conf = self.config['request service_time-0.0035 memory-0.02']
+        requests_conf = getConfig('../config/request.ini', 'request service_time-0.0035 memory-0.02')
         request = Request(created_at, None, requests_conf) # It just keeps who is his owner, but don't do anything with it. That why it can be None.
 
         sent_at = self.env.now

@@ -1,5 +1,9 @@
+import sys
+sys.path.append("..") # It fixes the problem of imports from modeles
+
 import simpy
 from modules import GC, GCI
+from util import getLogger
 
 class Server(object):
 
@@ -12,6 +16,8 @@ class Server(object):
         self.processed_requests = 0
         self.action = env.process(self.run())
         self.gc = GC(self.env, self, gc_conf)
+
+        self.logger = getLogger("../logs/server.log", "SERVER")
 
     def run(self):
         try:
@@ -29,6 +35,7 @@ class Server(object):
                 yield self.env.timeout(self.sleep)  # wait for...
 
         except simpy.Interrupt:
+            self.logger.info(" At %.3f, Server was interrupted" % (self.env.now))
             yield self.remaining_queue.put(request)
 
     def process_request(self, request):

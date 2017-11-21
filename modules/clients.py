@@ -1,6 +1,11 @@
+import sys
+sys.path.append("..") # It fixes the problem of imports from modeles
+
 import simpy
+from util import getLogger
 
 class Request(object):
+
     def __init__(self, created_at, client, conf):
         self.created_at = created_at
         self.service_time = float(conf['service_time'])
@@ -34,8 +39,9 @@ class Clients(object):
         self.sleep_time = float(conf['sleep_time'])
         self.queue = simpy.Store(env)               # the queue of requests
         self.action = env.process(self.send_requests())
-        self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),
-                                                               float(conf['max_requests']), requests_conf))
+        self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), requests_conf))
+
+        self.logger = getLogger("../logs/clients.log", "CLIENTS")
 
     def send_requests(self):
         while True:
@@ -65,5 +71,6 @@ class Clients(object):
     def shed_request(self, request, unavailable_until):
         # don't let the client send new requests until unavailable_until
         # put the request in the front of the queue?
+        self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
         yield self.env.timeout(unavailable_until)
         yield self.queue.put(request)
