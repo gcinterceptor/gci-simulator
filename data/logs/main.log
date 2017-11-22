@@ -1,0 +1,7 @@
+2017-11-21 22:46:51,699 INFO Heap level: 0.00000%
+2017-11-21 22:46:51,699 INFO Remaining requests in queue: 0
+2017-11-21 22:46:51,700 INFO Processed requests: 480
+2017-11-21 22:46:51,700 INFO GCI executions: 13
+2017-11-21 22:46:51,700 INFO GC executions: 0
+2017-11-21 22:46:51,700 INFO GC execution time sum: 9.600 seconds
+2017-11-21 22:46:51,700 INFO Collects performed: 13

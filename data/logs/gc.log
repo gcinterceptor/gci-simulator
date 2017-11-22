@@ -1,0 +1,39 @@
+2017-11-21 22:46:40,341 INFO  At 0.352, GC is running. We have 0.700 of trash
+2017-11-21 22:46:40,974 INFO  At 1.072, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:41,279 INFO  At 1.290, GC is running. We have 0.720 of trash
+2017-11-21 22:46:41,934 INFO  At 2.030, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:42,178 INFO  At 2.220, GC is running. We have 0.720 of trash
+2017-11-21 22:46:42,827 INFO  At 2.960, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:43,059 INFO  At 3.151, GC is running. We have 0.720 of trash
+2017-11-21 22:46:43,696 INFO  At 3.891, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:43,928 INFO  At 4.081, GC is running. We have 0.720 of trash
+2017-11-21 22:46:44,577 INFO  At 4.821, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:44,815 INFO  At 5.011, GC is running. We have 0.720 of trash
+2017-11-21 22:46:45,454 INFO  At 5.751, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:45,685 INFO  At 5.941, GC is running. We have 0.720 of trash
+2017-11-21 22:46:46,333 INFO  At 6.681, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:46,565 INFO  At 6.871, GC is running. We have 0.720 of trash
+2017-11-21 22:46:47,209 INFO  At 7.611, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:47,445 INFO  At 7.801, GC is running. We have 0.720 of trash
+2017-11-21 22:46:48,130 INFO  At 8.541, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:48,373 INFO  At 8.731, GC is running. We have 0.720 of trash
+2017-11-21 22:46:49,019 INFO  At 9.471, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:49,250 INFO  At 9.661, GC is running. We have 0.720 of trash
+2017-11-21 22:46:49,902 INFO  At 10.401, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:50,142 INFO  At 10.592, GC is running. We have 0.720 of trash
+2017-11-21 22:46:50,821 INFO  At 11.332, GC finish his job. Now we have 0.000 of trash
+
+2017-11-21 22:46:51,056 INFO  At 11.522, GC is running. We have 0.720 of trash
+2017-11-21 22:46:51,697 INFO  At 12.262, GC finish his job. Now we have 0.000 of trash
+
