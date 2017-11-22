@@ -64,7 +64,6 @@ class GCI(object):
 
         self.logger = getLogger("../../data/logs/gci.log", "GCI")
 
-
         self._time_shedding = 0
 
     def intercept(self, request):
@@ -73,11 +72,11 @@ class GCI(object):
 
         if self.is_shedding:
             self.logger.info(" At %.3f, shedding request" % self.env.now)
-            yield self.env.process(request.client.shed_request(request, self._time_shedding))
+            yield self.env.process(request.load_balancer.shed_request(request, self.server, self._time_shedding))
 
         else:
             yield self.server.queue.put(request)  # put the request at the end of the queue
-            yield self.env.process(request.client.successfully_sent(request))
+            yield self.env.process(request.load_balancer.successfully_sent(request))
 
     def check(self):
         if self.server.processed_requests >= self.check_heap:

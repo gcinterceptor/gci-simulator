@@ -1,4 +1,4 @@
-from simulator.modules import Clients, ServerWithGCI
+from simulator.modules import Clients, LoadBalancer, ServerWithGCI
 from simulator.util import getConfig, getLogger
 import simpy
 
@@ -10,12 +10,14 @@ if __name__ == '__main__':
     client_conf = getConfig('../../data/config/clients.ini', 'clients sleep_time-0.00349 create_request_rate-100 max_requests-inf')
     gc_conf = getConfig('../../data/config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
     gci_conf = getConfig('../../data/config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.0')
+    loadbalancer_conf = getConfig('../../data/config/loadbalancer.ini', 'loadbalancer sleep_time-0.0035')
     requests_conf = getConfig('../../data/config/request.ini', 'request service_time-0.0035 memory-0.02')
     server_conf = getConfig('../../data/config/server.ini', 'server sleep_time-0.00001')
 
     requests = list()
-    server = ServerWithGCI(env, server_conf, gc_conf, gci_conf)
-    clients = Clients(env, server, requests, client_conf, requests_conf)
+    server = ServerWithGCI(env, 1, server_conf, gc_conf, gci_conf)
+    load_balancer = LoadBalancer(env, server, loadbalancer_conf)
+    clients = Clients(env, load_balancer, requests, client_conf, requests_conf)
 
     env.run(until=SIM_DURATION_SECONDS)
 

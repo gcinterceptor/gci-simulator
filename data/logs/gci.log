@@ -1,52 +1,52 @@
-2017-11-21 22:46:40,341 INFO  At 0.352, GCI check the heap and it is at 0.700
-2017-11-21 22:46:40,351 INFO  At 0.363, shedding request
-2017-11-21 22:46:40,975 INFO  At 1.072, GCI finish his job and GC takes 0.720 seconds to execute
+2017-11-22 00:00:18,455 INFO  At 0.354, GCI check the heap and it is at 0.700
+2017-11-22 00:00:18,469 INFO  At 0.364, shedding request
+2017-11-22 00:00:19,194 INFO  At 1.074, GCI finish his job and GC takes 0.720 seconds to execute
 
-2017-11-21 22:46:41,277 INFO  At 1.290, GCI check the heap and it is at 0.700
-2017-11-21 22:46:41,281 INFO  At 1.293, shedding request
-2017-11-21 22:46:41,934 INFO  At 2.030, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:19,713 INFO  At 1.288, GCI check the heap and it is at 0.700
+2017-11-22 00:00:19,725 INFO  At 1.291, shedding request
+2017-11-22 00:00:20,404 INFO  At 2.028, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:42,175 INFO  At 2.220, GCI check the heap and it is at 0.700
-2017-11-21 22:46:42,182 INFO  At 2.223, shedding request
-2017-11-21 22:46:42,827 INFO  At 2.960, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:21,013 INFO  At 2.215, GCI check the heap and it is at 0.700
+2017-11-22 00:00:21,029 INFO  At 2.219, shedding request
+2017-11-22 00:00:21,714 INFO  At 2.956, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:43,057 INFO  At 3.150, GCI check the heap and it is at 0.700
-2017-11-21 22:46:43,062 INFO  At 3.153, shedding request
-2017-11-21 22:46:43,696 INFO  At 3.891, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:22,470 INFO  At 3.143, GCI check the heap and it is at 0.700
+2017-11-22 00:00:22,489 INFO  At 3.146, shedding request
+2017-11-22 00:00:23,181 INFO  At 3.883, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:43,926 INFO  At 4.080, GCI check the heap and it is at 0.700
-2017-11-21 22:46:43,931 INFO  At 4.083, shedding request
-2017-11-21 22:46:44,577 INFO  At 4.821, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:24,140 INFO  At 4.070, GCI check the heap and it is at 0.700
+2017-11-22 00:00:24,166 INFO  At 4.074, shedding request
+2017-11-22 00:00:24,862 INFO  At 4.811, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:44,814 INFO  At 5.010, GCI check the heap and it is at 0.700
-2017-11-21 22:46:44,818 INFO  At 5.014, shedding request
-2017-11-21 22:46:45,454 INFO  At 5.751, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:25,979 INFO  At 4.998, GCI check the heap and it is at 0.700
+2017-11-22 00:00:26,008 INFO  At 5.001, shedding request
+2017-11-22 00:00:26,698 INFO  At 5.738, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:45,684 INFO  At 5.940, GCI check the heap and it is at 0.700
-2017-11-21 22:46:45,688 INFO  At 5.944, shedding request
-2017-11-21 22:46:46,333 INFO  At 6.681, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:27,962 INFO  At 5.925, GCI check the heap and it is at 0.700
+2017-11-22 00:00:27,995 INFO  At 5.929, shedding request
+2017-11-22 00:00:28,695 INFO  At 6.666, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:46,563 INFO  At 6.870, GCI check the heap and it is at 0.700
-2017-11-21 22:46:46,567 INFO  At 6.874, shedding request
-2017-11-21 22:46:47,209 INFO  At 7.611, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:30,145 INFO  At 6.853, GCI check the heap and it is at 0.700
+2017-11-22 00:00:30,186 INFO  At 6.856, shedding request
+2017-11-22 00:00:30,903 INFO  At 7.593, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:47,443 INFO  At 7.801, GCI check the heap and it is at 0.700
-2017-11-21 22:46:47,447 INFO  At 7.804, shedding request
-2017-11-21 22:46:48,130 INFO  At 8.541, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:32,611 INFO  At 7.780, GCI check the heap and it is at 0.700
+2017-11-22 00:00:32,655 INFO  At 7.784, shedding request
+2017-11-22 00:00:33,379 INFO  At 8.521, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:48,371 INFO  At 8.731, GCI check the heap and it is at 0.700
-2017-11-21 22:46:48,376 INFO  At 8.734, shedding request
-2017-11-21 22:46:49,019 INFO  At 9.471, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:35,130 INFO  At 8.708, GCI check the heap and it is at 0.700
+2017-11-22 00:00:35,178 INFO  At 8.711, shedding request
+2017-11-22 00:00:35,880 INFO  At 9.448, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:49,248 INFO  At 9.661, GCI check the heap and it is at 0.700
-2017-11-21 22:46:49,253 INFO  At 9.664, shedding request
-2017-11-21 22:46:49,902 INFO  At 10.401, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:37,805 INFO  At 9.636, GCI check the heap and it is at 0.700
+2017-11-22 00:00:37,856 INFO  At 9.639, shedding request
+2017-11-22 00:00:38,575 INFO  At 10.376, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:50,140 INFO  At 10.591, GCI check the heap and it is at 0.700
-2017-11-21 22:46:50,145 INFO  At 10.594, shedding request
-2017-11-21 22:46:50,822 INFO  At 11.332, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:40,677 INFO  At 10.563, GCI check the heap and it is at 0.700
+2017-11-22 00:00:40,737 INFO  At 10.567, shedding request
+2017-11-22 00:00:41,476 INFO  At 11.303, GCI finish his job and GC takes 0.740 seconds to execute
 
-2017-11-21 22:46:51,055 INFO  At 11.521, GCI check the heap and it is at 0.700
-2017-11-21 22:46:51,059 INFO  At 11.525, shedding request
-2017-11-21 22:46:51,697 INFO  At 12.262, GCI finish his job and GC takes 0.740 seconds to execute
+2017-11-22 00:00:43,825 INFO  At 11.491, GCI check the heap and it is at 0.700
+2017-11-22 00:00:43,888 INFO  At 11.494, shedding request
+2017-11-22 00:00:44,633 INFO  At 12.231, GCI finish his job and GC takes 0.740 seconds to execute
 
