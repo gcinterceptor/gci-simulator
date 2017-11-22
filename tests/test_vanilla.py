@@ -1,9 +1,5 @@
-import sys
-sys.path.append("..") # fixes the problem of imports from modeles
-
+from .context import Clients, Server, getConfig
 import unittest, simpy
-from modules import Clients, Server
-from util import getConfig
 
 class TestVanilla(unittest.TestCase):
 
@@ -11,15 +7,15 @@ class TestVanilla(unittest.TestCase):
     def setUp(self):
         self.env = simpy.Environment()
 
-        gc_conf = getConfig('../config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
-        server_conf = getConfig('../config/server.ini', 'server sleep_time-0.00001')
+        gc_conf = getConfig('../data/config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
+        server_conf = getConfig('../data/config/server.ini', 'server sleep_time-0.00001')
 
         self.server = Server(self.env, server_conf, gc_conf)
         self.requests = list()
 
     def test_interaction(self):
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.0035 memory-0.02')
-        clients_conf = getConfig('../config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+        requests_conf = getConfig('../data/config/request.ini', 'request service_time-0.0035 memory-0.02')
+        clients_conf = getConfig('../data/config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
@@ -37,8 +33,8 @@ class TestVanilla(unittest.TestCase):
         self.assert_almost_equal(expected, request._done_time)
 
     def test_one_request_low_heap(self):
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.0035 memory-0.89')
-        clients_conf = getConfig('../config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+        requests_conf = getConfig('../data/config/request.ini', 'request service_time-0.0035 memory-0.89')
+        clients_conf = getConfig('../data/config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
@@ -47,8 +43,8 @@ class TestVanilla(unittest.TestCase):
         self.assertEqual(self.server.gc.times_performed, 0)
 
     def test_one_request_enough_heap(self):
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.0035 memory-0.9')
-        clients_conf = getConfig('../config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+        requests_conf = getConfig('../data/config/request.ini', 'request service_time-0.0035 memory-0.9')
+        clients_conf = getConfig('../data/config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
@@ -57,8 +53,8 @@ class TestVanilla(unittest.TestCase):
         self.assertEqual(self.server.gc.times_performed, 1)
 
     def test_small_queue_low_heap(self):
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.00035 memory-0.089')
-        clients_conf = getConfig('../config/clients.ini',
+        requests_conf = getConfig('../data/config/request.ini', 'request service_time-0.00035 memory-0.089')
+        clients_conf = getConfig('../data/config/clients.ini',
                                  'clients sleep_time-0.00001 create_request_rate-100 max_requests-10')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -68,8 +64,8 @@ class TestVanilla(unittest.TestCase):
         self.assertEqual(self.server.gc.times_performed, 0)
 
     def test_small_queue_enough_heap(self):
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.00035 memory-0.0900000000000001') # for some reason, without that 1, self.server.heap.level is equal to 0.8999999999999998...
-        clients_conf = getConfig('../config/clients.ini',
+        requests_conf = getConfig('../data/config/request.ini', 'request service_time-0.00035 memory-0.0900000000000001') # for some reason, without that 1, self.server.heap.level is equal to 0.8999999999999998...
+        clients_conf = getConfig('../data/config/clients.ini',
                                  'clients sleep_time-0.00001 create_request_rate-100 max_requests-10')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -79,8 +75,8 @@ class TestVanilla(unittest.TestCase):
         self.assertEqual(self.server.gc.times_performed, 1)
 
     def test_high_queue_low_heap(self):
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.000035 memory-0.0089')
-        clients_conf = getConfig('../config/clients.ini',
+        requests_conf = getConfig('../data/config/request.ini', 'request service_time-0.000035 memory-0.0089')
+        clients_conf = getConfig('../data/config/clients.ini',
                                  'clients sleep_time-0.00001 create_request_rate-100 max_requests-100')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -90,8 +86,8 @@ class TestVanilla(unittest.TestCase):
         self.assertEqual(self.server.gc.times_performed, 0)
 
     def test_high_queue_enough_heap(self):
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.000035 memory-0.009')
-        clients_conf = getConfig('../config/clients.ini',
+        requests_conf = getConfig('../data/config/request.ini', 'request service_time-0.000035 memory-0.009')
+        clients_conf = getConfig('../data/config/clients.ini',
                                  'clients sleep_time-0.00001 create_request_rate-100 max_requests-100')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 

@@ -1,7 +1,4 @@
-import sys
-sys.path.append("..") # It fixes the problem of imports from modeles
-
-from util import getLogger
+from simulator.util import getLogger
 
 class GC(object):
 
@@ -18,14 +15,12 @@ class GC(object):
         self.gc_exec_time_sum = 0
         self.gc_process = self.env.process(self.run())
 
-        self.logger = getLogger("../logs/garbage.log", "GC")
+        self.logger = getLogger("../../data/logs/gc.log", "GC")
 
     def run(self):
         while True:
             if self.heap.level >= self.threshold and not self.is_gcing:
-                gc_start_time = self.env.now
                 yield self.env.process(self.collect())
-                self.gc_exec_time_sum += (self.env.now - gc_start_time)
                 self.times_performed += 1
 
             yield self.env.timeout(self.sleep_time)  # wait for...
@@ -35,13 +30,15 @@ class GC(object):
         self.is_gcing = True
         self.server.action.interrupt()
 
+        gc_start_time = self.env.now
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
             yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
+        self.gc_exec_time_sum += (self.env.now - gc_start_time)
 
         self.is_gcing = False
-        self.logger.info(" At %.3f, GC finish his job. Now we have %.3f of trash" % (self.env.now, self.heap.level))
+        self.logger.info(" At %.3f, GC finish his job. Now we have %.3f of trash\n" % (self.env.now, self.heap.level))
         self.server.action = self.env.process(self.server.run())
         self.collects_performed += 1
 
@@ -63,11 +60,9 @@ class GCI(object):
         self.processed_requests_history = list()
         self.gc_execution_history = list()
         self.history_size = 5
-
         self.times_performed = 0
-        self.gc_exec_time_sum = 0
 
-        self.logger = getLogger("../logs/garbage.log", "GCI")
+        self.logger = getLogger("../../data/logs/gci.log", "GCI")
 
 
         self._time_shedding = 0
@@ -115,7 +110,6 @@ class GCI(object):
         self._time_shedding = 0
 
         gc_exec_time = gc_end_time - gc_start_time
-        self.gc_exec_time_sum += gc_exec_time
         self.update_gci_values(gc_exec_time)
 
         self.times_performed += 1
@@ -133,7 +127,7 @@ class GCI(object):
         return len(self.server.queue.items) * 0.001 #+ self.estimated_gc_exec_time
 
     def estimated_gc_execution_time(self):
-        return self.server.heap.level + len(self.server.queue.items) * 0.1 #+ self.estimated_gc_exec_time
+        return self.server.heap.level + len(self.server.queue.items) * 0.1 # self.estimated_gc_exec_time
 
     def update_gci_values(self, gc_execution_time):
         # update request history

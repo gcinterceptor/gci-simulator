@@ -1,8 +1,5 @@
-import sys
-sys.path.append("..") # It fixes the problem of imports from modeles
-
+from simulator.util import getLogger
 import simpy
-from util import getLogger
 
 class Request(object):
 
@@ -41,7 +38,7 @@ class Clients(object):
         self.action = env.process(self.send_requests())
         self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), requests_conf))
 
-        self.logger = getLogger("../logs/clients.log", "CLIENTS")
+        self.logger = getLogger("../../data/logs/clients.log", "CLIENTS")
 
     def send_requests(self):
         while True:
