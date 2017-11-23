@@ -1,4 +1,4 @@
-from .context import Request, getConfig
+from .context import Request, get_config
 import unittest, simpy, os
 
 os.chdir("..")
@@ -18,7 +18,7 @@ class TestRequest(unittest.TestCase):
     def test(self):
         created_at = self.env.now
 
-        requests_conf = getConfig('../config/request.ini', 'request service_time-0.0035 memory-0.02')
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.02')
         request = Request(created_at, None, None, requests_conf, self.log_path) # It just keeps who is his owner, but don't do anything with it. That why it can be None.
 
         sent_at = self.env.now
