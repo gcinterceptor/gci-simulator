@@ -29,7 +29,7 @@ def main():
 
     client_conf = getConfig('config/clients.ini', 'clients sleep_time-0.00349 create_request_rate-100 max_requests-inf')
     gc_conf = getConfig('config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
-    gci_conf = getConfig('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.0')
+    gci_conf = getConfig('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.9')
     loadbalancer_conf = getConfig('config/loadbalancer.ini', 'loadbalancer sleep_time-0.0035')
     requests_conf = getConfig('config/request.ini', 'request service_time-0.0035 memory-0.02')
     server_conf = getConfig('config/server.ini', 'server sleep_time-0.00001')
@@ -49,7 +49,6 @@ def main():
 
     logger = getLogger(log_path + "/main.log", "Main")
     log_server_data(logger, server)
-    logger.info("Processed requests: %i" % len(requests))
     log_latence(logger, requests)
 
     after = time.time()

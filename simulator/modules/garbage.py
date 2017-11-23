@@ -126,7 +126,7 @@ class GCI(object):
         return len(self.server.queue.items) * 0.001 #+ self.estimated_gc_exec_time
 
     def estimated_gc_execution_time(self):
-        return self.server.heap.level + len(self.server.queue.items) * 0.1 # self.estimated_gc_exec_time
+        return self.estimated_gc_exec_time
 
     def update_gci_values(self, gc_execution_time):
         # update request history

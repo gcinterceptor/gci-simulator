@@ -13,7 +13,7 @@ class TestGCI(unittest.TestCase):
         self.env = simpy.Environment()
 
         gc_conf = getConfig('../config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
-        gci_conf = getConfig('../config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.0')
+        gci_conf = getConfig('../config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.9')
         server_conf = getConfig('../config/server.ini', 'server sleep_time-0.00001')
         loadbalancer_conf = getConfig('../config/loadbalancer.ini', 'loadbalancer sleep_time-0.00001')
 
