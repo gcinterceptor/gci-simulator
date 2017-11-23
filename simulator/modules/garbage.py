@@ -122,8 +122,8 @@ class GCI(object):
         return self.estimated_requests_execution_time() + self.estimated_gc_execution_time()
 
     def estimated_requests_execution_time(self):
-        # TODO(David) implement the way to get the max value of the last five time of requests execution time
-        return len(self.server.queue.items) * 0.001 #+ self.estimated_gc_exec_time
+        # TODO(David) implement the logic to estimate time to process one request
+        return len(self.server.queue.items) * 0.001
 
     def estimated_gc_execution_time(self):
         return self.estimated_gc_exec_time
