@@ -1,8 +1,8 @@
-from simulator.util import getLogger
+from utils import getLogger
 
 class GC(object):
 
-    def __init__(self, env, server, conf):
+    def __init__(self, env, server, conf, log_path):
         self.env = env
         self.server = server
         self.heap = server.heap
@@ -15,7 +15,7 @@ class GC(object):
         self.gc_exec_time_sum = 0
         self.gc_process = self.env.process(self.run())
 
-        self.logger = getLogger("../../data/logs/gc.log", "GC")
+        self.logger = getLogger(log_path + "/gc.log", "GC")
 
     def run(self):
         while True:
@@ -48,7 +48,7 @@ class GC(object):
 
 class GCI(object):
 
-    def __init__(self, env, server,  conf):
+    def __init__(self, env, server,  conf, log_path):
         self.env = env
         self.server = server
         self.check_heap = int(conf['check_heap'])
@@ -62,7 +62,7 @@ class GCI(object):
         self.history_size = 5
         self.times_performed = 0
 
-        self.logger = getLogger("../../data/logs/gci.log", "GCI")
+        self.logger = getLogger(log_path + "/gci.log", "GCI")
 
         self._time_shedding = 0
 

@@ -1,9 +1,9 @@
-from simulator.util import getLogger
+from utils import getLogger
 import simpy
 
 class Request(object):
 
-    def __init__(self, created_at, client, load_balancer, conf):
+    def __init__(self, created_at, client, load_balancer, conf, log_path):
         self.created_at = created_at
         self.client = client
         self.load_balancer = load_balancer
@@ -14,9 +14,10 @@ class Request(object):
         self.done = False
         self._sent_time = None
         self._arrived_time = None
+        self._finished_time = None
         self._latence_time = None
 
-        self.logger = getLogger("../../data/logs/request.log", "REQUEST")
+        self.logger = getLogger(log_path + "/request.log", "REQUEST")
 
     def run(self, env, heap):
         yield env.timeout(self.service_time)
@@ -29,12 +30,13 @@ class Request(object):
         self._arrived_time = time
 
     def finished_at(self, time):
-        self._latence_time = time - self._sent_time
-        self.logger.info(" At %.3f, Request was finished. Latence: %.3f" % (time, self._latence_time))
+        self._finished_time = time
+        self._latence_time = self._finished_time - self._sent_time
+        self.logger.info(" At %.3f, Request was finished. Latence: %.3f" % (self._finished_time, self._latence_time))
 
 class Clients(object):
 
-    def __init__(self, env, server, requests, conf, requests_conf):
+    def __init__(self, env, server, requests, conf, requests_conf, log_path):
         self.env = env
         self.server = server
         self.requests = requests
@@ -42,10 +44,10 @@ class Clients(object):
 
         self.queue = simpy.Store(env)               # the queue of requests
 
-        self.logger = getLogger("../../data/logs/clients.log", "CLIENTS")
+        self.logger = getLogger(log_path + "/clients.log", "CLIENTS")
 
         self.action = env.process(self.send_requests())
-        self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), requests_conf))
+        self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), requests_conf, log_path))
 
     def send_requests(self):
         while True:
@@ -55,10 +57,10 @@ class Clients(object):
 
             yield self.env.timeout(self.sleep_time) # wait for...
 
-    def create_requests(self, create_request_time, max_requests, requests_conf):
+    def create_requests(self, create_request_time, max_requests, requests_conf, log_path):
         count_requests = 1
         while count_requests <= max_requests:
-            request = Request(self.env.now, self, self.server, requests_conf)
+            request = Request(self.env.now, self, self.server, requests_conf, log_path)
             yield self.queue.put(request)
             yield self.env.timeout(1.0 / create_request_time)
             count_requests += 1

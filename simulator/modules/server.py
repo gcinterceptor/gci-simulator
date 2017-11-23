@@ -1,9 +1,9 @@
-from simulator.util import getLogger
+from utils import getLogger
 import simpy
 
 class LoadBalancer(object):
 
-    def __init__(self, env, server, conf):
+    def __init__(self, env, server, conf, log_path):
         self.env = env
         self.sleep = float(conf['sleep_time'])
 
@@ -12,7 +12,7 @@ class LoadBalancer(object):
         self.queue = simpy.Store(env)  # the queue of requests
         self.remaining_queue = simpy.Store(env)  # the queue of interrupted requests
 
-        self.logger = getLogger("../../data/logs/loadbalancer.log", "LOAD BALANCER")
+        self.logger = getLogger(log_path + "/loadbalancer.log", "LOAD BALANCER")
 
         self.action = self.env.process(self.run())
 
@@ -56,7 +56,7 @@ class LoadBalancer(object):
 
 class Server(object):
 
-    def __init__(self, env, id, conf, gc_conf):
+    def __init__(self, env, id, conf, gc_conf, log_path):
         self.env = env
         self.id = id
         self.sleep = float(conf['sleep_time'])
@@ -66,9 +66,9 @@ class Server(object):
         self.heap = simpy.Container(env) # our trash heap
 
         from .garbage import GC
-        self.gc = GC(self.env, self, gc_conf)
+        self.gc = GC(self.env, self, gc_conf, log_path)
 
-        self.logger = getLogger("../../data/logs/server.log", "SERVER")
+        self.logger = getLogger(log_path + "/server.log", "SERVER")
 
         self.processed_requests = 0
         self.action = env.process(self.run())
@@ -103,11 +103,11 @@ class Server(object):
 
 class ServerWithGCI(Server):
 
-    def __init__(self, env, id, conf, gc_conf, gci_conf):
-        super().__init__(env, id, conf, gc_conf)
+    def __init__(self, env, id, conf, gc_conf, gci_conf, log_path):
+        super().__init__(env, id, conf, gc_conf, log_path)
 
         from .garbage import GCI
-        self.gci = GCI(self.env, self, gci_conf)
+        self.gci = GCI(self.env, self, gci_conf, log_path)
 
     def request_arrived(self, request):
         yield self.env.process(self.gci.intercept(request))
