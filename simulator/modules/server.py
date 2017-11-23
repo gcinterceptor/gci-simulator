@@ -1,4 +1,4 @@
-from utils import getLogger
+from utils import get_logger
 import simpy
 
 class LoadBalancer(object):
@@ -12,7 +12,7 @@ class LoadBalancer(object):
         self.queue = simpy.Store(env)  # the queue of requests
         self.remaining_queue = simpy.Store(env)  # the queue of interrupted requests
 
-        self.logger = getLogger(log_path + "/loadbalancer.log", "LOAD BALANCER")
+        self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
 
         self.action = self.env.process(self.run())
 
@@ -68,7 +68,7 @@ class Server(object):
         from .garbage import GC
         self.gc = GC(self.env, self, gc_conf, log_path)
 
-        self.logger = getLogger(log_path + "/server.log", "SERVER")
+        self.logger = get_logger(log_path + "/server.log", "SERVER")
 
         self.processed_requests = 0
         self.action = env.process(self.run())

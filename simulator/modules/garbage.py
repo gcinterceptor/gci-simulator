@@ -1,4 +1,4 @@
-from utils import getLogger
+from utils import get_logger
 
 class GC(object):
 
@@ -15,7 +15,7 @@ class GC(object):
         self.gc_exec_time_sum = 0
         self.gc_process = self.env.process(self.run())
 
-        self.logger = getLogger(log_path + "/gc.log", "GC")
+        self.logger = get_logger(log_path + "/gc.log", "GC")
 
     def run(self):
         while True:
@@ -62,7 +62,7 @@ class GCI(object):
         self.history_size = 5
         self.times_performed = 0
 
-        self.logger = getLogger(log_path + "/gci.log", "GCI")
+        self.logger = get_logger(log_path + "/gci.log", "GCI")
 
         self._time_shedding = 0
 

@@ -1,4 +1,4 @@
-from utils import getLogger
+from utils import get_logger
 import simpy
 
 class Request(object):
@@ -17,7 +17,7 @@ class Request(object):
         self._finished_time = None
         self._latence_time = None
 
-        self.logger = getLogger(log_path + "/request.log", "REQUEST")
+        self.logger = get_logger(log_path + "/request.log", "REQUEST")
 
     def run(self, env, heap):
         yield env.timeout(self.service_time)
@@ -36,15 +36,15 @@ class Request(object):
 
 class Clients(object):
 
-    def __init__(self, env, server, requests, conf, requests_conf, log_path):
+    def __init__(self, env, server, conf, requests_conf, log_path):
         self.env = env
         self.server = server
-        self.requests = requests
+        self.requests = list()
         self.sleep_time = float(conf['sleep_time'])
 
         self.queue = simpy.Store(env)               # the queue of requests
 
-        self.logger = getLogger(log_path + "/clients.log", "CLIENTS")
+        self.logger = get_logger(log_path + "/clients.log", "CLIENTS")
 
         self.action = env.process(self.send_requests())
         self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), requests_conf, log_path))
@@ -80,3 +80,4 @@ class Clients(object):
         self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
         yield self.env.timeout(unavailable_until)
         yield self.queue.put(request)
+
