@@ -2,5 +2,5 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-from simulator.modules import Clients, GC, GCI, Request, Server, ServerWithGCI
-from simulator.util import getConfig, getLogger
+from simulator.modules import Clients, GC, GCI, Request, LoadBalancer, Server, ServerWithGCI
+from utils import getConfig, getLogger
