@@ -65,10 +65,6 @@ class Clients(object):
             yield self.env.timeout(1.0 / create_request_time)
             count_requests += 1
 
-    def successfully_sent(self, request):
-        request.sent_at(self.env.now)
-        yield self.env.timeout(0)
-
     def sucess_request(self, request):
         request.finished_at(self.env.now)
         self.requests.append(request)

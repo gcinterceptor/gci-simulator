@@ -39,12 +39,8 @@ class LoadBalancer(object):
         self.server_disponibility[server.id] = 0
 
     def request_arrived(self, request):
-        yield self.env.process(request.client.successfully_sent(request))
+        request.sent_at(self.env.now)
         yield self.queue.put(request)
-
-    def successfully_sent(self, request):
-        request.arrived_at(self.env.now)
-        yield self.env.timeout(0)
 
     def sucess_request(self, request):
         yield self.env.process(request.client.sucess_request(request))
@@ -98,7 +94,7 @@ class Server(object):
         self.processed_requests += 1
 
     def request_arrived(self, request):
-        yield self.env.process(request.load_balancer.successfully_sent(request))
+        request.arrived_at(self.env.now)
         yield self.queue.put(request)   # put the request at the end of the queue
 
 class ServerWithGCI(Server):

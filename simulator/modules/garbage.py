@@ -75,8 +75,8 @@ class GCI(object):
             yield self.env.process(request.load_balancer.shed_request(request, self.server, self._time_shedding))
 
         else:
-            yield self.server.queue.put(request)  # put the request at the end of the queue
-            yield self.env.process(request.load_balancer.successfully_sent(request))
+            self.server.queue.put(request)  # put the request at the end of the queue
+            request.arrived_at(self.env.now)
 
     def check(self):
         if self.server.processed_requests >= self.check_heap:
