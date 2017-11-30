@@ -15,7 +15,7 @@ class Request(object):
         self._sent_time = None
         self._arrived_time = None
         self._finished_time = None
-        self._latence_time = None
+        self._latency_time = None
 
         self.logger = get_logger(log_path + "/request.log", "REQUEST")
 
@@ -31,8 +31,8 @@ class Request(object):
 
     def finished_at(self, time):
         self._finished_time = time
-        self._latence_time = self._finished_time - self._sent_time
-        self.logger.info(" At %.3f, Request was finished. Latence: %.3f" % (self._finished_time, self._latence_time))
+        self._latency_time = self._finished_time - self._sent_time
+        self.logger.info(" At %.3f, Request was finished. Latency: %.3f" % (self._finished_time, self._latency_time))
 
 class Clients(object):
 

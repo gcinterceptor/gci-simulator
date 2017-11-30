@@ -13,16 +13,14 @@ def log_server_data(logger, server):
     logger.info("GC executions: %i" % server.gc.times_performed)
     logger.info("GC execution time sum: %.3f seconds" % server.gc.gc_exec_time_sum)
 
-def log_latence(logger, requests):
+def log_latency(logger, requests):
     logger.info("Processed requests: %i" % len(requests))
-    logger.info("Latence of the first request: %.3f" % requests[0]._latence_time)
-    logger.info("Latence of the last request: %.3f" % requests[-1]._latence_time)
-    sumx = sum(request._latence_time for request in requests)
-    media = sumx / len(requests)
-    logger.info("Latence media of the requests: %.3f" % media)
+    logger.info("Latency of the first request: %.3f" % requests[0]._latency_time)
+    logger.info("Latency of the last request: %.3f" % requests[-1]._latency_time)
+    media = sum(request._latency_time for request in requests) / len(requests)
+    logger.info("Average latency of the requests: %.3f" % media)
 
 def main():
-
     before = time.time()
     create_directory()
     env = simpy.Environment()
@@ -40,12 +38,12 @@ def main():
     clients = Clients(env, load_balancer, client_conf, requests_conf, log_path)
 
     env.process(flag(env, 5))
-    SIM_DURATION_SECONDS = 12
+    SIM_DURATION_SECONDS = 2
     env.run(until=SIM_DURATION_SECONDS)
 
     logger = get_logger(log_path + "/main.log", "Main")
     log_server_data(logger, server)
-    log_latence(logger, clients.requests)
+    log_latency(logger, clients.requests)
 
     generate_results("results.log", "RESULTS", clients.requests)
 

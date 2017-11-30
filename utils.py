@@ -22,9 +22,9 @@ def get_logger(path_file, logger_name):
 def generate_results(path_file, logger_name, request_list):
     logger = get_logger(path_file, logger_name)
 
-    logger.info("LATENCE:")
+    logger.info("LATENCY:")
     for request in request_list:
-        logger.info(request._latence_time)
+        logger.info(request._latency_time)
 
     logger.info("Number of requests: %.i" % len(request_list))
 
