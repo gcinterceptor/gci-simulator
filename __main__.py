@@ -1,6 +1,6 @@
 from simulator.modules import Clients, LoadBalancer, ServerWithGCI
 from utils import get_config, get_logger, generate_results, flag
-import simpy, os, time
+import simpy, os, time, math
 
 def create_directory():
     if not os.path.isdir("logs"):
@@ -20,6 +20,22 @@ def log_latency(logger, requests):
     media = sum(request._latency_time for request in requests) / len(requests)
     logger.info("Average latency of the requests: %.3f" % media)
 
+def percentile(P, N):
+    return math.ceil((P / 100) * N)
+
+def log_percentiles(logger, requests):
+    N = len(requests)
+    median = percentile(50, N)
+    _90th = percentile(90, N)
+    _95th = percentile(95, N)
+    _99th = percentile(99, N)
+    _999th = percentile(99.9, N)
+    logger.info("Median: %.5f" % float(requests[median - 1]._latency_time))
+    logger.info("90th Percentile: %.5f" % float(requests[_90th - 1]._latency_time))
+    logger.info("95th Percentile: %.5f" % float(requests[_95th - 1]._latency_time))
+    logger.info("99th Percentile: %.5f" % float(requests[_99th - 1]._latency_time))
+    logger.info("99.9th Percentile: %.5f" % float(requests[_999th - 1]._latency_time))
+
 def main():
     before = time.time()
     create_directory()
@@ -38,14 +54,15 @@ def main():
     clients = Clients(env, load_balancer, client_conf, requests_conf, log_path)
 
     env.process(flag(env, 5))
-    SIM_DURATION_SECONDS = 2
+    SIM_DURATION_SECONDS = 12
     env.run(until=SIM_DURATION_SECONDS)
 
     logger = get_logger(log_path + "/main.log", "Main")
     log_server_data(logger, server)
     log_latency(logger, clients.requests)
 
-    generate_results("results.log", "RESULTS", clients.requests)
+    generate_results("logs/latencies.log", "RESULTS", clients.requests)
+    log_percentiles(logger, clients.requests)
 
     after = time.time()
     logger.info("Time of execution in seconds: %.4f" % (after - before))
