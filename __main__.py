@@ -1,4 +1,4 @@
-from simulator.modules import Clients, LoadBalancer, ServerWithGCI
+from simulator.models import Clients, LoadBalancer, ServerWithGCI, Server
 from log import get_logger, log_server_data, log_latency, log_percentiles
 from config import get_config
 import simpy, os, time, math
