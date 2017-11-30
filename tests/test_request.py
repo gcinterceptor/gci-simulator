@@ -1,11 +1,6 @@
 from .context import Request, get_config
 import unittest, simpy, os
 
-os.chdir("..")
-if not os.path.isdir("logs"):
-    os.mkdir("logs")
-os.chdir("tests")
-
 class TestRequest(unittest.TestCase):
 
     @classmethod
@@ -52,5 +47,12 @@ class TestRequest(unittest.TestCase):
     def env_run(self):
         self.env.run(until=self.SIM_DURATION)
 
+def create_directory():
+    os.chdir("..")
+    if not os.path.isdir("logs"):
+        os.mkdir("logs")
+    os.chdir("tests")
+
 if __name__ == '__main__':
+    create_directory()
     unittest.main()

@@ -1,4 +1,4 @@
-from utils import get_logger
+from log import get_logger
 import simpy
 
 class LoadBalancer(object):

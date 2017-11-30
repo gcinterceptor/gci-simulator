@@ -1,11 +1,6 @@
 from .context import Clients, LoadBalancer, Server, get_config
 import unittest, simpy, os
 
-os.chdir("..")
-if not os.path.isdir("logs"):
-    os.mkdir("logs")
-os.chdir("tests")
-
 class TestVanilla(unittest.TestCase):
 
     @classmethod
@@ -117,7 +112,14 @@ class TestVanilla(unittest.TestCase):
         self.requests = clients.requests
         self.env.run(until=sim_duration)
 
+def create_directory():
+    os.chdir("..")
+    if not os.path.isdir("logs"):
+        os.mkdir("logs")
+    os.chdir("tests")
+
 if __name__ == '__main__':
+    create_directory()
     unittest.main()
 
 
