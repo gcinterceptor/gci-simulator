@@ -1,4 +1,4 @@
-import logging
+import logging, csv
 
 def get_logger(path_file, logger_name):
     handler = logging.FileHandler(path_file, mode='w')
@@ -12,30 +12,30 @@ def get_logger(path_file, logger_name):
 
     return logger
 
-def log_server_data(logger, server):
-    logger.info("Heap level: %.5f%%" % server.heap.level)
-    logger.info("Remaining requests in queue: %i" % len(server.queue.items))
-    logger.info("GCI executions: %i" % server.gci.times_performed)
-    logger.info("GC executions: %i" % server.gc.times_performed)
-    logger.info("GC execution time sum: %.3f seconds" % server.gc.gc_exec_time_sum)
+def csv_writer(data, path):
+    with open(path, "a", newline='') as csv_file:
+        writer = csv.writer(csv_file, delimiter=',')
+        for line in data:
+            writer.writerow(line)
 
-def log_latency(logger, requests):
-    logger.info("Processed requests: %i" % len(requests))
-    logger.info("Latency of the first request: %.3f" % requests[0]._latency_time)
-    logger.info("Latency of the last request: %.3f" % requests[-1]._latency_time)
-    media = sum(request._latency_time for request in requests) / len(requests)
-    logger.info("Average latency of the requests: %.3f" % media)
+def iniciate_csv_files(results_path, scenario, load):
+    if scenario == "control":
+        _iniciate_control_csv_files(results_path, load)
+    elif scenario == "baseline":
+        _iniciate_baseline_csv_files(results_path, load)
 
-def log_percentiles(logger, requests, percentile):
-    ordered_requests = sorted(requests, key = lambda x: x._latency_time)
-    N = len(requests)
-    median = percentile(50, N)
-    _90th = percentile(90, N)
-    _95th = percentile(95, N)
-    _99th = percentile(99, N)
-    _999th = percentile(99.9, N)
-    logger.info("Median: %.5f" % float(ordered_requests[median - 1]._latency_time))
-    logger.info("90th Percentile: %.5f" % float(ordered_requests[_90th - 1]._latency_time))
-    logger.info("95th Percentile: %.5f" % float(ordered_requests[_95th - 1]._latency_time))
-    logger.info("99th Percentile: %.5f" % float(ordered_requests[_99th - 1]._latency_time))
-    logger.info("99.9th Percentile: %.5f" % float(ordered_requests[_999th - 1]._latency_time))
+def _iniciate_control_csv_files(results_path, load):
+    server_data = [["heap_level", "remaining_requests", "gci_exe", "gc_exe", "gc_exe_time_sum", "processed_requests"]]
+    latency_data = [["first_request", "last_request", "average_latency", "median", "p90", "p95", "p99", "p999"]]
+    _iniciate_csv_files(latency_data, server_data, results_path, "control", load)
+
+def _iniciate_baseline_csv_files(results_path, load):
+    server_data = [["heap_level", "remaining_requests", "gc_exe", "gc_exe_time_sum", "processed_requests"]]
+    latency_data = [["first_request", "last_request", "average_latency", "median", "p90", "p95", "p99", "p999"]]
+    _iniciate_csv_files(latency_data, server_data, results_path, "baseline", load)
+
+def _iniciate_csv_files(latency_data, server_data, results_path, scenario, load):
+    rlc_file_name = "requests_latency_" + scenario + "_const_" + load + ".csv"
+    ssc_file_name = "server_status_" + scenario + "_const_" + load + ".csv"
+    csv_writer(latency_data, results_path + "/" + rlc_file_name)
+    csv_writer(server_data, results_path + "/" + ssc_file_name)

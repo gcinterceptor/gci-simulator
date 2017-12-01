@@ -67,6 +67,7 @@ class Server(object):
         self.logger = get_logger(log_path + "/server.log", "SERVER")
 
         self.processed_requests = 0
+        self.times_interrupted = 0
         self.action = env.process(self.run())
 
     def run(self):
@@ -86,6 +87,7 @@ class Server(object):
 
         except simpy.Interrupt:
             self.logger.info(" At %.3f, Server was interrupted" % (self.env.now))
+            self.times_interrupted += 1
             yield self.interrupted_queue.put(request)
 
     def process_request(self, request):
