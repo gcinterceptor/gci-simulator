@@ -12,9 +12,8 @@ def create_directory(logs_path, results_path):
 
 def percentile(l, p):
     """Returns the value within the list l representing pth percentile."""
-    s = sorted(l, key=lambda x: x._latency_time)
-    pos = math.ceil((p / 100) * len(s))
-    return s[pos - 1]._latency_time
+    pos = math.ceil((p / 100) * len(l))
+    return l[pos - 1]._latency_time
 
 def log_latency(results_path, requests, scenario, load):
     first_request = requests[0]._latency_time
