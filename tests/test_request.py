@@ -1,7 +1,5 @@
-import sys            # These two first lines, fixes
-sys.path.append("..") # the problem of imports from modeles
-import unittest, simpy
-from modules import Request
+from .context import Request, get_config
+import unittest, simpy, os
 
 class TestRequest(unittest.TestCase):
 
@@ -9,11 +7,14 @@ class TestRequest(unittest.TestCase):
     def setUp(self):
         self.env = simpy.Environment()
         self.heap = simpy.Container(self.env, 100, init=0)  # our trash heap
+        self.log_path = '../logs'
         self.SIM_DURATION = 10
 
     def test(self):
         created_at = self.env.now
-        request = Request(created_at, 0.035, 0.02, None) # It just keeps who is his owner, but don't do anything with it. That why it can be None.
+
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.02')
+        request = Request(created_at, None, None, requests_conf, self.log_path) # It just keeps who is his owner, but don't do anything with it. That why it can be None.
 
         sent_at = self.env.now
         request.sent_at(self.env.now)
@@ -23,10 +24,6 @@ class TestRequest(unittest.TestCase):
         expected_value = created_at
         # check if the created_at is set correctly
         self.assert_true(expected_value, request.created_at)
-
-        expected_value = request.service_time
-        # check if the running time of the request is correct
-        self.assert_true(expected_value, request._processed_time)
 
         expected_value = request.memory
         # check if the cost of memory for this case is correct
@@ -40,9 +37,6 @@ class TestRequest(unittest.TestCase):
         self.assert_almost_equal(expected, request.created_at)
         self.assert_almost_equal(expected, request._sent_time)
 
-        expected = 0.035
-        self.assert_almost_equal(expected, request._processed_time)
-
     def assert_almost_equal(self, expected, received, delta=0.0001):
         msg = "Expected value: " + str(expected) + ", received value: " + str(received)
         self.assertAlmostEqual(expected, received, msg=msg, delta=delta)
@@ -53,6 +47,12 @@ class TestRequest(unittest.TestCase):
     def env_run(self):
         self.env.run(until=self.SIM_DURATION)
 
+def create_directory():
+    os.chdir("..")
+    if not os.path.isdir("logs"):
+        os.mkdir("logs")
+    os.chdir("tests")
 
 if __name__ == '__main__':
+    create_directory()
     unittest.main()

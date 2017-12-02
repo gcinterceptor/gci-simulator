@@ -1,88 +1,156 @@
-import sys            # These two first lines, fixes
-sys.path.append("..") # the problem of imports from modeles
-import unittest, simpy
-from modules import Clients, ServerWithGCI, GCI
+from .context import Clients, LoadBalancer, ServerWithGCI, get_config
+import unittest, simpy, os
 
 class TestGCI(unittest.TestCase):
 
     @classmethod
     def setUp(self):
         self.env = simpy.Environment()
-        self.server = ServerWithGCI(self.env)
+
+        gc_conf = get_config('../config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
+        gci_conf = get_config('../config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.9')
+        server_conf = get_config('../config/server.ini', 'server sleep_time-0.00001')
+        loadbalancer_conf = get_config('../config/loadbalancer.ini', 'loadbalancer sleep_time-0.00001')
+
+        self.log_path = '../logs'
+
+        self.server = ServerWithGCI(self.env, 1, server_conf, gc_conf, gci_conf, self.log_path)
+        self.load_balancer = LoadBalancer(self.env, self.server, loadbalancer_conf, self.log_path)
+
         self.requests = list()
 
     def test_interaction(self):
-        num_requests, request_duration, request_memory = 1, 0.035, 0.69
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.69')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory, sleep_time=0.00001)
+        self.env_run(sim_duration, clients_conf, requests_conf)
         request = self.requests[0]
+
         expected = 0.000
         self.assert_almost_equal(expected, request.created_at)
         self.assert_almost_equal(expected, request._sent_time)
-        expected = 0.035
-        self.assert_almost_equal(expected, request._processed_time)
-        self.assert_almost_equal(expected, request._done_time)
+
+        expected = 0.0035
+        self.assert_almost_equal(expected, request._finished_time)
 
     def test_one_request_low_heap(self):
-        num_requests, request_duration, request_memory = 1, 0.0035, 0.69
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.69')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
     def test_one_request_enough_heap(self):
-        num_requests, request_duration, request_memory = 1, 0.0035, 0.7
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.7')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
     def test_three_request_low_heap(self):
-        num_requests, request_duration, request_memory = 2, 0.0035, 0.345
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.345')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-2')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
     def test_three_request_enough_heap(self):
-        num_requests, request_duration, request_memory = 3, 0.0035, 0.35
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.35')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-3')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 1)
 
     def test_small_queue_low_heap(self):
-        num_requests, request_duration, request_memory = 11, 0.00035, 0.069
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.00035 memory-0.069')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-11')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
     def test_small_queue_enough_heap(self):
-        num_requests, request_duration, request_memory = 11, 0.00035, 0.07
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.00035 memory-0.07')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-11')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 1)
 
     def test_high_queue_low_heap(self):
-        num_requests, request_duration, request_memory = 101, 0.000035, 0.0069
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.000035 memory-0.0069')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-101')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 0)
 
     def test_high_queue_enough_heap(self):
-        num_requests, request_duration, request_memory = 101, 0.000035, 0.007
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.000035 memory-0.007')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-101')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 1)
 
     def test_multiples_gci_collects(self):
-        num_requests, request_duration, request_memory = 71, 0.001, 0.1
+        requests_conf = get_config('../config/request.ini', 'request service_time-0.001 memory-0.1')
+        clients_conf = get_config('../config/clients.ini',
+                                 'clients sleep_time-0.01 create_request_rate-100 max_requests-71')
+        num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
+            requests_conf['service_time']), float(requests_conf['memory'])
+
+        self.load_balancer.sleep = 0.01
+
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
-        self.env_run(sim_duration, num_requests, request_duration, request_memory, sleep_time=0.01)
+        self.env_run(sim_duration, clients_conf, requests_conf)
+
         self.assert_equal(self.server.gc.times_performed, 0)
         self.assert_equal(self.server.gci.times_performed, 10)
 
@@ -97,13 +165,19 @@ class TestGCI(unittest.TestCase):
     def sim_duration_time(self, num_requests, request_duration, request_memory, sleep_time=2, create_request_rate=0.01):
         return num_requests * (request_duration + request_memory + create_request_rate) + sleep_time
 
-    def env_run(self, sim_duration, max_requests, request_exec_time, memory, sleep_time=0.01, create_request_time=0.01):
-        Clients(self.env, self.server, self.requests, sleep_time=sleep_time,
-                create_request_time=create_request_time, max_requests=max_requests, request_exec_time=request_exec_time, memory=memory)
+    def env_run(self, sim_duration, clients_conf, requests_conf):
+        clients = Clients(self.env, self.load_balancer, clients_conf, requests_conf, self.log_path)
+        self.requests = clients.requests
         self.env.run(until=sim_duration)
 
+def create_directory():
+    os.chdir("..")
+    if not os.path.isdir("logs"):
+        os.mkdir("logs")
+    os.chdir("tests")
 
 if __name__ == '__main__':
+    create_directory()
     unittest.main()
 
 
