@@ -92,6 +92,7 @@ class Server(object):
 
     def process_request(self, request):
         yield self.env.process(request.run(self.env, self.heap))
+        request.attended_at(self.env.now)
         yield self.env.process(request.load_balancer.sucess_request(request))
         self.processed_requests += 1
 

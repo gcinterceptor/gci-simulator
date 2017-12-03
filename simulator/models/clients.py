@@ -12,22 +12,33 @@ class Request(object):
         self.memory = float(conf['memory'])
 
         self.done = False
+
         self._sent_time = None
         self._arrived_time = None
+        self._attended_time = None
         self._finished_time = None
         self._latency_time = None
+
+        self._time_in_queue = None
+        self._time_in_server = None
 
         self.logger = get_logger(log_path + "/request.log", "REQUEST")
 
     def run(self, env, heap):
+        self._time_in_queue = env.now - self._arrived_time
         yield env.timeout(self.service_time)
         yield heap.put(self.memory)
+        self.done = True
 
     def sent_at(self, time):
         self._sent_time = time
 
     def arrived_at(self, time):
         self._arrived_time = time
+
+    def attended_at(self, time):
+        self._attended_time = time
+        self._time_in_server = self._attended_time - self._arrived_time
 
     def finished_at(self, time):
         self._finished_time = time
