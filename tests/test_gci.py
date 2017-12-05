@@ -12,17 +12,15 @@ class TestGCI(unittest.TestCase):
         server_conf = get_config('../config/server.ini', 'server sleep_time-0.00001')
         loadbalancer_conf = get_config('../config/loadbalancer.ini', 'loadbalancer sleep_time-0.00001')
 
-        self.log_path = '../logs'
-
-        self.server = ServerWithGCI(self.env, 1, server_conf, gc_conf, gci_conf, self.log_path)
-        self.load_balancer = LoadBalancer(self.env, self.server, loadbalancer_conf, self.log_path)
+        self.server = ServerWithGCI(self.env, 1, server_conf, gc_conf, gci_conf)
+        self.load_balancer = LoadBalancer(self.env, self.server, loadbalancer_conf)
 
         self.requests = list()
 
     def test_interaction(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.69')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+                                 'clients create_request_rate-100 max_requests-1')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
@@ -31,15 +29,16 @@ class TestGCI(unittest.TestCase):
 
         expected = 0.000
         self.assert_almost_equal(expected, request.created_at)
+        expected = 0.01
         self.assert_almost_equal(expected, request._sent_time)
 
-        expected = 0.0035
+        expected = 0.0135
         self.assert_almost_equal(expected, request._finished_time)
 
     def test_one_request_low_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.69')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+                                 'clients create_request_rate-100 max_requests-1')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
         sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
@@ -51,7 +50,7 @@ class TestGCI(unittest.TestCase):
     def test_one_request_enough_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.7')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-1')
+                                 'clients create_request_rate-100 max_requests-1')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -64,7 +63,7 @@ class TestGCI(unittest.TestCase):
     def test_three_request_low_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.345')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-2')
+                                 'clients create_request_rate-100 max_requests-2')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -77,7 +76,7 @@ class TestGCI(unittest.TestCase):
     def test_three_request_enough_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.0035 memory-0.35')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-3')
+                                 'clients create_request_rate-100 max_requests-3')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -90,7 +89,7 @@ class TestGCI(unittest.TestCase):
     def test_small_queue_low_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.00035 memory-0.069')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-11')
+                                 'clients create_request_rate-100 max_requests-11')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -103,7 +102,7 @@ class TestGCI(unittest.TestCase):
     def test_small_queue_enough_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.00035 memory-0.07')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-11')
+                                 'clients create_request_rate-100 max_requests-11')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -116,7 +115,7 @@ class TestGCI(unittest.TestCase):
     def test_high_queue_low_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.000035 memory-0.0069')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-101')
+                                 'clients create_request_rate-100 max_requests-101')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -129,7 +128,7 @@ class TestGCI(unittest.TestCase):
     def test_high_queue_enough_heap(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.000035 memory-0.007')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.00001 create_request_rate-100 max_requests-101')
+                                 'clients create_request_rate-100 max_requests-101')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -142,7 +141,7 @@ class TestGCI(unittest.TestCase):
     def test_multiples_gci_collects(self):
         requests_conf = get_config('../config/request.ini', 'request service_time-0.001 memory-0.1')
         clients_conf = get_config('../config/clients.ini',
-                                 'clients sleep_time-0.01 create_request_rate-100 max_requests-71')
+                                 'clients create_request_rate-100 max_requests-71')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(
             requests_conf['service_time']), float(requests_conf['memory'])
 
@@ -166,18 +165,11 @@ class TestGCI(unittest.TestCase):
         return num_requests * (request_duration + request_memory + create_request_rate) + sleep_time
 
     def env_run(self, sim_duration, clients_conf, requests_conf):
-        clients = Clients(self.env, self.load_balancer, clients_conf, requests_conf, self.log_path)
+        clients = Clients(self.env, self.load_balancer, clients_conf, requests_conf)
         self.requests = clients.requests
         self.env.run(until=sim_duration)
 
-def create_directory():
-    os.chdir("..")
-    if not os.path.isdir("logs"):
-        os.mkdir("logs")
-    os.chdir("tests")
-
 if __name__ == '__main__':
-    create_directory()
     unittest.main()
 
 
