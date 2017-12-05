@@ -3,7 +3,7 @@ import simpy
 
 class LoadBalancer(object):
 
-    def __init__(self, env, server, conf, log_path):
+    def __init__(self, env, server, conf, log_path=None):
         self.env = env
         self.sleep = float(conf['sleep_time'])
 
@@ -12,7 +12,10 @@ class LoadBalancer(object):
         self.queue = simpy.Store(env)  # the queue of requests
         self.remaining_queue = simpy.Store(env)  # the queue of interrupted requests
 
-        self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
+        if log_path:
+            self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
+        else:
+            self.logger = None
 
         self.action = self.env.process(self.run())
 
@@ -46,13 +49,14 @@ class LoadBalancer(object):
         yield self.env.process(request.client.sucess_request(request))
 
     def shed_request(self, request, server, unavailable_until):
-        self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
+        if self.logger:
+            self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
         self.server_availability[server.id] = self.env.now + unavailable_until
         yield self.remaining_queue.put(request)
 
 class Server(object):
 
-    def __init__(self, env, id, conf, gc_conf, log_path):
+    def __init__(self, env, id, conf, gc_conf, log_path=None):
         self.env = env
         self.id = id
         self.sleep = float(conf['sleep_time'])
@@ -64,7 +68,10 @@ class Server(object):
         from .garbage import GC
         self.gc = GC(self.env, self, gc_conf, log_path)
 
-        self.logger = get_logger(log_path + "/server.log", "SERVER")
+        if log_path:
+            self.logger = get_logger(log_path + "/server.log", "SERVER")
+        else:
+            self.logger = None
 
         self.processed_requests = 0
         self.times_interrupted = 0
@@ -76,7 +83,7 @@ class Server(object):
                 if len(self.interrupted_queue.items) > 0:
                     request = yield self.interrupted_queue.get()  # get a request from store
                     if request.done:
-                        yield self.heap.get(request.memory) # remove trash that shouldn't be added...
+                        self.heap.get(request.memory) # remove trash that shouldn't be added...
                     yield self.env.process(self.process_request(request))
 
                 elif len(self.queue.items) > 0:  # check if there is any request to be processed
@@ -86,7 +93,8 @@ class Server(object):
                 yield self.env.timeout(self.sleep)  # wait for...
 
         except simpy.Interrupt:
-            self.logger.info(" At %.3f, Server was interrupted" % (self.env.now))
+            if self.logger:
+                self.logger.info(" At %.3f, Server was interrupted" % (self.env.now))
             self.times_interrupted += 1
             yield self.interrupted_queue.put(request)
 
@@ -102,7 +110,7 @@ class Server(object):
 
 class ServerWithGCI(Server):
 
-    def __init__(self, env, id, conf, gc_conf, gci_conf, log_path):
+    def __init__(self, env, id, conf, gc_conf, gci_conf, log_path=None):
         super().__init__(env, id, conf, gc_conf, log_path)
 
         from .garbage import GCI
