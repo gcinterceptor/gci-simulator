@@ -3,7 +3,7 @@ import simpy
 
 class Request(object):
 
-    def __init__(self, created_at, client, load_balancer, conf, log_path=None):
+    def __init__(self, id, created_at, client, load_balancer, conf, log_path=None):
         self.created_at = created_at
         self.client = client
         self.load_balancer = load_balancer
@@ -11,6 +11,7 @@ class Request(object):
         self.service_time = float(conf['service_time'])
         self.memory = float(conf['memory'])
 
+        self.id = id
         self.done = False
 
         self._sent_time = None
@@ -79,7 +80,7 @@ class Clients(object):
     def create_requests(self, max_requests, requests_conf, log_path):
         count_requests = 1
         while count_requests <= max_requests:
-            request = Request(self.env.now, self, self.server, requests_conf, log_path)
+            request = Request(count_requests, self.env.now, self, self.server, requests_conf, log_path)
             yield self.queue.put(request)
             yield self.env.timeout(self.sleep_time)
             count_requests += 1

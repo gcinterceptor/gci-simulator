@@ -23,7 +23,7 @@ class TestGCI(unittest.TestCase):
                                  'clients create_request_rate-100 max_requests-1')
         num_requests, request_duration, request_memory = int(clients_conf['max_requests']), float(requests_conf['service_time']), float(requests_conf['memory'])
 
-        sim_duration = self.sim_duration_time(num_requests, request_duration, request_memory)
+        sim_duration = self.sim_duration_time(num_requests, request_duration + 1, request_memory)
         self.env_run(sim_duration, clients_conf, requests_conf)
         request = self.requests[0]
 

@@ -17,6 +17,7 @@ class LoadBalancer(object):
         else:
             self.logger = None
 
+        self.requests_arrived = 0
         self.action = self.env.process(self.run())
 
     def run(self):
@@ -44,6 +45,7 @@ class LoadBalancer(object):
     def request_arrived(self, request):
         request.sent_at(self.env.now)
         yield self.queue.put(request)
+        self.requests_arrived += 1
 
     def sucess_request(self, request):
         yield self.env.process(request.client.sucess_request(request))
@@ -73,7 +75,9 @@ class Server(object):
         else:
             self.logger = None
 
+        self.is_processing = False
         self.processed_requests = 0
+        self.requests_arrived = 0
         self.times_interrupted = 0
         self.action = env.process(self.run())
 
@@ -90,23 +94,30 @@ class Server(object):
                     request = yield self.queue.get()  # get a request from store
                     yield self.env.process(self.process_request(request))
 
+                request = None
                 yield self.env.timeout(self.sleep)  # wait for...
 
         except simpy.Interrupt:
             if self.logger:
                 self.logger.info(" At %.3f, Server was interrupted" % (self.env.now))
+
             self.times_interrupted += 1
-            yield self.interrupted_queue.put(request)
+            if request:
+                yield self.interrupted_queue.put(request)
 
     def process_request(self, request):
+        self.is_processing = True
         yield self.env.process(request.run(self.env, self.heap))
         request.attended_at(self.env.now)
         yield self.env.process(request.load_balancer.sucess_request(request))
         self.processed_requests += 1
+        self.is_processing = False
+
 
     def request_arrived(self, request):
         request.arrived_at(self.env.now)
         yield self.queue.put(request)   # put the request at the end of the queue
+        self.requests_arrived += 1
 
 class ServerWithGCI(Server):
 
@@ -116,5 +127,11 @@ class ServerWithGCI(Server):
         from .garbage import GCI
         self.gci = GCI(self.env, self, gci_conf, log_path)
 
+    def process_request(self, request):
+        before = self.env.now
+        yield self.env.process(super().process_request(request))
+        after = self.env.now
+        self.gci.requestFinished(before - after)
+
     def request_arrived(self, request):
-        yield self.env.process(self.gci.intercept(request))
+        yield self.env.process(self.gci.before(request))
