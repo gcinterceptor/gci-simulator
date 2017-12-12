@@ -2,7 +2,7 @@ from log import get_logger
 
 class GC(object):
 
-    def __init__(self, env, server, conf, log_path):
+    def __init__(self, env, server, conf, log_path=None):
         self.env = env
         self.server = server
         self.heap = server.heap
@@ -15,7 +15,10 @@ class GC(object):
         self.gc_exec_time_sum = 0
         self.gc_process = self.env.process(self.run())
 
-        self.logger = get_logger(log_path + "/gc.log", "GC")
+        if log_path:
+            self.logger = get_logger(log_path + "/gc.log", "GC")
+        else:
+            self.logger = None
 
     def run(self):
         while True:
@@ -26,7 +29,9 @@ class GC(object):
             yield self.env.timeout(self.sleep_time)  # wait for...
 
     def collect(self):
-        self.logger.info(" At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
+        if self.logger:
+            self.logger.info(" At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
+
         self.is_gcing = True
         self.server.action.interrupt()
 
@@ -38,17 +43,20 @@ class GC(object):
         self.gc_exec_time_sum += (self.env.now - gc_start_time)
 
         self.is_gcing = False
-        self.logger.info(" At %.3f, GC finish his job. Now we have %.3f of trash\n" % (self.env.now, self.heap.level))
+
+        if self.logger:
+            self.logger.info(" At %.3f, GC finish his job. Now we have %.3f of trash\n" % (self.env.now, self.heap.level))
+
         self.server.action = self.env.process(self.server.run())
         self.collects_performed += 1
 
     def gc_execution_time_by_trash(self, trash):
-        # TODO(David) implement the way to calculate the execution time of Garbage Collector
-        return trash
+        TOTAL_OF_MEMORY = 10000000000
+        return ((trash * TOTAL_OF_MEMORY) * 7.317 * (10**-8) + 78.34) / 1000
 
 class GCI(object):
 
-    def __init__(self, env, server,  conf, log_path):
+    def __init__(self, env, server,  conf, log_path=None):
         self.env = env
         self.server = server
         self.check_heap = int(conf['check_heap'])
@@ -57,37 +65,48 @@ class GCI(object):
         self.estimated_gc_exec_time = float(conf['initial_estimated_gc_exec_time'])
 
         self.is_shedding = False
+        self.HISTORY_SIZE = 5
+        self.gcPast = list()
+        self.reqPast = list()
         self.processed_requests_history = list()
-        self.gc_execution_history = list()
-        self.history_size = 5
+
+        self.reqEstimation = 0
+        self.processed_requests = 0
+        self.last_processed_requests = 0
         self.times_performed = 0
 
-        self.logger = get_logger(log_path + "/gci.log", "GCI")
+        if log_path:
+            self.logger = get_logger(log_path + "/gci.log", "GCI")
+        else:
+            self.logger = None
 
         self._time_shedding = 0
 
-    def intercept(self, request):
-        self.env.process(self.check())
-        self.env.timeout(self.sleep_time)
+    def before(self, request):
+        yield self.env.process(self.check())
 
         if self.is_shedding:
-            self.logger.info(" At %.3f, shedding request" % self.env.now)
+            if self.logger:
+                self.logger.info(" At %.3f, shedding request - shedded request id: %i" % (self.env.now, request.id))
             yield self.env.process(request.load_balancer.shed_request(request, self.server, self._time_shedding))
 
         else:
-            self.server.queue.put(request)  # put the request at the end of the queue
+            yield self.server.queue.put(request)  # put the request at the end of the queue
             request.arrived_at(self.env.now)
+            self.server.processed_requests += 1
 
     def check(self):
-        if self.server.processed_requests >= self.check_heap:
+        if self.processed_requests >= self.check_heap:
             if self.server.heap.level >= self.threshold and not self.is_shedding:
-                    yield self.env.process(self.run_gc())
+                    self.is_shedding = True
+                    self.env.process(self.run_gc())
+
+        yield self.env.timeout(self.sleep_time)
 
     def run_gc(self):
-        self.logger.info(" At %.3f, GCI check the heap and it is at %.3f" % (self.env.now, self.server.heap.level))
-        # create an event that will set shed as true and available as false
+        if self.logger:
+            self.logger.info(" At %.3f, GCI check the heap and it is at %.3f" % (self.env.now, self.server.heap.level))
 
-        self.is_shedding = True
         self._time_shedding = self.estimated_shed_time()
 
         # wait for the queue to get empty.
@@ -112,35 +131,46 @@ class GCI(object):
         self.update_gci_values(gc_exec_time)
 
         self.times_performed += 1
-        self.logger.info(" At %.3f, GCI finish his job and GC takes %.3f seconds to execute\n" % (self.env.now, gc_exec_time))
+
+        if self.logger:
+            self.logger.info(" At %.3f, GCI finish his job and GC takes %.3f seconds to execute\n" % (self.env.now, gc_exec_time))
 
     def check_request_queue(self):
         while len(self.server.queue.items) > 0:
+            yield self.env.timeout(self.sleep_time)
+        yield self.env.timeout(self.sleep_time)
+
+        while self.server.is_processing:
             yield self.env.timeout(self.sleep_time)
 
     def estimated_shed_time(self):
         return self.estimated_requests_execution_time() + self.estimated_gc_execution_time()
 
     def estimated_requests_execution_time(self):
-        # TODO(David) implement the logic to estimate time to process one request
-        return len(self.server.queue.items) * 0.001
+        return len(self.server.queue.items) * self.reqEstimation
 
     def estimated_gc_execution_time(self):
         return self.estimated_gc_exec_time
 
+    def requestFinished(self, request_exe_time):
+        self.processed_requests += 1
+        if (len(self.reqPast) == self.HISTORY_SIZE):
+            del self.reqPast[0]
+        self.reqPast.append(request_exe_time)
+        self.reqEstimation = min(self.reqPast)
+
     def update_gci_values(self, gc_execution_time):
         # update request history
-        if (len(self.processed_requests_history) == self.history_size):
+        if (len(self.processed_requests_history) == self.HISTORY_SIZE):
             del self.processed_requests_history[0]
-        self.processed_requests_history.append(self.server.processed_requests)
-
+        self.processed_requests_history.append(self.processed_requests)
+        self.processed_requests = 0
         # update Check Heap value
         self.check_heap = min(self.processed_requests_history)
 
         # update GC execution history
-        if (len(self.gc_execution_history) == self.history_size):
-            del self.gc_execution_history[0]
-        self.gc_execution_history.append(gc_execution_time)
-
+        if (len(self.gcPast) == self.HISTORY_SIZE):
+            del self.gcPast[0]
+        self.gcPast.append(gc_execution_time)
         # update estimated gc execution time
-        self.estimated_gc_exec_time = max(self.gc_execution_history)
+        self.estimated_gc_exec_time = max(self.gcPast)
