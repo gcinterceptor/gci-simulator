@@ -41,7 +41,7 @@ class Server(object):
         return self.env.now + numpy.random.normal(average_availability_time, standard_desviation)
     
     def get_next_unavailability_time(self):
-        
+        return 1
 
     def process_request(self, request):
         yield self.env.process(request.run(self.env, self.heap))

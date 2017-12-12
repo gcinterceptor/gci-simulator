@@ -54,8 +54,6 @@ def main():
     env = simpy.Environment()
 
     client_conf = get_config('config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-35 max_requests-inf')
-    gc_conf = get_config('config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
-    gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.9')
     loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.0035')
     requests_conf = get_config('config/request.ini', 'request service_time-0.0035 memory-0.02')
     server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')

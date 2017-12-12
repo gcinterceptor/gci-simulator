@@ -9,19 +9,19 @@ class Request(object):
         self.load_balancer = load_balancer
 
         self.service_time = float(conf['service_time'])
-        self.memory = float(conf['memory'])
 
         self.done = False
         self._sent_time = None
         self._arrived_time = None
         self._finished_time = None
         self._latency_time = None
+        
+        self.redirects = 0
 
         self.logger = get_logger(log_path + "/request.log", "REQUEST")
 
-    def run(self, env, heap):
+    def run(self, env):
         yield env.timeout(self.service_time)
-        yield heap.put(self.memory)
 
     def sent_at(self, time):
         self._sent_time = time
@@ -69,11 +69,4 @@ class Clients(object):
         request.finished_at(self.env.now)
         self.requests.append(request)
         yield self.env.timeout(0)
-
-    def shed_request(self, request, unavailable_until):
-        # don't let the client send new requests until unavailable_until
-        # put the request in the front of the queue?
-        self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
-        yield self.env.timeout(unavailable_until)
-        yield self.queue.put(request)
 
