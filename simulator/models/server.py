@@ -1,5 +1,6 @@
 from log import get_logger
 import simpy
+import numpy
 
 class Server(object):
 
@@ -21,7 +22,7 @@ class Server(object):
 
     def run(self):
         while True:
-            available_time = self.get_next_availability_time()
+            available_time = self.get_next_available_time()
             available_until = self.env.now + available_time
             
             while self.env.now < available_until:
