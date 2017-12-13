@@ -3,7 +3,7 @@ import simpy
 
 class LoadBalancer(object):
 
-    def __init__(self, env, server, conf, log_path):
+    def __init__(self, env, server, conf, log_path=None):
         self.env = env
         self.sleep = float(conf['sleep_time'])
 
@@ -14,6 +14,12 @@ class LoadBalancer(object):
 
         self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
 
+        if log_path:
+            self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
+        else:
+            self.logger = None
+
+        self.requests_arrived = 0
         self.action = self.env.process(self.run())
 
     def run(self):
@@ -41,11 +47,13 @@ class LoadBalancer(object):
     def request_arrived(self, request):
         request.sent_at(self.env.now)
         yield self.queue.put(request)
+        self.requests_arrived += 1
 
     def sucess_request(self, request):
         yield self.env.process(request.client.sucess_request(request))
 
     def shed_request(self, request, server, unavailable_until):
-        self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
+        if self.logger:
+            self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
         self.server_availability[server.id] = self.env.now + unavailable_until
         yield self.remaining_queue.put(request)
