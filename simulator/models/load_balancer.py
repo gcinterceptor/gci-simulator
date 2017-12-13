@@ -9,10 +9,8 @@ class LoadBalancer(object):
 
         self.servers = [server]
         self.server_availability = {server.id: 0}
-        self.queue = simpy.Store(env)  # the queue of requests
-        self.remaining_queue = simpy.Store(env)  # the queue of interrupted requests
-
-        self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
+        self.queue = simpy.Store(env)               # the queue of requests
+        self.remaining_queue = simpy.Store(env)     # the queue of interrupted requests
 
         if log_path:
             self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
@@ -26,12 +24,14 @@ class LoadBalancer(object):
         server = 0
         while True:
             if self.server_availability[self.servers[server].id] <= self.env.now:
+                request = None
                 if len(self.remaining_queue.items) > 0:
                     request = yield self.remaining_queue.get()
-                    yield self.env.process(self.send_to(server, request))
-
                 elif len(self.queue.items) > 0:
                     request = yield self.queue.get()
+                    
+                if request:
+                    request.redirected()
                     yield self.env.process(self.send_to(server, request))
 
             server = (server + 1) % len(self.servers)
@@ -49,11 +49,13 @@ class LoadBalancer(object):
         yield self.queue.put(request)
         self.requests_arrived += 1
 
-    def sucess_request(self, request):
-        yield self.env.process(request.client.sucess_request(request))
+    def success_request(self, request):
+        yield self.env.process(request.client.success_request(request))
 
-    def shed_request(self, request, server, unavailable_until):
+    def shed_request(self, request, server, unavailable_time):
+        
         if self.logger:
-            self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
-        self.server_availability[server.id] = self.env.now + unavailable_until
+            self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_time))
+        
+        self.server_availability[server.id] = self.env.now + unavailable_time
         yield self.remaining_queue.put(request)
