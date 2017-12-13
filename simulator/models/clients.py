@@ -3,7 +3,8 @@ import simpy
 
 class Request(object):
 
-    def __init__(self, created_at, client, load_balancer, conf, log_path=None):
+    def __init__(self, id, created_at, client, load_balancer, conf, log_path=None):
+        self.id = id
         self.created_at = created_at
         self.client = client
         self.load_balancer = load_balancer
@@ -29,10 +30,14 @@ class Request(object):
         yield env.timeout(0)
     
     def interrupted_at(self, time):
+        if self.logger:
+            self.logger.info(" The Request %d was interrupted for %.3f" % (self.id, time))
         self._interrupted_time = time
         
     def redirected(self):
         self.redirects += 1
+        if self.logger:
+            self.logger.info(" The Request %d was redirect %d times" % (self.id, self.redirects))
 
     def sent_at(self, time):
         self._sent_time = time
@@ -45,7 +50,7 @@ class Request(object):
         self._latency_time = self._finished_time - self._sent_time
         
         if self.logger:
-            self.logger.info(" At %.3f, Request was finished. Latency: %.3f" % (self._finished_time, self._latency_time))
+            self.logger.info(" At %.3f, The Request %d was finished. Latency: %.3f" % (self.id, self._finished_time, self._latency_time))
 
 class Clients(object):
 
@@ -53,33 +58,32 @@ class Clients(object):
         self.env = env
         self.server = server
         self.requests = list()
-        self.sleep_time = float(conf['sleep_time'])
-
-        self.queue = simpy.Store(env)               # the queue of requests
+        self.sleep_time = 1 / int(conf['create_request_rate'])
 
         if log_path:
             self.logger = get_logger(log_path + "/clients.log", "CLIENTS")
         else:
             self.logger = None
 
-        self.action = env.process(self.send_requests())
         self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), requests_conf, log_path))
 
-    def send_requests(self):
-        while True:
-            if len(self.queue.items) > 0:           # check if there is any request to be processed
-                request = yield self.queue.get()    # get a request from store
-                yield self.env.process(self.server.request_arrived(request))
-
-            yield self.env.timeout(self.sleep_time) # wait for...
+    def send_request(self, request):
+        if self.logger:
+            self.logger.info(" At %.3f, The Request %d was send to Load Balancer" % (self.env.now, request.id))
+            
+        yield self.env.process(self.server.request_arrived(request))
 
     def create_requests(self, create_request_time, max_requests, requests_conf, log_path):
-        count_requests = 1
+        count_requests = 0
         while count_requests <= max_requests:
-            request = Request(self.env.now, self, self.server, requests_conf, log_path)
-            yield self.queue.put(request)
-            yield self.env.timeout(1.0 / create_request_time)
             count_requests += 1
+            
+            if self.logger:
+                self.logger.info(" At %.3f, Created Request with id %d" % (self.env.now, count_requests))
+                
+            request = Request(count_requests, self.env.now, self, self.server, requests_conf, log_path)
+            yield self.env.process(self.send_request(request))
+            yield self.env.timeout(self.sleep_time)
 
     def success_request(self, request):
         request.finished_at(self.env.now)

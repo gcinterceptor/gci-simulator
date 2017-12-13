@@ -45,13 +45,14 @@ class Server(object):
             
     def get_next_available_time(self):
         # for now we will use normal distribution
-        average_availability_time = 10  # defined by experimental results!
-        standard_desviation = 3         # defined by experimental results!
-        return numpy.random.normal(average_availability_time, standard_desviation)
+        #average_availability_time = 10  # defined by experimental results!
+        #standard_desviation = 3         # defined by experimental results!
+        #return numpy.random.normal(average_availability_time, standard_desviation)
+        return 0.9
     
     def get_next_unavailable_time(self):
         # for now we will use chi-square or BETA distribution
-        return 0.5
+        return 0.1
 
     def process_request(self, request):
         yield self.env.process(request.run(self.env))

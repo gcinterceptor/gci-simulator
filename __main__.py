@@ -1,33 +1,68 @@
 from simulator.models import Clients, LoadBalancer, ServerWithGCI, Server
-from log import iniciate_csv_files, csv_writer
 from config import get_config
-import simpy, os, time, math
+import simpy, os, sys, time
+
+def create_directory(path):
+    if not os.path.isdir(path):
+        os.mkdir(path)
 
 def main():
     before = time.time()
 
-    log_path = 'logs'
-    results_path = "results"
+    args = sys.argv
+    SERVERS_NUMBER = int(args[1])
+    SIM_DURATION_SECONDS = float(args[2])
+    scenario = args[3]
+    load = args[4]
+
+    if len(args) >= 6:
+        results_path = args[5]
+    else:
+        results_path = "results"
+
+    if len(args) >= 7:
+        log_path = args[6]
+    else:
+        log_path = None
+
+    create_directory(results_path)
+    if log_path:
+        create_directory(log_path)
+
+    if load == 'high':
+        client_conf = get_config('config/clients.ini', 'clients create_request_rate-150 max_requests-inf')
+        loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.006666667')
+
+    elif load == 'low':
+        client_conf = get_config('config/clients.ini', 'clients create_request_rate-35 max_requests-inf')
+        loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.028571429')
+
     env = simpy.Environment()
 
-    client_conf = get_config('config/clients.ini', 'clients sleep_time-0.00001 create_request_rate-35 max_requests-inf')
-    loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.0035')
-    requests_conf = get_config('config/request.ini', 'request service_time-0.0035 memory-0.02')
     server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
+    
+    load_balancer = LoadBalancer(env, loadbalancer_conf, log_path)
 
-    server_control = ServerWithGCI(env, 1, server_conf, log_path)
-    load_balancer_control = LoadBalancer(env, server_control, loadbalancer_conf, log_path)
-    clients_control = Clients(env, load_balancer_control, client_conf, requests_conf, log_path)
+    servers = list()
+    for i in range(SERVERS_NUMBER):
+        if scenario == 'control':
+            server = ServerWithGCI(env, i, server_conf, log_path)
 
-    server_baseline = Server(env, 1, server_conf, log_path)
-    load_balancer_baseline = LoadBalancer(env, server_baseline, loadbalancer_conf, log_path)
-    clients_baseline = Clients(env, load_balancer_baseline, client_conf, requests_conf, log_path)
+        elif scenario == 'baseline':
+            server = Server(env, i, server_conf, gc_conf, log_path)
 
-    SIM_DURATION_SECONDS = 1
-    env.run(until=SIM_DURATION_SECONDS)
+        load_balancer.add_server(server)
+
+        servers.append(server)
+
+    requests_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001606664')
+    clients = Clients(env, load_balancer, client_conf, requests_conf, log_path)
+
+    for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
+        env.run(until=time_stamp)
 
     after = time.time()
-    print("Time of execution in seconds: %.4f" % (after - before))
+    print("Time of simulation execution in seconds: %.4f" % (after - before))
 
 if __name__ == '__main__':
     main()
