@@ -1,6 +1,5 @@
 from log import get_logger
 import simpy
-import numpy
 
 class Server(object):
 

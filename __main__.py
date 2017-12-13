@@ -58,11 +58,11 @@ def main():
     requests_conf = get_config('config/request.ini', 'request service_time-0.0035 memory-0.02')
     server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
 
-    server_control = ServerWithGCI(env, 1, server_conf, gc_conf, gci_conf, log_path)
+    server_control = ServerWithGCI(env, 1, server_conf, log_path)
     load_balancer_control = LoadBalancer(env, server_control, loadbalancer_conf, log_path)
     clients_control = Clients(env, load_balancer_control, client_conf, requests_conf, log_path)
 
-    server_baseline = Server(env, 1, server_conf, gc_conf, log_path)
+    server_baseline = Server(env, 1, server_conf, log_path)
     load_balancer_baseline = LoadBalancer(env, server_baseline, loadbalancer_conf, log_path)
     clients_baseline = Clients(env, load_balancer_baseline, client_conf, requests_conf, log_path)
 
