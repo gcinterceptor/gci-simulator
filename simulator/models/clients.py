@@ -16,12 +16,15 @@ class Request(object):
         self._arrived_time = None
         self._finished_time = None
         self._latency_time = None
+        self._interrupted = None
 
         self.logger = get_logger(log_path + "/request.log", "REQUEST")
 
-    def run(self, env, heap):
+    def run(self, env):
         yield env.timeout(self.service_time)
-        yield heap.put(self.memory)
+    
+    def interrupted(self, time):
+        self.interrupted = time
 
     def sent_at(self, time):
         self._sent_time = time
