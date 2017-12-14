@@ -32,13 +32,16 @@ class LoadBalancer(object):
                         request = yield self.queue.get()
                         
                     if request:
-                        request.redirected()
+                        yield self.env.process(request.redirected())
                         yield self.env.process(self.send_to(server, request))
 
             server = (server + 1) % len(self.servers)
             yield self.env.timeout(self.sleep)
 
     def send_to(self, server, request):
+        if self.logger:
+            self.logger.info(" At %.3f, request %d was send to server %d" % (self.env.now, request.id, self.servers[server].id))
+        
         yield self.env.process(self.servers[server].request_arrived(request))
 
     def add_server(self, server):
@@ -46,15 +49,20 @@ class LoadBalancer(object):
         self.server_availability[server.id] = 0
 
     def request_arrived(self, request):
-        request.sent_at(self.env.now)
+        if self.logger:
+            self.logger.info(" At %.3f, request %d arrived" % (self.env.now, request.id))
+        
+        yield self.env.process(request.sent_at())
         yield self.queue.put(request)
         self.requests_arrived += 1
 
     def success_request(self, request):
+        if self.logger:
+            self.logger.info(" At %.3f, request %d was successfully answered" % (self.env.now, request.id))
+            
         yield self.env.process(request.client.success_request(request))
 
     def shed_request(self, request, server, unavailable_time):
-        
         if self.logger:
             self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_time))
         

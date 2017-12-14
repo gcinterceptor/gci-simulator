@@ -10,6 +10,7 @@ class Server(object):
         self.sleep = float(conf['sleep_time'])
         
         self.queue = simpy.Store(env)               # the queue of requests
+        self.remaining_queue = simpy.Store(env)     # the queue of interrupted requests
         
         if log_path:
             self.logger = get_logger(log_path + "/server.log", "SERVER")
@@ -22,26 +23,28 @@ class Server(object):
 
     def run(self):
         while True:
-            available_time = self.get_next_available_time()
-            available_until = self.env.now + available_time
-            
+            available_until = self.env.now + self.get_next_available_time()
             while self.env.now < available_until:
-                if len(self.queue.items) > 0:                     # check if there is any request to be processed
-                    request = yield self.queue.get()              # get a request from store
-                    self.process_request(request)
+                request = None
+                if len(self.remaining_queue.items) > 0:
+                    request = yield self.remaining_queue.get()
+                elif len(self.queue.items) > 0:                     # check if there is any request to be processed
+                    request = yield self.queue.get()                # get a request from store
             
+                if request:
+                    yield self.env.process(self.process_request(request))
+                
                 yield self.env.timeout(self.sleep)
             
             unavailable_time = self.get_next_unavailable_time()
             unavailable_until = self.env.now + unavailable_time
-            
             while self.env.now < unavailable_until:
-                requests = self.queue.items
-                for request in requests:
-                    self.interrupt_request(request, unavailable_time)
+                if len(self.queue.items) > 0:
+                    request = yield self.queue.get()
+                    yield self.env.process(self.interrupt_request(request, unavailable_time))
                     
                 yield self.env.timeout(self.sleep)
-
+                
             
     def get_next_available_time(self):
         # for now we will use normal distribution
@@ -52,18 +55,28 @@ class Server(object):
     
     def get_next_unavailable_time(self):
         # for now we will use chi-square or BETA distribution
-        return 0.1
+        return 0.08
 
     def process_request(self, request):
-        yield self.env.process(request.run(self.env))
+        if self.logger:
+            self.logger.info(" At %.3f, The request %d was processed at Server %d" % (self.env.now, request.id, self.id))
+        
+        yield self.env.process(request.run())
         yield self.env.process(request.load_balancer.success_request(request))
         self.processed_requests += 1
         
     def interrupt_request(self, request, unavailable_time):
-        request.interrupted_at(unavailable_time)
+        if self.logger:
+            self.logger.info(" At %.3f, The request %d was interrupted at Server %d" % (self.env.now, request.id, self.id))
+        
+        yield self.remaining_queue.put(request)
+        yield self.env.process(request.interrupted_at(unavailable_time))
 
     def request_arrived(self, request):
-        request.arrived_at(self.env.now)
+        if self.logger:
+            self.logger.info(" At %.3f, The request %d arrived at Server %d" % (self.env.now, request.id, self.id))
+        
+        yield self.env.process(request.arrived_at())
         yield self.queue.put(request)   # put the request at the end of the queue
 
 
@@ -73,6 +86,8 @@ class ServerWithGCI(Server):
         super().__init__(env, id, conf, log_path)
 
     def interrupt_request(self, request, unavailable_time):
+        if self.logger:
+            self.logger.info(" At %.3f, The request %d was interrupted at Server %d" % (self.env.now, request.id, self.id))
         # Note that we are assuming that the GCI is giving a good hint at unvailable server time
-        yield self.env.process(request.load_balancer.shed_request(request, self.server, unavailable_time))
+        yield self.env.process(request.load_balancer.shed_request(request, self, unavailable_time))
 

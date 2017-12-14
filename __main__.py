@@ -31,12 +31,12 @@ def main():
 
     if load == 'high':
         client_conf = get_config('config/clients.ini', 'clients create_request_rate-150 max_requests-inf')
-        loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.006666667')
 
     elif load == 'low':
         client_conf = get_config('config/clients.ini', 'clients create_request_rate-35 max_requests-inf')
-        loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.028571429')
 
+    loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.00001')
+    
     env = simpy.Environment()
 
     server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
@@ -60,9 +60,13 @@ def main():
 
     for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
         env.run(until=time_stamp)
+    
+    for request in clients.requests:     
+        print((request._latency_time, request.redirects))
 
     after = time.time()
     print("Time of simulation execution in seconds: %.4f" % (after - before))
 
 if __name__ == '__main__':
     main()
+    
