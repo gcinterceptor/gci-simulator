@@ -30,16 +30,16 @@ def main():
         create_directory(log_path)
 
     if load == 'high':
+        server_conf = get_config('config/server.ini', 'server high_load')
         client_conf = get_config('config/clients.ini', 'clients create_request_rate-150 max_requests-inf')
 
     elif load == 'low':
+        server_conf = get_config('config/server.ini', 'server low_load')
         client_conf = get_config('config/clients.ini', 'clients create_request_rate-35 max_requests-inf')
-
+    
     loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.00001')
     
     env = simpy.Environment()
-
-    server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
     
     load_balancer = LoadBalancer(env, loadbalancer_conf, log_path)
 
@@ -49,10 +49,9 @@ def main():
             server = ServerWithGCI(env, i, server_conf, log_path)
 
         elif scenario == 'baseline':
-            server = Server(env, i, server_conf, gc_conf, log_path)
+            server = Server(env, i, server_conf, log_path)
 
         load_balancer.add_server(server)
-
         servers.append(server)
 
     requests_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001606664')
@@ -61,7 +60,7 @@ def main():
     for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
         env.run(until=time_stamp)
     
-    for request in clients.requests:     
+    for request in clients.requests:
         print((request._latency_time, request.redirects))
 
     after = time.time()
