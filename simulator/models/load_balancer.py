@@ -44,7 +44,8 @@ class LoadBalancer(object):
 
     def success_request(self, request):
         if self.logger:
-            self.logger.info(" At %.3f, request %d arrived" % (self.env.now, request.id))
+            self.logger.info(" At %.3f, request %d processed" % (self.env.now, request.id))
+            
         yield self.env.process(request.client.success_request(request))
 
     def shed_request(self, request, server, unavailable_time):

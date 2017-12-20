@@ -21,11 +21,6 @@ class Request(object):
         self._interrupted_time = None
         self.redirects = 0
 
-        if log_path:
-            self.logger = get_logger(log_path + "/request.log", "REQUEST")
-        else:
-            self.logger = None
-
     def run(self):
         yield self.env.timeout(0)
     

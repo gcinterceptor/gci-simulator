@@ -1,6 +1,6 @@
 from log import get_logger
+from .distributions import Exponential, Normal
 import simpy
-import numpy
 
 class Server(object):
 
@@ -16,6 +16,9 @@ class Server(object):
             self.logger = get_logger(log_path + "/server.log", "SERVER")
         else:
             self.logger = None
+            
+        self.available_time_dist = self.get_distribution(conf, ['available_time'])
+        self.unavailable_time_dist = self.get_distribution(conf, ['unavailable_time'])
 
         self.processed_requests = 0
         self.times_interrupted = 0
@@ -36,6 +39,7 @@ class Server(object):
                 
                 yield self.env.timeout(self.sleep)
             
+            self.times_interrupted += 1
             unavailable_time = self.get_next_unavailable_time()
             unavailable_until = self.env.now + unavailable_time
             while self.env.now < unavailable_until:
@@ -47,15 +51,20 @@ class Server(object):
                 
             
     def get_next_available_time(self):
-        # for now we will use normal distribution
-        #average_availability_time = 10  # defined by experimental results!
-        #standard_desviation = 3         # defined by experimental results!
-        #return numpy.random.normal(average_availability_time, standard_desviation)
-        return 0.9
+        available_time = self.available_time_dist.get_next_value()
+        
+        if self.logger:
+            self.logger.info(" At %.3f, The server %d will be available for %.3f" % (self.env.now, self.id, available_time))
+            
+        return available_time
     
     def get_next_unavailable_time(self):
-        # for now we will use chi-square or BETA distribution
-        return 0.08
+        unavailable_time = self.unavailable_time_dist.get_next_value()
+        
+        if self.logger:
+            self.logger.info(" At %.3f, The server %d will be UNavailable for %.3f" % (self.env.now, self.id, unavailable_time))
+            
+        return unavailable_time
 
     def process_request(self, request):
         if self.logger:
@@ -78,7 +87,21 @@ class Server(object):
         
         yield self.env.process(request.arrived_at())
         yield self.queue.put(request)   # put the request at the end of the queue
-
+        
+    def get_distribution(self, conf, parameters):
+        distribution_name = conf['distribution']
+        
+        distribution = None
+        if distribution_name == 'exponential':
+            avg = float(conf[parameters[0]])
+            distribution = Exponential(avg)
+            
+        elif distribution_name == 'normal':
+            avg = float(conf[parameters[0]])
+            desviation = float(conf[parameters[1]])
+            distribution = Normal(avg, desviation)
+        
+        return distribution
 
 class ServerWithGCI(Server):
 

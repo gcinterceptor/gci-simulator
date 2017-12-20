@@ -1,4 +1,5 @@
 import numpy
+from .abstract_distribution import Distribution 
 
 class Exponential(Distribution):
     
@@ -10,6 +11,6 @@ class Exponential(Distribution):
     
     def get_next_value(self):
         if(len(self.generated_list) == 0):
-            self.generated_list = numpy.random.exponential(self.avg, self.size)
+            self.generated_list = list(numpy.random.exponential(self.avg, self.size))
         
         return self.generated_list.pop(0)
