@@ -3,14 +3,12 @@ import simpy
 
 class Request(object):
 
-    def __init__(self, env, id, client, load_balancer, conf, log_path=None):
+    def __init__(self, env, id, client, load_balancer, log_path=None):
         self.id = id
         self.env = env
         self.created_at = self.env.now
         self.client = client
         self.load_balancer = load_balancer
-
-        self.service_time = float(conf['service_time'])
 
         self._sent_time = None
         self._arrived_time = None

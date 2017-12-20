@@ -5,12 +5,13 @@ class LoadBalancer(object):
 
     def __init__(self, env, conf, log_path=None):
         self.env = env
-        self.sleep = float(conf['sleep_time'])
 
         self.servers = list()
         self.server_availability = {}
         
         self.actual_server = 0
+        
+        self.shed_sleep_time = float(conf['shed_sleep_time'])
 
         if log_path:
             self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
@@ -55,4 +56,5 @@ class LoadBalancer(object):
         self.server_availability[server.id] = self.env.now + unavailable_time
         
         server = self.get_next_server()
+        yield self.env.timeout(self.shed_sleep_time)
         yield self.env.process(self.send_to(server, request))

@@ -4,7 +4,7 @@ import simpy
 
 class Clients(object):
 
-    def __init__(self, env, server, conf, requests_conf, log_path=None):
+    def __init__(self, env, server, conf, log_path=None):
         self.env = env
         self.server = server
         self.requests = list()
@@ -15,7 +15,7 @@ class Clients(object):
         else:
             self.logger = None
 
-        self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), requests_conf, log_path))
+        self.create_request = env.process(self.create_requests(int(conf['create_request_rate']),float(conf['max_requests']), log_path))
 
     def send_request(self, request):
         if self.logger:
@@ -23,7 +23,7 @@ class Clients(object):
             
         yield self.env.process(self.server.request_arrived(request))
 
-    def create_requests(self, create_request_time, max_requests, requests_conf, log_path):
+    def create_requests(self, create_request_time, max_requests, log_path):
         count_requests = 0
         while count_requests <= max_requests:
             count_requests += 1
@@ -31,7 +31,7 @@ class Clients(object):
             if self.logger:
                 self.logger.info(" At %.3f, Created Request with id %d" % (self.env.now, count_requests))
                 
-            request = Request(self.env, count_requests, self, self.server, requests_conf, log_path)
+            request = Request(self.env, count_requests, self, self.server, log_path)
             yield self.env.process(self.send_request(request))
             yield self.env.timeout(self.sleep_time)
 

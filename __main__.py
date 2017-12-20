@@ -37,7 +37,7 @@ def main():
         server_conf = get_config('config/server.ini', 'server low_load')
         client_conf = get_config('config/clients.ini', 'clients create_request_rate-35 max_requests-inf')
     
-    loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.00001')
+    loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.001')
     
     env = simpy.Environment()
     
@@ -54,8 +54,7 @@ def main():
         load_balancer.add_server(server)
         servers.append(server)
 
-    requests_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001606664')
-    clients = Clients(env, load_balancer, client_conf, requests_conf, log_path)
+    clients = Clients(env, load_balancer, client_conf, log_path)
 
     for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
         env.run(until=time_stamp)
