@@ -9,41 +9,18 @@ class LoadBalancer(object):
 
         self.servers = list()
         self.server_availability = {}
-        self.queue = simpy.Store(env)               # the queue of requests
-        self.remaining_queue = simpy.Store(env)     # the queue of interrupted requests
+        
+        self.actual_server = 0
 
         if log_path:
             self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
         else:
             self.logger = None
 
-        self.requests_arrived = 0
-        self.action = self.env.process(self.run())
-
-    def run(self):
-        server = 0
-        while True:
-            if len(self.servers) > 0:
-                if self.server_availability[self.servers[server].id] <= self.env.now:
-                    request = None
-                    if len(self.remaining_queue.items) > 0:
-                        request = yield self.remaining_queue.get()
-                    elif len(self.queue.items) > 0:
-                        request = yield self.queue.get()
-                        
-                    if request:
-                        yield self.env.process(request.redirected())
-                        yield self.env.process(self.send_to(server, request))
-
-            server = (server + 1) % len(self.servers)
-            yield self.env.timeout(self.sleep)
-
-    def send_to(self, server, request):
-        if self.logger:
-            self.logger.info(" At %.3f, request %d was send to server %d" % (self.env.now, request.id, self.servers[server].id))
-        
-        yield self.env.process(self.servers[server].request_arrived(request))
-
+    def get_next_server(self):
+        self.actual_server = (self.actual_server + 1) % len(self.servers) 
+        return self.actual_server
+            
     def add_server(self, server):
         self.servers.append(server)
         self.server_availability[server.id] = 0
@@ -53,13 +30,21 @@ class LoadBalancer(object):
             self.logger.info(" At %.3f, request %d arrived" % (self.env.now, request.id))
         
         yield self.env.process(request.sent_at())
-        yield self.queue.put(request)
-        self.requests_arrived += 1
+        
+        server = self.get_next_server()
+        yield self.env.process(self.send_to(server, request))
+    
+    def send_to(self, server, request):
+        yield self.env.process(request.redirected())
+        
+        if self.logger:
+            self.logger.info(" At %.3f, request %d was send to server %d" % (self.env.now, request.id, self.servers[server].id))
+        
+        yield self.env.process(self.servers[server].request_arrived(request))
 
     def success_request(self, request):
         if self.logger:
-            self.logger.info(" At %.3f, request %d was successfully answered" % (self.env.now, request.id))
-            
+            self.logger.info(" At %.3f, request %d arrived" % (self.env.now, request.id))
         yield self.env.process(request.client.success_request(request))
 
     def shed_request(self, request, server, unavailable_time):
@@ -67,4 +52,6 @@ class LoadBalancer(object):
             self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_time))
         
         self.server_availability[server.id] = self.env.now + unavailable_time
-        yield self.remaining_queue.put(request)
+        
+        server = self.get_next_server()
+        yield self.env.process(self.send_to(server, request))

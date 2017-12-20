@@ -61,7 +61,7 @@ def main():
         env.run(until=time_stamp)
     
     for request in clients.requests:
-        print((request._latency_time, request.redirects))
+        print((request.id, request._latency_time, request.redirects))
 
     after = time.time()
     print("Time of simulation execution in seconds: %.4f" % (after - before))
