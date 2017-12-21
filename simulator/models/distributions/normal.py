@@ -1,7 +1,6 @@
 import numpy
-from .abstract_distribution import Distribution
 
-class Normal(Distribution):
+class Normal(object):
     
     def __init__(self, avg, desviation, size = 10):
         self.avg = avg

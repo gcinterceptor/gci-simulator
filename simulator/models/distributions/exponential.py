@@ -1,7 +1,6 @@
 import numpy
-from .abstract_distribution import Distribution 
 
-class Exponential(Distribution):
+class Exponential(object):
     
     def __init__(self, avg, size = 10):
         self.avg = avg
