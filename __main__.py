@@ -12,7 +12,8 @@ def main():
     before = time.time()
 
     args = sys.argv
-    NUMB_OF_SERVER = int(args[1])
+
+    NUMBER_OF_SERVERS = int(args[1])
     SIM_DURATION_SECONDS = float(args[2])
     scenario = args[3]
     load = args[4]
@@ -21,15 +22,13 @@ def main():
         results_path = args[5]
     else:
         results_path = "results"
+    create_directory(results_path)
 
     if len(args) >= 7:
         log_path = args[6]
+        create_directory(log_path)
     else:
         log_path = None
-
-    create_directory(results_path)
-    if log_path:
-        create_directory(log_path)
 
     initiate_csv_files(results_path, scenario, load)
 
@@ -41,12 +40,16 @@ def main():
         client_conf = get_config('config/clients.ini', 'clients create_request_rate-35 max_requests-inf')
         loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.028571429')
 
+    else:
+        raise Exception("INVALID LOAD")
+
     env = simpy.Environment()
 
     server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
 
     servers = list()
-    for i in range(NUMB_OF_SERVER):
+    load_balancer = LoadBalancer(env, loadbalancer_conf, log_path)
+    for i in range(NUMBER_OF_SERVERS):
         if scenario == 'control':
             gc_conf = get_config('config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
             gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-2 initial_eget-0.9')
@@ -56,11 +59,10 @@ def main():
             gc_conf = get_config('config/gc.ini', 'gc sleep_time-0.00001 threshold-0.75') # Should change some configuration
             server = Server(env, i, server_conf, gc_conf, log_path)
 
-        if i > 0:
-            load_balancer.add_server(server)
         else:
-            load_balancer = LoadBalancer(env, server, loadbalancer_conf, log_path)
+            raise Exception("INVALID SCENARIO")
 
+        load_balancer.add_server(server)
         servers.append(server)
 
     requests_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001606664')

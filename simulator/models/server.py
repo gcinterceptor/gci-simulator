@@ -3,12 +3,14 @@ import simpy
 
 class LoadBalancer(object):
 
-    def __init__(self, env, server, conf, log_path=None):
+    def __init__(self, env, conf, server=None, log_path=None):
         self.env = env
         self.sleep = float(conf['sleep_time'])
 
-        self.servers = [server]
-        self.server_availability = {server.id: 0}
+        self.servers = []
+        self.server_availability = {}
+        self.add_server(server)
+
         self.queue = simpy.Store(env)  # the queue of requests
         self.remaining_queue = simpy.Store(env)  # the queue of interrupted requests
 
@@ -39,8 +41,9 @@ class LoadBalancer(object):
         yield self.env.process(self.servers[server].request_arrived(request))
 
     def add_server(self, server):
-        self.servers.append(server)
-        self.server_availability[server.id] = 0
+        if server:
+            self.servers.append(server)
+            self.server_availability[server.id] = 0
 
     def request_arrived(self, request):
         request.sent_at(self.env.now)
