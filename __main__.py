@@ -1,5 +1,7 @@
 from simulator.models import Clients, LoadBalancer, ServerWithGCI, Server
 from config import get_config
+from log import _initiate_csv_files
+from metrics import log_request
 import simpy, os, sys, time
 
 def create_directory(path):
@@ -14,18 +16,21 @@ def main():
     SIM_DURATION_SECONDS = float(args[2])
     scenario = args[3]
     load = args[4]
+    availability_rate = float(args[5])
 
-    if len(args) >= 6:
-        results_path = args[5]
+    if len(args) >= 7:
+        results_path = args[6]
     else:
         results_path = "results"
 
-    if len(args) >= 7:
-        log_path = args[6]
+    if len(args) >= 8:
+        log_path = args[7]
     else:
         log_path = None
 
     create_directory(results_path)
+    _initiate_csv_files(results_path, SERVERS_NUMBER, scenario, load)
+    
     if log_path:
         create_directory(log_path)
 
@@ -43,25 +48,27 @@ def main():
     
     load_balancer = LoadBalancer(env, loadbalancer_conf, log_path)
 
+    avg_unavailable_time = 1.00
+    avg_available_time = availability_rate * avg_unavailable_time
+    
     servers = list()
     for i in range(SERVERS_NUMBER):
         if scenario == 'control':
-            server = ServerWithGCI(env, i, server_conf, log_path)
+            server = ServerWithGCI(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time)
 
         elif scenario == 'baseline':
-            server = Server(env, i, server_conf, log_path)
+            server = Server(env, i, server_conf, log_path, avg_available_time, avg_available_time)
 
         load_balancer.add_server(server)
         servers.append(server)
 
-    clients = Clients(env, load_balancer, client_conf, log_path)
+    clients = Clients(env, load_balancer, client_conf, SERVERS_NUMBER, log_path)
 
     for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
         env.run(until=time_stamp)
+        
+    log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load)
     
-    for request in clients.requests:
-        print((request.id, request._latency_time, request.redirects))
-
     after = time.time()
     print("Time of simulation execution in seconds: %.4f" % (after - before))
 

@@ -6,10 +6,11 @@ class Request(object):
     def __init__(self, env, id, client, load_balancer, log_path=None):
         self.id = id
         self.env = env
-        self.created_at = self.env.now
         self.client = client
         self.load_balancer = load_balancer
+        self.server_id = None
 
+        self.created_at = self.env.now
         self._sent_time = None
         self._arrived_time = None
         self._finished_time = None
@@ -19,7 +20,8 @@ class Request(object):
         self._interrupted_time = None
         self.redirects = 0
 
-    def run(self):
+    def run(self, server_id):
+        self.server_id = server_id
         yield self.env.timeout(0)
     
     def interrupted_at(self, time):

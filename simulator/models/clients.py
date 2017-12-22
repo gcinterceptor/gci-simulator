@@ -4,11 +4,11 @@ import simpy
 
 class Clients(object):
 
-    def __init__(self, env, server, conf, log_path=None):
+    def __init__(self, env, server, conf, servers_number, log_path=None):
         self.env = env
         self.server = server
         self.requests = list()
-        self.sleep_time = 1 / int(conf['create_request_rate'])
+        self.sleep_time = 1 / (int(conf['create_request_rate']) * servers_number)
 
         if log_path:
             self.logger = get_logger(log_path + "/clients.log", "CLIENTS")

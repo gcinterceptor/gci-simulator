@@ -4,7 +4,7 @@ import simpy
 
 class Server(object):
 
-    def __init__(self, env, id, conf, log_path):
+    def __init__(self, env, id, conf, log_path, available_avg_time, unavailable_avg_time):
         self.env = env
         self.id = id
         self.sleep = float(conf['sleep_time'])
@@ -17,8 +17,8 @@ class Server(object):
         else:
             self.logger = None
             
-        self.available_time_dist = Distribution(conf, conf['available_distribution'], 'available_time')
-        self.unavailable_time_dist = Distribution(conf, conf['unavailable_distribution'], 'unavailable_time')
+        self.available_time_dist = Distribution(conf['available_distribution'], [available_avg_time])
+        self.unavailable_time_dist = Distribution(conf['unavailable_distribution'], [unavailable_avg_time])
 
         self.processed_requests = 0
         self.times_interrupted = 0
@@ -61,7 +61,7 @@ class Server(object):
         if self.logger:
             self.logger.info(" At %.3f, The request %d was processed at Server %d" % (self.env.now, request.id, self.id))
         
-        yield self.env.process(request.run())
+        yield self.env.process(request.run(self.id))
         yield self.env.process(request.load_balancer.success_request(request))
         self.processed_requests += 1
         
@@ -90,8 +90,8 @@ class Server(object):
         
 class ServerWithGCI(Server):
 
-    def __init__(self, env, id, conf, log_path=None):
-        super().__init__(env, id, conf, log_path)
+    def __init__(self, env, id, conf, log_path, avg_available_time, avg_unavailable_time):
+        super().__init__(env, id, conf, log_path, avg_available_time, avg_unavailable_time)
 
     def interrupt_request(self, request, unavailable_time):
         if self.logger:
