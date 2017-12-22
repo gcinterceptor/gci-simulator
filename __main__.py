@@ -29,7 +29,7 @@ def main():
         log_path = None
 
     create_directory(results_path)
-    _initiate_csv_files(results_path, SERVERS_NUMBER, scenario, load)
+    _initiate_csv_files(results_path, SERVERS_NUMBER, scenario, load, availability_rate)
     
     if log_path:
         create_directory(log_path)
@@ -67,7 +67,7 @@ def main():
     for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
         env.run(until=time_stamp)
         
-    log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load)
+    log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load, availability_rate)
     
     after = time.time()
     print("Time of simulation execution in seconds: %.4f" % (after - before))

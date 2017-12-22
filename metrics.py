@@ -1,7 +1,7 @@
 from log import csv_writer
 import math
 
-def log_request(requests, results_path, servers_number, scenario, load):
+def log_request(requests, results_path, servers_number, scenario, load, availability_rate):
     data = list()
 
     for request in requests:
@@ -9,7 +9,7 @@ def log_request(requests, results_path, servers_number, scenario, load):
                      request._finished_time, request._latency_time, request._interrupted_time, 
                      request.redirects, request.server_id])
 
-    file_path = results_path + "/request_" + str(servers_number) + "_" + scenario + "_const_" + load + ".csv"
+    file_path = results_path + "/request_" + str(servers_number) + "_" + scenario + load + "_" + str(availability_rate) + ".csv"
     csv_writer(data, file_path)
     
     
