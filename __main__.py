@@ -1,4 +1,4 @@
-from simulator.models import ClientLB, ServerControl, ServerBaseline
+from models import ClientLB, ServerControl, ServerBaseline
 from metrics import log_latency, log_time_in_server, log_server_metrics, log_request
 from log import initiate_csv_files
 from config import get_config
