@@ -1,4 +1,4 @@
-from simulator.models import clientlb, ServerControl, ServerBaseline
+from simulator.models import ClientLB, ServerControl, ServerBaseline
 from metrics import log_latency, log_time_in_server, log_server_metrics, log_request
 from log import initiate_csv_files
 from config import get_config
@@ -46,7 +46,7 @@ def main():
     env = simpy.Environment()
 
     servers = list()
-    load_balancer = clientlb(env, loadbalancer_conf, requests_conf, log_path)
+    load_balancer = ClientLB(env, loadbalancer_conf, requests_conf, log_path)
     for i in range(NUMBER_OF_SERVERS):
         if scenario == 'control':
             gc_conf = get_config('config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
