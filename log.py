@@ -27,7 +27,7 @@ def _initiate_request_csv_files(results_path, scenario, load):
     rlc_file_name = "requests_latency_metrics_" + scenario + "_const_" + load + ".csv"
     csv_writer(latency_data, results_path + "/" + rlc_file_name)
 
-    request_data = [["id", "time_in_queue", "time_in_server", "sent_time", "arrived_time", "attended_time", "finished_time", "latency_time"]]
+    request_data = [["id", "time_in_queue", "time_in_server", "created_at", "arrived_time", "attended_time", "finished_time", "latency_time"]]
     rsc_file_name = "request_status_" + scenario + "_const_" + load + ".csv"
     csv_writer(request_data, results_path + "/" + rsc_file_name)
 

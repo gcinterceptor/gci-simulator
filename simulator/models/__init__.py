@@ -1,3 +1,3 @@
-from .clients import Clients, Request
+from .clientlb import ClientLB, Request
 from .garbage import GC, GCI
-from .server import LoadBalancer, Server, ServerWithGCI
+from .server import ServerBaseline, ServerControl
