@@ -80,7 +80,7 @@ class ServerControl(ServerBaseline):
         before = self.env.now
         yield self.env.process(super().process_request(request))
         after = self.env.now
-        self.gci.requestFinished(after - before)
+        self.gci.request_finished(after - before)
 
     def request_arrived(self, request):
         yield self.env.process(self.gci.before(request))
