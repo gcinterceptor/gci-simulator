@@ -1,7 +1,7 @@
 from log import get_logger
 
 
-class GC(object):
+class GCSTW(object):
 
     def __init__(self, env, server, conf, log_path=None):
         self.env = env
@@ -41,7 +41,7 @@ class GC(object):
         gc_start_time = self.env.now
         while self.heap.level > 0:                                          # while threshold is empty...
             trash = self.heap.level                                         # keeps the amount of trash
-            yield self.env.timeout(self.gc_execution_time_by_trash(trash))  # run the time of discarting
+            yield self.env.timeout(self.time_by_trash(trash))  # run the time of discarting
             yield self.heap.get(trash)                                      # discards the trash
         self.gc_exec_time_sum += (self.env.now - gc_start_time)
 
@@ -53,8 +53,66 @@ class GC(object):
         self.server.action = self.env.process(self.server.run())
         self.collects_performed += 1
 
-    def gc_execution_time_by_trash(self, trash):
+    def time_by_trash(self, trash):
         return ((trash * self.TOTAL_OF_MEMORY) * 7.317 * (10**-8) + 78.34) / 1000
+
+
+class GCC(object):
+
+    def __init__(self, env, server, conf, log_path=None):
+        self.env = env
+        self.server = server
+        self.heap = server.heap
+
+        self.threshold = float(conf['threshold'])
+        self.sleep_time = float(conf['sleep_time'])
+        self.collect_duration = float(conf['collect_duration'])
+        self.delay = float(conf['delay'])
+
+        self.is_gcing = False
+        self.times_performed = 0
+        self.collects_performed = 0
+        self.gc_exec_time_sum = 0
+        self.gc_process = self.env.process(self.run())
+
+        if log_path:
+            self.logger = get_logger(log_path + "/gc.log", "GC")
+        else:
+            self.logger = None
+
+    def run(self):
+        while True:
+            if self.heap.level >= self.threshold and not self.is_gcing:
+                yield self.env.process(self.collect())
+                self.times_performed += 1
+
+            yield self.env.timeout(self.sleep_time)  # wait for...
+
+    def collect(self):
+        if self.logger:
+            self.logger.info(" At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
+
+        self.is_gcing, before = True, self.env.now
+        trash = self.heap.level
+        yield self.heap.get(trash)
+        yield self.env.process(self.wait_collect_duration())
+
+        trash = self.heap.level
+        if trash > 0:
+            yield self.heap.get(trash)
+        self.is_gcing, after = False, self.env.now
+
+        if self.logger:
+            self.logger.info(" At %.3f, GC finish his job. Now we have %.3f of trash\n" % (self.env.now, self.heap.level))
+
+        self.gc_exec_time_sum += after - before
+        self.collects_performed += 1
+
+    def wait_collect_duration(self):
+        yield self.env.timeout(self.collect_duration)
+
+    def delay_caused(self):
+        return self.delay
 
 
 class GCI(object):

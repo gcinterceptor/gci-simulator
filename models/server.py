@@ -13,8 +13,8 @@ class ServerBaseline(object):
         self.interrupted_queue = simpy.Store(env)  # the queue of interrupted requests
         self.heap = simpy.Container(env) # our trash heap
 
-        from .garbage import GC
-        self.gc = GC(self.env, self, gc_conf, log_path)
+        from .garbage import GCC
+        self.gc = GCC(self.env, self, gc_conf, log_path)
 
         if log_path:
             self.logger = get_logger(log_path + "/server.log", "SERVER")
@@ -53,6 +53,10 @@ class ServerBaseline(object):
 
     def process_request(self, request):
         self.is_processing = True
+
+        if self.gc.is_gcing:
+            request.service_time += self.gc.delay_caused()
+
         yield self.env.process(request.run(self.heap))
         request.attended_at(self.env.now)
         yield self.env.process(request.load_balancer.request_succeeded(request))
