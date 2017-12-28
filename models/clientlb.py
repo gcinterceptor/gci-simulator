@@ -69,9 +69,9 @@ class ClientLB(object):
 
         self.server_index = 0
         self.is_available = True
-        self.create_request = env.process(self.run(float(conf['max_requests']), int(conf['create_request_rate']), requests_conf, log_path))
+        self.create_request = env.process(self.create_and_forward_requests(float(conf['max_requests']), int(conf['create_request_rate']), requests_conf, log_path))
 
-    def run(self, max_requests, create_request_rate, requests_conf, log_path):
+    def create_and_forward_requests(self, max_requests, create_request_rate, requests_conf, log_path):
         time_between_each_sending = 1 / create_request_rate
         while self.created_requests < max_requests:
             request = Request(self.created_requests, self.env, self.env.now, self, requests_conf, log_path)
@@ -90,13 +90,13 @@ class ClientLB(object):
 
         self.server_availability[server.id] = self.env.now + unavailable_until
 
-        aux, count, forward = self.server_index, 0, False
+        server_index, count, forward = self.server_index, 0, False
         while count < len(self.servers) and not forward:
-            if self.env.now >= self.server_availability[self.servers[aux].id]:
-                self.env.process(self.forward(aux, request))
+            if self.env.now >= self.server_availability[self.servers[server_index].id]:
+                self.env.process(self.forward(server_index, request))
                 forward = True
             else:
-                aux = (aux + 1) % len(self.servers)
+                server_index = (server_index + 1) % len(self.servers)
             count += 1
 
         if not forward:
