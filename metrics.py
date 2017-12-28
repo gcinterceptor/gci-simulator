@@ -50,7 +50,7 @@ def log_request(requests, results_path, scenario, load):
 
     for request in requests:
         data.append([request.id, request._time_in_queue, request._time_in_server,
-                     request._sent_time, request._arrived_time, request._attended_time,
+                     request.created_at, request._arrived_time, request._attended_time,
                      request._finished_time, request._latency_time])
 
     file_path = results_path + "/request_status_" + scenario + "_const_" + load + ".csv"
