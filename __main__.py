@@ -49,12 +49,12 @@ def main():
     load_balancer = ClientLB(env, loadbalancer_conf, requests_conf, log_path)
     for i in range(NUMBER_OF_SERVERS):
         if scenario == 'control':
-            gc_conf = get_config('config/gc.ini', 'gc sleep_time-0.00001 threshold-0.9')
+            gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.9 collect_duration-0.0019 delay-1')
             gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-10 initial_eget-0.9')
             server = ServerControl(env, i, server_conf, gc_conf, gci_conf, log_path)
 
         elif scenario == 'baseline':
-            gc_conf = get_config('config/gc.ini', 'gc sleep_time-0.00001 threshold-0.75') # Should change some configuration
+            gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.75 collect_duration-0.0019 delay-1')
             server = ServerBaseline(env, i, server_conf, gc_conf, log_path)
 
         else:
