@@ -1,7 +1,6 @@
 from models import ClientLB, ServerControl, ServerBaseline
-from metrics import log_latency, log_time_in_server, log_server_metrics, log_request
-from log import initiate_csv_files
 from config import get_config
+from log import log_request
 import simpy, os, sys, time
 
 def create_directory(path):
@@ -29,8 +28,6 @@ def main():
         create_directory(log_path)
     else:
         log_path = None
-
-    initiate_csv_files(results_path, scenario, load)
 
     requests_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001606664')
     server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
@@ -63,12 +60,7 @@ def main():
         load_balancer.add_server(server)
         servers.append(server)
 
-    for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
-        env.run(until=time_stamp)
-        log_server_metrics(time_stamp, results_path, servers[0], scenario, load)
-        log_latency(time_stamp, results_path, load_balancer.requests, scenario, load)
-        log_time_in_server(time_stamp, results_path, load_balancer.requests, scenario, load)
-
+    env.run(until=SIM_DURATION_SECONDS)
     log_request(load_balancer.requests, results_path, scenario, load)
 
     after = time.time()

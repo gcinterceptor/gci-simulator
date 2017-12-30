@@ -18,29 +18,15 @@ def csv_writer(data, path):
         for line in data:
             writer.writerow(line)
 
-def initiate_csv_files(results_path, scenario, load):
-    _initiate_request_csv_files(results_path, scenario, load)
-    _initiate_server_csv_files(results_path, scenario, load)
+def log_request(requests, results_path, scenario, load):
+    data = [["id", "time_in_queue", "time_in_server",
+             "created_time", "arrived_time", "attended_time",
+             "finished_time", "latency"]]
 
-def _initiate_request_csv_files(results_path, scenario, load):
-    latency_data = [["time_stamp", "average_latency", "median", "p90", "p95", "p99", "p999"]]
-    rlc_file_name = "requests_latency_metrics_" + scenario + "_const_" + load + ".csv"
-    csv_writer(latency_data, results_path + "/" + rlc_file_name)
+    for request in requests:
+        data.append([request.id, request._time_in_queue, request._time_in_server,
+                     request.created_time, request._arrived_time, request._attended_time,
+                     request._finished_time, request._latency])
 
-    request_data = [["id", "time_in_queue", "time_in_server", "created_at", "arrived_time", "attended_time", "finished_time", "latency_time"]]
-    rsc_file_name = "request_status_" + scenario + "_const_" + load + ".csv"
-    csv_writer(request_data, results_path + "/" + rsc_file_name)
-
-    time_in_server_data = [["time_stamp", "average_time", "median", "p90", "p95", "p99", "p999"]]
-    tic_file_name = "time_in_server_metrics_" + scenario + "_const_" + load + ".csv"
-    csv_writer(time_in_server_data, results_path + "/" + tic_file_name)
-
-def _initiate_server_csv_files(results_path, scenario, load):
-    if scenario == "control":
-        server_data = [["time_stamp", "heap_level", "requests_in_queue", "gci_exe", "gc_exe", "gc_exe_time_sum", "processed_requests", "times_interrupted"]]
-
-    elif scenario == "baseline":
-        server_data = [["time_stamp", "heap_level", "requests_in_queue", "gc_exe", "gc_exe_time_sum", "processed_requests", "times_interrupted"]]
-
-    ssc_file_name = "server_status_" + scenario + "_const_" + load + ".csv"
-    csv_writer(server_data, results_path + "/" + ssc_file_name)
+    file_path = results_path + "/request_status_" + scenario + "_const_" + load + ".csv"
+    csv_writer(data, file_path)

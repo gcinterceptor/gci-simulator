@@ -6,17 +6,18 @@ class Request(object):
     def __init__(self, id, env, created_at, load_balancer, conf, log_path=None):
         self.id = id
         self.env = env
-        self.created_at = created_at
         self.load_balancer = load_balancer
         self.service_time = float(conf['service_time'])
         self.memory = float(conf['memory'])
 
         self.done = False
 
-        self._arrived_time = None
-        self._attended_time = None
-        self._finished_time = None
-        self._latency_time = None
+        self.created_time = created_at  # The time when the request was created
+        self._arrived_time = None  # The time when the request arrived at server
+        self._attended_time = None  # The time when the request was taken out the queue at server
+        self._finished_time = None  # The time when the request was finished at server
+
+        self._latency = None
 
         self._time_in_queue = None
         self._time_in_server = None
@@ -41,9 +42,9 @@ class Request(object):
 
     def finished_at(self, time):
         self._finished_time = time
-        self._latency_time = self._finished_time - self.created_at
+        self._latency = self._finished_time - self.created_time
         if self.logger:
-            self.logger.info(" At %.3f, Request %i was finished. Latency: %.3f" % (self.id, self._finished_time, self._latency_time))
+            self.logger.info(" At %.3f, Request %i was finished. Latency: %.3f" % (self.id, self._finished_time, self._latency))
 
 
 class ClientLB(object):
