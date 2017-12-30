@@ -192,6 +192,8 @@ class GCI(object):
         self.update_gci_values(gc_exec_time)
 
         self.times_performed += 1
+        self.requests_to_process = 0
+        self.processed_requests = 0
 
         if self.logger:
             self.logger.info(" At %.3f, GCI finish his job and GC takes %.3f seconds to execute\n" % (self.env.now, gc_exec_time))
@@ -206,7 +208,6 @@ class GCI(object):
 
     def request_finished(self, request_exe_time):
         self.processed_requests += 1
-        self.requests_to_process -= 1
         if len(self.reqPast) == self.HISTORY_SIZE:
             del self.reqPast[0]
         self.reqPast.append(request_exe_time)
