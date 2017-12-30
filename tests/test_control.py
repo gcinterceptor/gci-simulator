@@ -127,7 +127,7 @@ class TestControl(unittest.TestCase):
         for request in requests:
             self.assertTrue(request.done)
             id_set.add(request.id)
-            created_time_set.add(request.created_at)
+            created_time_set.add(request.created_time)
             arrived_time_set.add(request._arrived_time)
             attended_time_set.add(request._attended_time)
             finished_time_set.add(request._finished_time)
