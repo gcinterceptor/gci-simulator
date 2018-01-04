@@ -57,7 +57,7 @@ def main():
             server = ServerWithGCI(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time)
 
         elif scenario == 'baseline':
-            server = Server(env, i, server_conf, log_path, avg_available_time, avg_available_time)
+            server = Server(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time)
 
         load_balancer.add_server(server)
         servers.append(server)
