@@ -9,7 +9,7 @@ def log_request(requests, results_path, servers_number, scenario, load, availabi
                      request._finished_time, request._latency_time, request._interrupted_time, 
                      request.redirects, request.server_id])
 
-    file_path = results_path + "/request_" + str(servers_number) + "_" + scenario + load + "_" + str(availability_rate) + ".csv"
+    file_path = results_path + "/request_" + str(servers_number) + "_" + scenario + "_" + load + "_" + str(availability_rate) + ".csv"
     csv_writer(data, file_path)
     
     
