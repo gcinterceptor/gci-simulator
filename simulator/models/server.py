@@ -4,7 +4,7 @@ import simpy
 
 class Server(object):
 
-    def __init__(self, env, id, conf, log_path, available_avg_time, unavailable_avg_time):
+    def __init__(self, env, id, conf, log_path, available_avg_time, unavailable_avg_time, seed):
         self.env = env
         self.id = id
         self.sleep = float(conf['sleep_time'])
@@ -17,8 +17,8 @@ class Server(object):
         else:
             self.logger = None
             
-        self.available_time_dist = Distribution(conf['available_distribution'], [available_avg_time])
-        self.unavailable_time_dist = Distribution(conf['unavailable_distribution'], [unavailable_avg_time])
+        self.available_time_dist = Distribution(conf['available_distribution'], [available_avg_time], seed)
+        self.unavailable_time_dist = Distribution(conf['unavailable_distribution'], [unavailable_avg_time], seed)
 
         self.processed_requests = 0
         self.times_interrupted = 0
@@ -90,8 +90,8 @@ class Server(object):
         
 class ServerWithGCI(Server):
 
-    def __init__(self, env, id, conf, log_path, avg_available_time, avg_unavailable_time):
-        super().__init__(env, id, conf, log_path, avg_available_time, avg_unavailable_time)
+    def __init__(self, env, id, conf, log_path, avg_available_time, avg_unavailable_time, seed):
+        super().__init__(env, id, conf, log_path, avg_available_time, avg_unavailable_time, seed)
 
     def interrupt_request(self, request, unavailable_time):
         if self.logger:

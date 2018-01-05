@@ -24,7 +24,12 @@ def main():
         results_path = "results"
 
     if len(args) >= 8:
-        log_path = args[7]
+        seed = int(args[7])
+    else:
+        seed = int(time.time())
+
+    if len(args) >= 9:
+        log_path = args[8]
     else:
         log_path = None
 
@@ -54,10 +59,10 @@ def main():
     servers = list()
     for i in range(SERVERS_NUMBER):
         if scenario == 'control':
-            server = ServerWithGCI(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time)
+            server = ServerWithGCI(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time, seed)
 
         elif scenario == 'baseline':
-            server = Server(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time)
+            server = Server(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time, seed)
 
         load_balancer.add_server(server)
         servers.append(server)
@@ -70,6 +75,8 @@ def main():
     log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load, availability_rate)
     
     after = time.time()
+    
+    print("Used seed to random numbers generator: %d" % seed)
     print("Time of simulation execution in seconds: %.4f" % (after - before))
 
 if __name__ == '__main__':
