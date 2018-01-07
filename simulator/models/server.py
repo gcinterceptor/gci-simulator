@@ -53,7 +53,7 @@ class Server(object):
             
             self.times_interrupted += 1
 
-    def request_arrived(self, request, communication_time):
+    def request_arrived(self, request):
         if self.logger:
             self.logger.info(" At %.3f, The request %d arrived at Server %d" % (self.env.now, request.id, self.id))
         

@@ -41,7 +41,7 @@ class LoadBalancer(object):
         
         yield self.env.timeout(self.communication_time)
         
-        self.servers[server].request_arrived(request, self.communication_time)
+        self.servers[server].request_arrived(request)
         
     def success_request(self, request):
         yield self.env.timeout(self.communication_time)
