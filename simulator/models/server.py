@@ -33,7 +33,7 @@ class Server(object):
                     request = yield self.remaining_queue.get()
                 elif len(self.queue.items) > 0:                     # check if there is any request to be processed
                     request = yield self.queue.get()                # get a request from store
-            
+                
                 if request:
                     yield self.env.process(self.process_request(request))
                 
@@ -42,35 +42,39 @@ class Server(object):
             unavailable_time = self.get_next_unavailable_time()
             unavailable_until = self.env.now + unavailable_time
             while self.env.now < unavailable_until:
+                request = None
                 if len(self.queue.items) > 0:
                     request = yield self.queue.get()
-                    yield self.env.process(self.interrupt_request(request, unavailable_time))
+                
+                if request:
+                    self.interrupt_request(request)
                     
                 yield self.env.timeout(self.sleep)
             
             self.times_interrupted += 1
 
-    def request_arrived(self, request):
+    def request_arrived(self, request, communication_time):
         if self.logger:
             self.logger.info(" At %.3f, The request %d arrived at Server %d" % (self.env.now, request.id, self.id))
         
-        yield self.env.process(request.arrived_at())
-        yield self.queue.put(request)   # put the request at the end of the queue
+        request.arrived_at()
+        self.queue.put(request)
     
     def process_request(self, request):
         if self.logger:
             self.logger.info(" At %.3f, The request %d was processed at Server %d" % (self.env.now, request.id, self.id))
         
-        yield self.env.process(request.run(self.id))
-        yield self.env.process(request.load_balancer.success_request(request))
-        self.processed_requests += 1
+        request.processed_at(self.id)
+        yield self.env.timeout(request.cpu_time)
         
-    def interrupt_request(self, request, unavailable_time):
+        self.processed_requests += 1
+        self.env.process(request.load_balancer.success_request(request))
+        
+    def interrupt_request(self, request):
         if self.logger:
             self.logger.info(" At %.3f, The request %d was interrupted at Server %d" % (self.env.now, request.id, self.id))
         
-        yield self.remaining_queue.put(request)
-        yield self.env.process(request.interrupted_at(unavailable_time))
+        self.remaining_queue.put(request)
         
     def get_next_available_time(self):
         available_time = self.available_time_dist.get_next_value()
@@ -84,7 +88,7 @@ class Server(object):
         unavailable_time = self.unavailable_time_dist.get_next_value()
         
         if self.logger:
-            self.logger.info(" At %.3f, The server %d will be UNavailable for %.3f" % (self.env.now, self.id, unavailable_time))
+            self.logger.info(" At %.3f, The server %d will be unavailable for %.3f" % (self.env.now, self.id, unavailable_time))
             
         return unavailable_time
         
@@ -93,9 +97,9 @@ class ServerWithGCI(Server):
     def __init__(self, env, id, conf, log_path, avg_available_time, avg_unavailable_time, seed):
         super().__init__(env, id, conf, log_path, avg_available_time, avg_unavailable_time, seed)
 
-    def interrupt_request(self, request, unavailable_time):
+    def interrupt_request(self, request):
         if self.logger:
             self.logger.info(" At %.3f, The request %d was interrupted at Server %d" % (self.env.now, request.id, self.id))
-        # Note that we are assuming that the GCI is giving a good hint at unvailable server time
-        yield self.env.process(request.load_balancer.shed_request(request, self, unavailable_time))
+        # Note that we are assuming that the GCI is giving a good hint at unavailable server time
+        self.env.process(request.load_balancer.shed_request(request, self))
 

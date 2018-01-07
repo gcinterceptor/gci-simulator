@@ -17,19 +17,20 @@ def main():
     scenario = args[3]
     load = args[4]
     availability_rate = float(args[5])
+    communication_time = float(args[6]) 
 
-    if len(args) >= 7:
-        results_path = args[6]
+    if len(args) >= 8:
+        results_path = args[7]
     else:
         results_path = "results"
 
-    if len(args) >= 8:
-        seed = int(args[7])
+    if len(args) >= 9:
+        seed = int(args[8])
     else:
         seed = int(time.time())
 
-    if len(args) >= 9:
-        log_path = args[8]
+    if len(args) >= 10:
+        log_path = args[9]
     else:
         log_path = None
 
@@ -47,11 +48,11 @@ def main():
         server_conf = get_config('config/server.ini', 'server low_load')
         client_conf = get_config('config/clients.ini', 'clients create_request_rate-35 max_requests-inf')
     
-    loadbalancer_conf = get_config('config/loadbalancer.ini', 'loadbalancer sleep_time-0.001')
+    loadbalancer_conf = get_config('config/loadbalancer.ini', 'DEFAULT')
     
     env = simpy.Environment()
     
-    load_balancer = LoadBalancer(env, loadbalancer_conf, log_path)
+    load_balancer = LoadBalancer(env, loadbalancer_conf, communication_time, log_path)
 
     avg_unavailable_time = 1.00
     avg_available_time = availability_rate * avg_unavailable_time
@@ -67,10 +68,9 @@ def main():
         load_balancer.add_server(server)
         servers.append(server)
 
-    clients = Clients(env, load_balancer, client_conf, SERVERS_NUMBER, log_path)
+    clients = Clients(env, load_balancer, client_conf, SERVERS_NUMBER, SIM_DURATION_SECONDS, log_path)
 
-    for time_stamp in range(1, int(SIM_DURATION_SECONDS + 1)):
-        env.run(until=time_stamp)
+    env.run(until=int(SIM_DURATION_SECONDS + 1))
         
     log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load, availability_rate)
     
