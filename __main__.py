@@ -17,7 +17,7 @@ def main():
     scenario = args[3]
     load = args[4]
     availability_rate = float(args[5])
-    communication_time = float(args[6]) 
+    communication_rate = float(args[6]) 
 
     if len(args) >= 8:
         results_path = args[7]
@@ -35,7 +35,7 @@ def main():
         log_path = None
 
     create_directory(results_path)
-    _initiate_csv_files(results_path, SERVERS_NUMBER, scenario, load, availability_rate)
+    _initiate_csv_files(results_path, SERVERS_NUMBER, scenario, load, availability_rate, communication_rate)
     
     if log_path:
         create_directory(log_path)
@@ -51,12 +51,14 @@ def main():
     loadbalancer_conf = get_config('config/loadbalancer.ini', 'DEFAULT')
     
     env = simpy.Environment()
-    
-    load_balancer = LoadBalancer(env, loadbalancer_conf, communication_time, log_path)
 
     avg_unavailable_time = 1.00
     avg_available_time = availability_rate * avg_unavailable_time
     
+    communication_time = communication_rate * avg_unavailable_time
+    
+    load_balancer = LoadBalancer(env, loadbalancer_conf, communication_time, log_path)
+
     servers = list()
     for i in range(SERVERS_NUMBER):
         if scenario == 'control':
@@ -72,7 +74,7 @@ def main():
 
     env.run(until=int(SIM_DURATION_SECONDS + 1))
         
-    log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load, availability_rate)
+    log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load, availability_rate, communication_rate)
     
     after = time.time()
     
