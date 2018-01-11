@@ -10,12 +10,12 @@ high"
 SCENARIO="control
 baseline"
 
-AVAILABILITY_RATE="0.5 1 2 3 4 5 6 7 8 9 10 50 100"
+AVAILABILITY_RATE="0.5 1 2 3 4 5 6 7 8 9 10 50"
 
 #AVG COMPONENTS COMMUNICATION TIME BY AVG UNAVAILABLE TIME
-COMMUNICATION_RATE="0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5 0.55 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 1"
+COMMUNICATION_RATE="0.025"
 
-mkdir results 2> /dev/null
+mkdir results-1 2> /dev/null
 
 for RN in $(seq $REPETIONS_NUMBER)
 do
@@ -30,9 +30,9 @@ do
 					timestamp=$(date +%s)
 					for SCENE in $SCENARIO
 					do
-						mkdir results/$RN 2> /dev/null
+						mkdir results-1/$RN 2> /dev/null
 						echo "REP=$RN, Servers Number=$SN, Simulation Time=$SIMULATION_TIME, Scenario=$SCENE, Load=$LD, Availability Rate=$AR, Communication_Rate=$CR"
-						python3 __main__.py $SN $SIMULATION_TIME $SCENE $LD $AR $SR $CR results/$RN $timestamp
+						python3 __main__.py $SN $SIMULATION_TIME $SCENE $LD $AR $SR $CR results-1/$RN $timestamp
 					done
 				done
 			done
