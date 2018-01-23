@@ -50,9 +50,9 @@ def main():
     for i in range(NUMBER_OF_SERVERS):
         if scenario == 'control':
             if load == 'high':
-                collect_duration = ' collect_duration-0.0035'
+                collect_duration = ' collect_duration-0.151'
             else:
-                collect_duration = ' collect_duration-0.004'
+                collect_duration = ' collect_duration-0.308'
 
             gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.9' + collect_duration + delay)
             gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-10 initial_eget-0.9')
@@ -60,9 +60,9 @@ def main():
 
         elif scenario == 'baseline':
             if load == 'high':
-                collect_duration = ' collect_duration-0.019985'
+                collect_duration = ' collect_duration-0.019583333333333332'
             else:
-                collect_duration = ' collect_duration-0.020383'
+                collect_duration = ' collect_duration-0.019333333333333332'
 
             gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.75' + collect_duration + delay)
             server = ServerBaseline(env, i, server_conf, gc_conf, log_path)
