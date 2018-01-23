@@ -7,10 +7,10 @@ class TestBaseline(unittest.TestCase):
 
     @classmethod
     def setUp(self):
-        gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.75 collect_duration-0.25 delay-1')
-        req_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001666667')
-        lb_conf = get_config('config/clientlb.ini', 'clientlb sleep_time-0.00001 create_request_rate-150 max_requests-inf')
-        server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
+        gc_conf = get_config('../config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.75 collect_duration-0.25 delay-1')
+        req_conf = get_config('../config/request.ini', 'request service_time-0.006 memory-0.001666667')
+        lb_conf = get_config('../config/clientlb.ini', 'clientlb sleep_time-0.00001 create_request_rate-150 max_requests-inf')
+        server_conf = get_config('../config/server.ini', 'server sleep_time-0.00001')
 
         self.env = simpy.Environment()
         self.load_balancer = ClientLB(self.env, lb_conf, req_conf)
@@ -28,11 +28,12 @@ class TestBaseline(unittest.TestCase):
 
     def test_simulation_flow(self):
         self.env.run(3)
-        expected = 450 # 150 succeeded requests by second, after 3 seconds.
+        expected = 450 # 150 requests by second after 3 seconds.
         created_requests = self.load_balancer.created_requests
         self.assert_equal(expected, created_requests)
         requests = self.load_balancer.requests
         succeeded_requests = self.load_balancer.succeeded_requests
+        expected = 449 # Should have 450 succeeded requests, but the last one was delayed by a gc execution.
         self.assert_equal(expected, len(requests))
         self.assert_equal(expected, succeeded_requests)
 
@@ -55,7 +56,7 @@ class TestBaseline(unittest.TestCase):
         expected = 751
         created_requests = self.load_balancer.created_requests
         self.assert_equal(expected, created_requests)
-        expected = 617  # 451 before + 166 since (1/0.006) is 166.6..
+        expected = 616  # 451 (before) + 166 (since 1/0.006 is 166.6...) - 1 (the request delayed by a gc execution.)
         requests = self.load_balancer.requests
         succeeded_requests = self.load_balancer.succeeded_requests
         self.assert_equal(expected, len(requests))
@@ -65,7 +66,7 @@ class TestBaseline(unittest.TestCase):
         expected = 901
         created_requests = self.load_balancer.created_requests
         self.assert_equal(expected, created_requests)
-        expected = 783  # 617 before + 166 since (1/0.006) is 166.6..
+        expected = 782  # 617 (before) + 166 (since 1/0.006 is 166.6...) - 1 (the request delayed by a gc execution.)
         requests = self.load_balancer.requests
         succeeded_requests = self.load_balancer.succeeded_requests
         self.assert_equal(expected, len(requests))
@@ -75,7 +76,7 @@ class TestBaseline(unittest.TestCase):
         expected = 1051
         created_requests = self.load_balancer.created_requests
         self.assert_equal(expected, created_requests)
-        expected = 900 # the request number 901 received 1 sec of delay after the request number 900.
+        expected = 899 # the request number 900 received 1 sec of delay after the request number 899.
         requests = self.load_balancer.requests
         succeeded_requests = self.load_balancer.succeeded_requests
         self.assert_equal(expected, len(requests))
@@ -84,7 +85,7 @@ class TestBaseline(unittest.TestCase):
     def test_flags_variables(self):
         self.env.run(7)
 
-        expected = 900
+        expected = 899 # 900 - 1 (request delayed)
         processed_requests = self.server.processed_requests
         self.assert_equal(expected, processed_requests)
         expected = 1050
