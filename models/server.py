@@ -54,10 +54,12 @@ class ServerBaseline(object):
     def process_request(self, request):
         self.is_processing = True
 
-        if self.gc.is_gcing:
-            request.service_time += self.gc.delay_caused()
-
         yield self.env.process(request.run(self.heap))
+        yield self.env.timeout(self.sleep)
+
+        if self.gc.is_gcing:
+            yield self.env.timeout(self.gc.delay_caused())
+
         request.attended_at(self.env.now)
         yield self.env.process(request.load_balancer.request_succeeded(request))
         self.processed_requests += 1
