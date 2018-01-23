@@ -7,11 +7,11 @@ class TestControl(unittest.TestCase):
 
     @classmethod
     def setUp(self):
-        gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.9 collect_duration-0.25 delay-1')
-        req_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001555556')
-        lb_conf = get_config('config/clientlb.ini', 'clientlb sleep_time-0.00001 create_request_rate-150 max_requests-inf')
-        gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-10 initial_eget-0.9')
-        server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
+        gc_conf = get_config('../config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.9 collect_duration-0.25 delay-1')
+        req_conf = get_config('../config/request.ini', 'request service_time-0.006 memory-0.001555556')
+        lb_conf = get_config('../config/clientlb.ini', 'clientlb sleep_time-0.00001 create_request_rate-150 max_requests-inf')
+        gci_conf = get_config('../config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-10 initial_eget-0.9')
+        server_conf = get_config('../config/server.ini', 'server sleep_time-0.00001')
 
         self.env = simpy.Environment()
         self.load_balancer = ClientLB(self.env, lb_conf, req_conf)
