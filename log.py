@@ -30,3 +30,12 @@ def log_request(requests, results_path, scenario, load):
 
     file_path = results_path + "/request_status_" + scenario + "_const_" + load + ".csv"
     csv_writer(data, file_path)
+
+def log_gc(gc_count, gc_time, results_path, scenario, load):
+    data = [["ts", "count", "time"]]
+
+    for i in range(len(gc_count)):
+        data.append([i + 1, gc_count[i], gc_time[i]])
+
+    file_path = results_path + "/gc_status_" + scenario + "_const_" + load + ".csv"
+    csv_writer(data, file_path)
