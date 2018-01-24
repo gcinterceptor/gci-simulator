@@ -1,9 +1,8 @@
-from log import get_logger
 
 
 class Request(object):
 
-    def __init__(self, id, env, created_at, load_balancer, conf, log_path=None):
+    def __init__(self, id, env, created_at, load_balancer, conf):
         self.id = id
         self.env = env
         self.load_balancer = load_balancer
@@ -22,11 +21,6 @@ class Request(object):
         self._time_in_queue = None
         self._time_in_server = None
 
-        if log_path:
-            self.logger = get_logger(log_path + "/request.log", "REQUEST")
-        else:
-            self.logger = None
-
     def run(self, heap):
         self._time_in_queue = self.env.now - self._arrived_time
         yield self.env.timeout(self.service_time)
@@ -43,6 +37,3 @@ class Request(object):
     def finished_at(self, time):
         self._finished_time = time
         self._latency = self._finished_time - self.created_time
-        if self.logger:
-            self.logger.info(" At %.3f, Request %i was finished. Latency: %.3f" % (self.id, self._finished_time, self._latency))
-

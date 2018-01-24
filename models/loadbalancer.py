@@ -1,10 +1,9 @@
-from log import get_logger
 from .request import Request
 
 
 class LoadBalancer(object):
 
-    def __init__(self, env, conf, requests_conf, server=None, log_path=None):
+    def __init__(self, env, conf, requests_conf, server=None):
         self.env = env
         self.sleep = float(conf['sleep_time'])
 
@@ -18,19 +17,14 @@ class LoadBalancer(object):
         self.lost_requests = 0
         self.succeeded_requests = 0
 
-        if log_path:
-            self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
-        else:
-            self.logger = None
-
         self.server_index = 0
         self.is_available = True
-        self.create_request = env.process(self.create_and_forward_requests(float(conf['max_requests']), int(conf['create_request_rate']), requests_conf, log_path))
+        self.create_request = env.process(self.create_and_forward_requests(float(conf['max_requests']), int(conf['create_request_rate']), requests_conf))
 
-    def create_and_forward_requests(self, max_requests, create_request_rate, requests_conf, log_path):
+    def create_and_forward_requests(self, max_requests, create_request_rate, requests_conf):
         time_between_each_sending = 1 / create_request_rate
         while self.created_requests < max_requests:
-            request = Request(self.created_requests, self.env, self.env.now, self, requests_conf, log_path)
+            request = Request(self.created_requests, self.env, self.env.now, self, requests_conf)
             self.created_requests += 1
             self.env.process(self.forward(self.server_index, request))
             yield self.env.timeout(time_between_each_sending)
@@ -41,9 +35,6 @@ class LoadBalancer(object):
 
     def shed_request(self, request, server, unavailable_until):
         self.shedded_requests += 1
-        if self.logger:
-            self.logger.info(" At %.3f, Request was shedded. The server will be unavailable for: %.3f" % (self.env.now, unavailable_until))
-
         self.server_availability[server.id] = self.env.now + unavailable_until
 
         server_index, count, forward = self.server_index, 0, False

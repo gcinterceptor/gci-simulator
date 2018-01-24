@@ -1,9 +1,8 @@
-from log import get_logger
 
 
 class GCSTW(object):
 
-    def __init__(self, env, server, conf, log_path=None):
+    def __init__(self, env, server, conf):
         self.env = env
         self.server = server
         self.heap = server.heap
@@ -18,10 +17,6 @@ class GCSTW(object):
         self.gc_exec_time_sum = 0
         self.gc_process = self.env.process(self.run())
 
-        if log_path:
-            self.logger = get_logger(log_path + "/gc.log", "GC")
-        else:
-            self.logger = None
 
     def run(self):
         while True:
@@ -32,9 +27,6 @@ class GCSTW(object):
             yield self.env.timeout(self.sleep_time)  # wait for...
 
     def collect(self):
-        if self.logger:
-            self.logger.info(" At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
-
         self.is_gcing = True
         self.server.action.interrupt()
 
@@ -47,9 +39,6 @@ class GCSTW(object):
 
         self.is_gcing = False
 
-        if self.logger:
-            self.logger.info(" At %.3f, GC finish his job. Now we have %.3f of trash\n" % (self.env.now, self.heap.level))
-
         self.server.action = self.env.process(self.server.run())
         self.collects_performed += 1
 
@@ -59,7 +48,7 @@ class GCSTW(object):
 
 class GCC(object):
 
-    def __init__(self, env, server, conf, log_path=None):
+    def __init__(self, env, server, conf):
         self.env = env
         self.server = server
         self.heap = server.heap
@@ -75,10 +64,6 @@ class GCC(object):
         self.gc_exec_time_sum = 0
         self.gc_process = self.env.process(self.run())
 
-        if log_path:
-            self.logger = get_logger(log_path + "/gc.log", "GC")
-        else:
-            self.logger = None
 
     def run(self):
         while True:
@@ -89,9 +74,6 @@ class GCC(object):
             yield self.env.timeout(self.sleep_time)  # wait for...
 
     def collect(self):
-        if self.logger:
-            self.logger.info(" At %.3f, GC is running. We have %.3f of trash" % (self.env.now, self.heap.level))
-
         self.is_gcing, before = True, self.env.now
         trash = self.heap.level
         yield self.heap.get(trash)
@@ -101,9 +83,6 @@ class GCC(object):
         if trash > 0:
             yield self.heap.get(trash)
         self.is_gcing, after = False, self.env.now
-
-        if self.logger:
-            self.logger.info(" At %.3f, GC finish his job. Now we have %.3f of trash\n" % (self.env.now, self.heap.level))
 
         self.gc_exec_time_sum += after - before
         self.collects_performed += 1
@@ -117,7 +96,7 @@ class GCC(object):
 
 class GCI(object):
 
-    def __init__(self, env, server,  conf, log_path=None):
+    def __init__(self, env, server,  conf):
         self.env = env
         self.server = server
         self.check_heap = int(conf['check_heap'])
@@ -137,19 +116,12 @@ class GCI(object):
         self.last_processed_requests = 0
         self.times_performed = 0
 
-        if log_path:
-            self.logger = get_logger(log_path + "/gci.log", "GCI")
-        else:
-            self.logger = None
-
         self._time_shedding = 0
 
     def before(self, request):
         yield self.env.process(self.check())
 
         if self.is_shedding:
-            if self.logger:
-                self.logger.info(" At %.3f, shedding request - shedded request id: %i" % (self.env.now, request.id))
             yield self.env.process(request.load_balancer.shed_request(request, self.server, self._time_shedding))
 
         else:
@@ -166,9 +138,6 @@ class GCI(object):
         yield self.env.timeout(self.sleep_time)
 
     def run_gc(self):
-        if self.logger:
-            self.logger.info(" At %.3f, GCI check the heap and it is at %.3f" % (self.env.now, self.server.heap.level))
-
         self._time_shedding = self.estimated_shed_time()
         # wait for the queue to get empty.
         yield self.env.process(self.check_request_queue())
@@ -194,9 +163,6 @@ class GCI(object):
         self.times_performed += 1
         self.requests_to_process = 0
         self.processed_requests = 0
-
-        if self.logger:
-            self.logger.info(" At %.3f, GCI finish his job and GC takes %.3f seconds to execute\n" % (self.env.now, gc_exec_time))
 
     def check_request_queue(self):
         while self.requests_to_process > self.processed_requests:

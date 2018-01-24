@@ -1,10 +1,9 @@
-from log import get_logger
 import simpy
 
 
 class ServerBaseline(object):
 
-    def __init__(self, env, id, conf, gc_conf, log_path=None):
+    def __init__(self, env, id, conf, gc_conf):
         self.env = env
         self.id = id
         self.sleep = float(conf['sleep_time'])
@@ -14,12 +13,7 @@ class ServerBaseline(object):
         self.heap = simpy.Container(env) # our trash heap
 
         from .garbage import GCC
-        self.gc = GCC(self.env, self, gc_conf, log_path)
-
-        if log_path:
-            self.logger = get_logger(log_path + "/server.log", "SERVER")
-        else:
-            self.logger = None
+        self.gc = GCC(self.env, self, gc_conf)
 
         self.is_processing = False
         self.processed_requests = 0
@@ -44,9 +38,6 @@ class ServerBaseline(object):
                 yield self.env.timeout(self.sleep)  # wait for...
 
         except simpy.Interrupt:
-            if self.logger:
-                self.logger.info(" At %.3f, Server was interrupted" % (self.env.now))
-
             self.times_interrupted += 1
             if request:
                 yield self.interrupted_queue.put(request)
@@ -76,11 +67,11 @@ class ServerBaseline(object):
 
 class ServerControl(ServerBaseline):
 
-    def __init__(self, env, id, conf, gc_conf, gci_conf, log_path=None):
-        super().__init__(env, id, conf, gc_conf, log_path)
+    def __init__(self, env, id, conf, gc_conf, gci_conf):
+        super().__init__(env, id, conf, gc_conf)
 
         from .garbage import GCI
-        self.gci = GCI(self.env, self, gci_conf, log_path)
+        self.gci = GCI(self.env, self, gci_conf)
 
     def process_request(self, request):
         before = self.env.now

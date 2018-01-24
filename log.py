@@ -1,16 +1,5 @@
-import logging, csv
+import csv
 
-def get_logger(path_file, logger_name):
-    handler = logging.FileHandler(path_file, mode='w')
-
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-
-    return logger
 
 def csv_writer(data, path):
     with open(path, "a", newline='') as csv_file:

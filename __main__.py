@@ -24,12 +24,6 @@ def main():
         results_path = "results"
     create_directory(results_path)
 
-    if len(args) >= 7:
-        log_path = args[6]
-        create_directory(log_path)
-    else:
-        log_path = None
-
     requests_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001606664')
     server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
     if load == 'high':
@@ -46,7 +40,7 @@ def main():
     env = simpy.Environment()
 
     servers = list()
-    load_balancer = ClientLB(env, loadbalancer_conf, requests_conf, log_path)
+    load_balancer = ClientLB(env, loadbalancer_conf, requests_conf)
     for i in range(NUMBER_OF_SERVERS):
         if scenario == 'control':
             if load == 'high':
@@ -56,7 +50,7 @@ def main():
 
             gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.9' + collect_duration + delay)
             gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-10 initial_eget-0.9')
-            server = ServerControl(env, i, server_conf, gc_conf, gci_conf, log_path)
+            server = ServerControl(env, i, server_conf, gc_conf, gci_conf)
 
         elif scenario == 'baseline':
             if load == 'high':
@@ -65,7 +59,7 @@ def main():
                 collect_duration = ' collect_duration-0.019333333333333332'
 
             gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.75' + collect_duration + delay)
-            server = ServerBaseline(env, i, server_conf, gc_conf, log_path)
+            server = ServerBaseline(env, i, server_conf, gc_conf)
 
         else:
             raise Exception("INVALID SCENARIO")
