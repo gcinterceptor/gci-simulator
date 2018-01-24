@@ -73,16 +73,20 @@ def main():
         load_balancer.add_server(server)
         servers.append(server)
 
-    before_count = 0
-    before_time = 0
-    gc_count = list()  # how much gc executions was runned.
-    gc_time = list()  # how much time was used gcing.
+    before_count = NUMBER_OF_SERVERS * [0]
+    before_time = NUMBER_OF_SERVERS * [0]
+    gc_count = list()  # how much gc executions was runned per second.
+    gc_time = list()  # how much time was used gcing per second.
     for until in range(1, int(SIM_DURATION_SECONDS) + 1):
         env.run(until=until)
-        gc_count.append(server.gc.collects_performed - before_count)
-        gc_time.append(server.gc.gc_exec_time_sum - before_time)
-        before_count = server.gc.collects_performed
-        before_time = server.gc.gc_exec_time_sum
+
+        index = 0
+        for server in servers:
+            gc_count.append(server.gc.collects_performed - before_count[index])
+            gc_time.append(server.gc.gc_exec_time_sum - before_time[index])
+            before_count[index] = server.gc.collects_performed
+            before_time[index] = server.gc.gc_exec_time_sum
+            index += 1
 
     if SIM_DURATION_SECONDS > int(SIM_DURATION_SECONDS): # it means that it is a float indeed.
         env.run(until=SIM_DURATION_SECONDS) # We must run all duration
