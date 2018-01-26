@@ -3,9 +3,9 @@ from .request import Request
 
 class LoadBalancer(object):
 
-    def __init__(self, env, conf, requests_conf, server=None):
-        self.env = env
+    def __init__(self, conf, requests_conf, env, server=None):
         self.sleep = float(conf['sleep_time'])
+        self.env = env
 
         self.requests = list()
         self.servers = []
@@ -24,7 +24,7 @@ class LoadBalancer(object):
     def create_and_forward_requests(self, max_requests, create_request_rate, requests_conf):
         time_between_each_sending = 1 / create_request_rate
         while self.created_requests < max_requests:
-            request = Request(self.created_requests, self.env, self.env.now, self, requests_conf)
+            request = Request(requests_conf, self.env, self.created_requests, self.env.now, self)
             self.created_requests += 1
             self.env.process(self.forward(self.server_index, request))
             yield self.env.timeout(time_between_each_sending)
