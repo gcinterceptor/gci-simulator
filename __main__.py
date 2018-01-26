@@ -1,4 +1,4 @@
-from models import ClientLB, ServerControl, ServerBaseline
+from models import LoadBalancer, ServerControl, ServerBaseline
 from config import get_config
 from log import log_request, log_gc
 import simpy, os, sys, time
@@ -7,6 +7,7 @@ import simpy, os, sys, time
 def create_directory(path):
     if not os.path.isdir(path):
         os.mkdir(path)
+
 
 def main():
     before = time.time()
@@ -24,42 +25,29 @@ def main():
         results_path = "results"
     create_directory(results_path)
 
-    requests_conf = get_config('config/request.ini', 'request service_time-0.006 memory-0.001606664')
-    server_conf = get_config('config/server.ini', 'server sleep_time-0.00001')
+    env = simpy.Environment()
+
+    requests_conf = get_config('config/request.ini', 'request memory-0.001606664')
     if load == 'high':
-        delay = ' delay-0.102'
-        loadbalancer_conf = get_config('config/clientlb.ini', 'clientlb sleep_time-0.00001 create_request_rate-150 max_requests-inf')
+        server_conf = get_config('config/server.ini', "server high")
+        loadbalancer_conf = get_config('config/loadbalancer.ini', 'clientlb sleep_time-0.00001 create_request_rate-150 max_requests-inf')
 
     elif load == 'low':
-        delay = ' delay-0.038'
-        loadbalancer_conf = get_config('config/clientlb.ini', 'clientlb sleep_time-0.00001 create_request_rate-35 max_requests-inf')
+        server_conf = get_config('config/server.ini', "server low")
+        loadbalancer_conf = get_config('config/loadbalancer.ini', 'clientlb sleep_time-0.00001 create_request_rate-35 max_requests-inf')
 
     else:
         raise Exception("INVALID LOAD")
 
-    env = simpy.Environment()
-
     servers = list()
-    load_balancer = ClientLB(env, loadbalancer_conf, requests_conf)
+    load_balancer = LoadBalancer(loadbalancer_conf, requests_conf, env)
     for i in range(NUMBER_OF_SERVERS):
         if scenario == 'control':
-            if load == 'high':
-                collect_duration = ' collect_duration-0.151'
-            else:
-                collect_duration = ' collect_duration-0.308'
-
-            gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.9' + collect_duration + delay)
-            gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-10 initial_eget-0.9')
-            server = ServerControl(env, i, server_conf, gc_conf, gci_conf)
+            gci_conf = get_config('config/gci.ini', 'gci sleep_time-0.00001 threshold-0.7 check_heap-10 initial_get-0.9')
+            server = ServerControl(server_conf, gci_conf, env, i)
 
         elif scenario == 'baseline':
-            if load == 'high':
-                collect_duration = ' collect_duration-0.019583333333333332'
-            else:
-                collect_duration = ' collect_duration-0.019333333333333332'
-
-            gc_conf = get_config('config/gcc.ini', 'gcc sleep_time-0.00001 threshold-0.75' + collect_duration + delay)
-            server = ServerBaseline(env, i, server_conf, gc_conf)
+            server = ServerBaseline(server_conf, env, i)
 
         else:
             raise Exception("INVALID SCENARIO")
@@ -69,17 +57,17 @@ def main():
 
     before_count = NUMBER_OF_SERVERS * [0]
     before_time = NUMBER_OF_SERVERS * [0]
-    gc_count = list()  # how much gc executions was runned per second.
-    gc_time = list()  # how much time was used gcing per second.
+    gc_count = list()  # Number of GC executions per second.
+    gc_time = list()  # Amount of time collecting garbage per second.
     for until in range(1, int(SIM_DURATION_SECONDS) + 1):
         env.run(until=until)
 
         index = 0
         for server in servers:
-            gc_count.append(server.gc.collects_performed - before_count[index])
-            gc_time.append(server.gc.gc_exec_time_sum - before_time[index])
-            before_count[index] = server.gc.collects_performed
-            before_time[index] = server.gc.gc_exec_time_sum
+            gc_count.append(server.collects_performed - before_count[index])
+            gc_time.append(server.gc_exec_time_sum - before_time[index])
+            before_count[index] = server.collects_performed
+            before_time[index] = server.gc_exec_time_sum
             index += 1
 
     if SIM_DURATION_SECONDS > int(SIM_DURATION_SECONDS): # it means that it is a float indeed.
