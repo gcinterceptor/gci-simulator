@@ -1,83 +1,80 @@
+from random import uniform
 import simpy
 
 
 class ServerBaseline(object):
 
-    def __init__(self, env, id, conf, gc_conf):
+    def __init__(self, conf, env, id):
+        self.baseline_request_p50 = float(conf['baseline_request_p50']) # avarage
+        self.baseline_request_p999 = float(conf['baseline_request_p999']) # percentil 99.99
+        self.control_request_p50 = float(conf['control_request_avg'])
+        self.control_request_p999 = float(conf['control_request_p50'])
+        self.gc_st = float(conf['gc_st'])
+
         self.env = env
         self.id = id
-        self.sleep = float(conf['sleep_time'])
+        self.is_gcing = False
+        self.heap = simpy.Container(env)  # our trash heap
 
-        self.queue = simpy.Store(env) # the queue of requests
-        self.interrupted_queue = simpy.Store(env)  # the queue of interrupted requests
-        self.heap = simpy.Container(env) # our trash heap
-
-        from .garbage import GCC
-        self.gc = GCC(self.env, self, gc_conf)
-
-        self.is_processing = False
-        self.processed_requests = 0
         self.requests_arrived = 0
-        self.times_interrupted = 0
-        self.action = env.process(self.run())
-
-    def run(self):
-        try:
-            while True:
-                if len(self.interrupted_queue.items) > 0:
-                    request = yield self.interrupted_queue.get()  # get a request from store
-                    if request.done:
-                        self.heap.get(request.memory) # remove trash that shouldn't be added...
-                    yield self.env.process(self.process_request(request))
-
-                elif len(self.queue.items) > 0:  # check if there is any request to be processed
-                    request = yield self.queue.get()  # get a request from store
-                    yield self.env.process(self.process_request(request))
-
-                request = None
-                yield self.env.timeout(self.sleep)  # wait for...
-
-        except simpy.Interrupt:
-            self.times_interrupted += 1
-            if request:
-                yield self.interrupted_queue.put(request)
-
-    def process_request(self, request):
-        self.is_processing = True
-
-        yield self.env.process(request.run(self.heap))
-        yield self.env.timeout(self.sleep)
-
-        if self.gc.is_gcing:
-            yield self.env.timeout(self.gc.delay_caused())
-
-        request.attended_at(self.env.now)
-        yield self.env.process(request.load_balancer.request_succeeded(request))
-        self.processed_requests += 1
-        self.is_processing = False
+        self.processed_requests = 0
+        self.gc_exec_time_sum = 0
+        self.collects_performed = 0
 
     def request_arrived(self, request):
-        request.arrived_at(self.env.now)
-        yield self.env.process(self.enqueue_request(request))
-
-    def enqueue_request(self, request):
-        yield self.queue.put(request)   # put the request at the end of the queue
         self.requests_arrived += 1
+        request.arrived_at(self.env.now)
+        if self.heap.level >= self.gc_st:
+            self.env.process(self.run_gc_collect())
+        yield self.env.process(self.process_request(request))
+
+    def process_request(self, request):
+        yield self.env.process(request.run(self.heap, self.get_service_time()))
+        yield self.env.process(request.load_balancer.request_succeeded(request))
+        self.processed_requests += 1
+
+    def get_service_time(self):
+
+        if self.is_gcing:
+            request_p50, request_p999 = self.baseline_request_p50, self.baseline_request_p999
+        else:
+            request_p50, request_p999 = self.control_request_p50, self.control_request_p999
+
+        service_time = request_p50 + uniform(0, request_p999 - request_p50)
+
+        return service_time
+
+    def run_gc_collect(self):
+        self.is_gcing, before = True, self.env.now
+        trash = self.heap.level
+        yield self.heap.get(trash)
+        yield self.env.timeout(self.gc_time_collecting(trash))  # wait the discarding time
+
+        trash = self.heap.level
+        if trash > 0:
+            yield self.heap.get(trash)
+        self.is_gcing, after = False, self.env.now
+
+        self.gc_exec_time_sum += after - before
+        self.collects_performed += 1
+
+    def gc_time_collecting(self, trash):
+        return ((trash * 10000000000) * 7.317 * (10 ** -8) + 78.34) / 1000
 
 
 class ServerControl(ServerBaseline):
 
-    def __init__(self, env, id, conf, gc_conf, gci_conf):
-        super().__init__(env, id, conf, gc_conf)
+    def __init__(self, conf, gci_conf, env, id):
+        super().__init__(conf, env, id)
 
-        from .garbage import GCI
-        self.gci = GCI(self.env, self, gci_conf)
-
-    def process_request(self, request):
-        before = self.env.now
-        yield self.env.process(super().process_request(request))
-        after = self.env.now
-        self.gci.request_finished(after - before)
+        from .gci import GCI
+        self.gci = GCI(gci_conf, self.env, self, )
 
     def request_arrived(self, request):
         yield self.env.process(self.gci.before(request))
+
+    def process_request(self, request):
+        before = request.service_time
+        yield self.env.process(super().process_request(request))
+        after = request.service_time
+        self.gci.request_finished(after - before)
