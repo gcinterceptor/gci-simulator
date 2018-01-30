@@ -15,22 +15,22 @@ def main():
     SERVERS_NUMBER = int(args[1])
     SIM_DURATION_SECONDS = float(args[2])
     scenario = args[3]
-    load = args[4]
-    availability_rate = float(args[5])
-    communication_rate = float(args[6]) 
+    load = args[3]
+    availability_rate = float(args[4])
+    communication_rate = float(args[5]) 
 
-    if len(args) >= 8:
-        results_path = args[7]
+    if len(args) >= 7:
+        results_path = args[6]
     else:
         results_path = "results"
 
-    if len(args) >= 9:
-        seed = int(args[8])
+    if len(args) >= 8:
+        seed = int(args[7])
     else:
         seed = int(time.time())
 
-    if len(args) >= 10:
-        log_path = args[9]
+    if len(args) >= 9:
+        log_path = args[8]
     else:
         log_path = None
 
@@ -61,8 +61,7 @@ def main():
 
     servers = list()
     for i in range(SERVERS_NUMBER):
-        if scenario == 'control':
-            server = Server(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time, seed)
+        server = Server(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time, seed)
 
         load_balancer.add_server(server)
         servers.append(server)

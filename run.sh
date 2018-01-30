@@ -6,8 +6,6 @@ REPETIONS_NUMBER=10
 SIMULATION_TIME=600
 SERVERS_NUMBER="2 4 8 50"
 
-SCENE="control"
-
 LOAD="low
 high"
 
@@ -29,8 +27,8 @@ do
 				for CR in $COMMUNICATION_RATE
 				do
 					mkdir $OUTPUT_PATH/$RN 2> /dev/null
-					echo "REP=$RN, Servers Number=$SN, Simulation Time=$SIMULATION_TIME, Scenario=$SCENE, Load=$LD, Availability Rate=$AR, Communication_Rate=$CR"
-					python3 __main__.py $SN $SIMULATION_TIME $SCENE $LD $AR $CR $OUTPUT_PATH/$RN
+					echo "REP=$RN, Servers Number=$SN, Simulation Time=$SIMULATION_TIME, Load=$LD, Availability Rate=$AR, Communication_Rate=$CR"
+					python3 __main__.py $SN $SIMULATION_TIME $LD $AR $CR $OUTPUT_PATH/$RN
 				done
 			done
 		done
