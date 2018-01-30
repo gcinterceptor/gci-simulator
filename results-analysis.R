@@ -1,96 +1,68 @@
 library(ggplot2)
 library(plotly)
 
-servers_number <- list(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 100)
-availability_rate <- list("0.5", "1.0", "2.0", "3.0", "4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0", "50.0")
+servers_number <- list(2, 4, 8, 50)
+availability_rate <- list("0.1", "0.5", "1.0", "2.0", "10.0")
 communication_rate <- list("0.025")
 load <- list("low", "high")
+statistic <- c(.50, .75, .90, .99, .999, .9999, .99999, .100)
 
-low_list <- list(list(), list(), list(), list())
-count_low = 1
-high_list <- list(list(), list(), list(), list())
-count_high = 1
+statistic_names <- c("50%", "75%", "90%", "99%", "99.9%", "99.99%", "99.999%", "100%", "Mean")
 
-for(sn in servers_number) {
-  for(ar in availability_rate) {
-    for(cr in communication_rate) {
-      for(ld in load) {
-        baseline_scenario_file_path <- paste("results-1/1/request", sn, "baseline", ld, ar, paste(cr, ".csv", sep = ""), sep = "_")
-        control_scenario_file_path <- paste("results-1/1/request", sn, "control", ld, ar, paste(cr, ".csv", sep = ""), sep = "_")
-        
-        if(file.exists(baseline_scenario_file_path) && file.exists(control_scenario_file_path)) {
-          baseline <- read.csv(baseline_scenario_file_path, sep = ",", stringsAsFactors = FALSE)
-          control <- read.csv(control_scenario_file_path, sep = ",", stringsAsFactors = FALSE)
+for(rp in 1:10) {
+  result_list <- list(list(), list(), list(), list(), list(), list())
+  count <- 1
+  for(sn in servers_number) {
+    for(ar in availability_rate) {
+      for(cr in communication_rate) {
+        for(ld in load) {
+          control_scenario_file_path <- paste(paste("results-only-gci", rp, "request", sep="/"), sn, "control", ld, ar, paste(cr, ".csv", sep = ""), sep = "_")
           
-          baseline_percentiles <- quantile(baseline$latency_time, c(.50, .99, .999))
-          control_percentiles <- quantile(control$latency_time, c(.50, .99, .999))
-
-          control_is_better <- TRUE
-          for(i in 2:3) {
-            if(control_percentiles[i] > baseline_percentiles[i]) {
-              control_is_better <- FALSE
+          if(file.exists(control_scenario_file_path)) {
+            control <- read.csv(control_scenario_file_path, sep = ",", stringsAsFactors = FALSE)
+            
+            for(st_id in 1:length(statistic)) {
+              result_list[[1]][[count]] <- sn
+              result_list[[2]][[count]] <- ar
+              result_list[[3]][[count]] <- ld
+              result_list[[4]][[count]] <- statistic_names[st_id]
+              
+              control_percentil <- quantile(control$latency_time, statistic[st_id])
+              
+              result_list[[5]][[count]] <- control_percentil
+              count <- count + 1
+              
+              print(paste(rp, sn, ar, cr, ld, statistic_names[st_id], control_percentil))
             }
+            
+            result_list[[1]][[count]] <- sn
+            result_list[[2]][[count]] <- ar
+            result_list[[3]][[count]] <- ld
+            result_list[[4]][[count]] <- "Mean"
+            
+            control_mean <- mean(control$latency_time)
+            
+            result_list[[5]][[count]] <- control_mean
+            count <- count + 1
+            
+            print(paste(rp, sn, ar, cr, ld, "Mean", control_mean))
           }
-          
-          color <- NA
-          if(control_is_better) {
-            if(control_percentiles[1] <= baseline_percentiles[1]) {
-              color <- "50th, 99th, 99.9th"   # Median, 99th percentil and 99.9th percentile decreased (Median can be equal)
-            } else {
-              color <- "99th, 99.9th"         # 99th percentil and 99.9th percentile decreased
-            }
-          } else {
-            color <- "None"                   # None decreased
-          }
-          
-          if(ld == "low") {
-            low_list[[1]][[count_low]] <- sn
-            low_list[[2]][[count_low]] <- ar
-            low_list[[3]][[count_low]] <- cr
-            low_list[[4]][[count_low]] <- color
-            count_low = count_low + 1
-          } else {
-            high_list[[1]][[count_high]] <- sn
-            high_list[[2]][[count_high]] <- ar
-            high_list[[3]][[count_high]] <- cr
-            high_list[[4]][[count_high]] <- color
-            count_high = count_high + 1
-          }
-          
-          print(paste(sn, ar, cr, ld, color))
-          print(baseline_percentiles)
-          print(control_percentiles)
         }
       }
     }
   }
+  
+  gc()
+  
+  servers_number_v <- as.numeric(unlist(result_list[[1]], use.names = FALSE))
+  availability_rate_v <- as.numeric(unlist(result_list[[2]], use.names = FALSE))
+  load_v <- unlist(result_list[[3]], use.names = FALSE)
+  statistic_name_v <- unlist(result_list[[4]], use.names = FALSE)
+  statistic_improve_v <- as.numeric(unlist(result_list[[5]], use.names = FALSE))
+  
+  df <- data.frame(Servers_number = servers_number_v, Availability_rate = availability_rate_v, Load = load_v, 
+                   Statistic = statistic_name_v, Value = statistic_improve_v, stringsAsFactors = FALSE)
+  
+  write.csv(df, paste("results-output-control-", rp, ".csv", sep = ""), row.names = FALSE)
+  
 }
-
-servers_number_v <- as.numeric(unlist(low_list[[1]], use.names = FALSE))
-availability_rate_v <- as.numeric(unlist(low_list[[2]], use.names = FALSE))
-communication_rate_v <- as.numeric(unlist(low_list[[3]], use.names = FALSE))
-color_v <- unlist(low_list[[4]], use.names = FALSE)
-
-low_results <- data.frame(servers_number_v, availability_rate_v, communication_rate_v, color_v, stringsAsFactors = FALSE)
-
-servers_number_v <- as.numeric(unlist(high_list[[1]], use.names = FALSE))
-availability_rate_v <- as.numeric(unlist(high_list[[2]], use.names = FALSE))
-communication_rate_v <- as.numeric(unlist(high_list[[3]], use.names = FALSE))
-color_v <- unlist(high_list[[4]], use.names = FALSE)
-
-high_results <- data.frame(servers_number_v, availability_rate_v, communication_rate_v, color_v, stringsAsFactors = FALSE)
-
-plot_ly(low_results, x = ~servers_number_v, y = ~availability_rate_v, 
-        color = ~factor(color_v), 
-        marker = list(size = 5)) %>% 
-  layout(title = 'Low Load Results',
-         scene = list(xaxis = list(title = 'SR'),
-                      yaxis = list(title = 'AR')))
-
-plot_ly(high_results, x = ~servers_number_v, y = ~availability_rate_v, 
-        color = ~factor(color_v), 
-        marker = list(size = 5)) %>% 
-  layout(title = 'High Load Results',
-         scene = list(xaxis = list(title = 'SR'),
-                      yaxis = list(title = 'AR')))
-
