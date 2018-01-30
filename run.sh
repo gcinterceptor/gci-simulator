@@ -30,7 +30,7 @@ do
 				do
 					mkdir $OUTPUT_PATH/$RN 2> /dev/null
 					echo "REP=$RN, Servers Number=$SN, Simulation Time=$SIMULATION_TIME, Scenario=$SCENE, Load=$LD, Availability Rate=$AR, Communication_Rate=$CR"
-					python3 __main__.py $SN $SIMULATION_TIME $SCENE $LD $AR $SR $CR $OUTPUT_PATH/$RN
+					python3 __main__.py $SN $SIMULATION_TIME $SCENE $LD $AR $CR $OUTPUT_PATH/$RN
 				done
 			done
 		done

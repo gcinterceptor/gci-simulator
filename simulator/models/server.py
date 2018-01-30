@@ -8,9 +8,8 @@ class Server(object):
         self.env = env
         self.id = id
         self.sleep = float(conf['sleep_time'])
-        
-        self.queue = simpy.Store(env)               # the queue of requests
-        self.remaining_queue = simpy.Store(env)     # the queue of interrupted requests
+
+        self.is_shedding = False
         
         if log_path:
             self.logger = get_logger(log_path + "/server.log", "SERVER")
@@ -26,30 +25,15 @@ class Server(object):
 
     def run(self):
         while True:
-            available_until = self.env.now + self.get_next_available_time()
-            while self.env.now < available_until:
-                request = None
-                if len(self.remaining_queue.items) > 0:
-                    request = yield self.remaining_queue.get()
-                elif len(self.queue.items) > 0:                     # check if there is any request to be processed
-                    request = yield self.queue.get()                # get a request from store
-                
-                if request:
-                    yield self.env.process(self.process_request(request))
-                
-                yield self.env.timeout(self.sleep)
+            available_time = self.get_next_available_time()
+            available_until = self.env.now + available_time
+            self.is_shedding = False
+            yield self.env.timeout(available_time)
             
             unavailable_time = self.get_next_unavailable_time()
             unavailable_until = self.env.now + unavailable_time
-            while self.env.now < unavailable_until:
-                request = None
-                if len(self.queue.items) > 0:
-                    request = yield self.queue.get()
-                
-                if request:
-                    self.interrupt_request(request)
-                    
-                yield self.env.timeout(self.sleep)
+            self.is_shedding = True
+            yield self.env.timeout(unavailable_time)
             
             self.times_interrupted += 1
 
@@ -58,7 +42,10 @@ class Server(object):
             self.logger.info(" At %.3f, The request %d arrived at Server %d" % (self.env.now, request.id, self.id))
         
         request.arrived_at()
-        self.queue.put(request)
+        if(self.is_shedding):
+            self.interrupt_request(request)
+        else:
+            self.env.process(self.process_request(request))
     
     def process_request(self, request):
         if self.logger:
@@ -73,8 +60,8 @@ class Server(object):
     def interrupt_request(self, request):
         if self.logger:
             self.logger.info(" At %.3f, The request %d was interrupted at Server %d" % (self.env.now, request.id, self.id))
-        
-        self.remaining_queue.put(request)
+
+        self.env.process(request.load_balancer.shed_request(request, self))
         
     def get_next_available_time(self):
         available_time = self.available_time_dist.get_next_value()
@@ -92,14 +79,3 @@ class Server(object):
             
         return unavailable_time
         
-class ServerWithGCI(Server):
-
-    def __init__(self, env, id, conf, log_path, avg_available_time, avg_unavailable_time, seed):
-        super().__init__(env, id, conf, log_path, avg_available_time, avg_unavailable_time, seed)
-
-    def interrupt_request(self, request):
-        if self.logger:
-            self.logger.info(" At %.3f, The request %d was interrupted at Server %d" % (self.env.now, request.id, self.id))
-        # Note that we are assuming that the GCI is giving a good hint at unavailable server time
-        self.env.process(request.load_balancer.shed_request(request, self))
-

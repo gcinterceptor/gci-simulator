@@ -1,4 +1,4 @@
-from simulator.models import Clients, LoadBalancer, ServerWithGCI, Server
+from simulator.models import Clients, LoadBalancer, Server
 from config import get_config
 from log import _initiate_csv_files
 from metrics import log_request
@@ -62,9 +62,6 @@ def main():
     servers = list()
     for i in range(SERVERS_NUMBER):
         if scenario == 'control':
-            server = ServerWithGCI(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time, seed)
-
-        elif scenario == 'baseline':
             server = Server(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time, seed)
 
         load_balancer.add_server(server)
