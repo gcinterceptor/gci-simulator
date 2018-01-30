@@ -11,12 +11,16 @@ class Request(object):
         self.cpu_time = 0
         self.communication_time = communication_time
         self.server_id = None
+        self.redirects = 0
 
         self._sent_time = None
         self._arrived_time = None
         self._processed_time = None
         self._finished_time = None
         self._latency_time = None
+        
+    def redirected(self):
+        self.redirects += 1
 
     def sent_at(self):
         self._sent_time = self.env.now

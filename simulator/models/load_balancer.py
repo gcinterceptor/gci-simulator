@@ -41,6 +41,7 @@ class LoadBalancer(object):
         
         yield self.env.timeout(self.communication_time)
         
+        request.redirected()
         self.servers[server].request_arrived(request)
         
     def success_request(self, request):
