@@ -7,21 +7,21 @@ class Server(object):
     def __init__(self, env, id, conf, log_path, available_avg_time, unavailable_avg_time, seed):
         self.env = env
         self.id = id
-        self.sleep = float(conf['sleep_time'])
-
-        self.is_shedding = False
         
         if log_path:
             self.logger = get_logger(log_path + "/server.log", "SERVER")
         else:
             self.logger = None
+        
+        self.is_shedding = False
             
         self.available_time_dist = Distribution(conf['available_distribution'], [available_avg_time], seed)
         self.unavailable_time_dist = Distribution(conf['unavailable_distribution'], [unavailable_avg_time], seed)
 
         self.processed_requests = 0
         self.times_interrupted = 0
-        self.action = env.process(self.run())
+        
+        self.env.process(self.run())
 
     def run(self):
         while True:
@@ -33,10 +33,9 @@ class Server(object):
             unavailable_time = self.get_next_unavailable_time()
             unavailable_until = self.env.now + unavailable_time
             self.is_shedding = True
+            self.times_interrupted += 1
             yield self.env.timeout(unavailable_time)
             
-            self.times_interrupted += 1
-
     def request_arrived(self, request):
         if self.logger:
             self.logger.info(" At %.3f, The request %d arrived at Server %d" % (self.env.now, request.id, self.id))

@@ -19,8 +19,13 @@ class Request(object):
         self._finished_time = None
         self._latency_time = None
         
+        self.refused = None
+        
     def redirected(self):
         self.redirects += 1
+        
+    def refused(self):
+        self.refused = True
 
     def sent_at(self):
         self._sent_time = self.env.now
@@ -33,6 +38,7 @@ class Request(object):
         self.server_id = server_id
 
     def finished_at(self):
+        self.refused = False
         self._finished_time = self.env.now
         self._latency_time = self._finished_time - self._sent_time
         

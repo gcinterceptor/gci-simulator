@@ -5,13 +5,11 @@ class LoadBalancer(object):
 
     def __init__(self, env, conf, communication_time, log_path=None):
         self.env = env
-
-        self.servers = list()
-        self.server_availability = {}
         
-        self.communication_time = communication_time / 2.0
+        self.communication_time = communication_time
         
         self.actual_server = 0
+        self.servers = list()
         
         if log_path:
             self.logger = get_logger(log_path + "/loadbalancer.log", "LOAD BALANCER")
@@ -24,7 +22,6 @@ class LoadBalancer(object):
             
     def add_server(self, server):
         self.servers.append(server)
-        self.server_availability[server.id] = 0
 
     def request_arrived(self, request):
         if self.logger:
@@ -36,14 +33,15 @@ class LoadBalancer(object):
         self.env.process(self.send_to(server, request))
     
     def send_to(self, server, request):
+        request.redirected()
+        
         if self.logger:
             self.logger.info(" At %.3f, request %d was send to server %d" % (self.env.now, request.id, self.servers[server].id))
         
         yield self.env.timeout(self.communication_time)
         
-        request.redirected()
         self.servers[server].request_arrived(request)
-        
+
     def success_request(self, request):
         yield self.env.timeout(self.communication_time)
         
@@ -58,5 +56,12 @@ class LoadBalancer(object):
         if self.logger:
             self.logger.info(" At %.3f, Request %d was shedded" % (self.env.now, request.id))
         
-        server = self.get_next_server()
-        self.env.process(self.send_to(server, request))
+        if request.redirects == len(self.servers):
+            if self.logger:
+                self.logger.info(" At %.3f, request %d was refused" % (self.env.now, request.id))
+            
+            request.client.refuse_request(request)
+            
+        else:
+            server = self.get_next_server()
+            self.env.process(self.send_to(server, request))

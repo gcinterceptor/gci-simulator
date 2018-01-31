@@ -40,7 +40,14 @@ class Clients(object):
 
     def success_request(self, request):
         if self.logger:
-                self.logger.info(" At %.3f, Request with id %d was processed with Success" % (self.env.now, request.id))
+            self.logger.info(" At %.3f, Request with id %d was processed with Success" % (self.env.now, request.id))
         
         request.finished_at()
         self.requests.append(request)
+        
+    def refuse_request(self, request):
+        if self.logger:
+            self.logger.info(" At %.3f, Request with id %d was refused" % (self.env.now, request.id))
+        print("Yes")
+        request.refused()
+        

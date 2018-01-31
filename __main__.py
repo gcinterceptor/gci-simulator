@@ -14,7 +14,6 @@ def main():
     args = sys.argv
     SERVERS_NUMBER = int(args[1])
     SIM_DURATION_SECONDS = float(args[2])
-    scenario = args[3]
     load = args[3]
     availability_rate = float(args[4])
     communication_rate = float(args[5]) 
@@ -35,7 +34,7 @@ def main():
         log_path = None
 
     create_directory(results_path)
-    _initiate_csv_files(results_path, SERVERS_NUMBER, scenario, load, availability_rate, communication_rate)
+    _initiate_csv_files(results_path, SERVERS_NUMBER, load, availability_rate, communication_rate)
     
     if log_path:
         create_directory(log_path)
@@ -70,7 +69,7 @@ def main():
 
     env.run(until=int(SIM_DURATION_SECONDS + 1))
         
-    log_request(clients.requests, results_path, SERVERS_NUMBER, scenario, load, availability_rate, communication_rate)
+    log_request(clients.requests, results_path, SERVERS_NUMBER, load, availability_rate, communication_rate)
     
     after = time.time()
     
