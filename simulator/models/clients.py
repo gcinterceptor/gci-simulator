@@ -48,6 +48,7 @@ class Clients(object):
     def refuse_request(self, request):
         if self.logger:
             self.logger.info(" At %.3f, Request with id %d was refused" % (self.env.now, request.id))
-        print("Yes")
-        request.refused()
+        
+        request.request_refused()
+        self.requests.append(request)
         

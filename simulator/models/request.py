@@ -24,7 +24,7 @@ class Request(object):
     def redirected(self):
         self.redirects += 1
         
-    def refused(self):
+    def request_refused(self):
         self.refused = True
 
     def sent_at(self):
