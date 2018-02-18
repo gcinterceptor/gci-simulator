@@ -4,13 +4,14 @@ import simpy
 
 class Clients(object):
 
-    def __init__(self, env, server, conf, servers_number, create_requests_until, log_path=None):
+    def __init__(self, env, server, conf, servers_number, create_requests_until, requests_cpu_time, log_path=None):
         self.env = env
         self.server = server
         self.requests = list()
         
         self.sleep_time = 1 / (int(conf['create_request_rate']) * servers_number)
         self.create_requests_until = create_requests_until
+        self.requests_cpu_time = requests_cpu_time
 
         if log_path:
             self.logger = get_logger(log_path + "/clients.log", "CLIENTS")
@@ -31,7 +32,7 @@ class Clients(object):
             if self.logger:
                 self.logger.info(" At %.3f, Created Request with id %d" % (self.env.now, request_id))
                 
-            request = Request(self.env, request_id, self, self.server, 0.05, log_path)
+            request = Request(self.env, request_id, self, self.server, self.requests_cpu_time, log_path)
             
             self.send_request(request)
             yield self.env.timeout(self.sleep_time)

@@ -3,13 +3,12 @@ import simpy
 
 class Request(object):
 
-    def __init__(self, env, id, client, load_balancer, communication_time, log_path=None):
+    def __init__(self, env, id, client, load_balancer, cpu_time, log_path=None):
         self.id = id
         self.env = env
         self.client = client
         self.load_balancer = load_balancer
-        self.cpu_time = 0
-        self.communication_time = communication_time
+        self.cpu_time = cpu_time
         self.server_id = None
         self.redirects = 0
 
