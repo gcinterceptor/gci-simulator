@@ -15,26 +15,27 @@ def main():
     SERVERS_NUMBER = int(args[1])
     SIM_DURATION_SECONDS = float(args[2])
     load = args[3]
-    availability_rate = float(args[4])
-    communication_rate = float(args[5]) 
+    shedded_requests_rate = float(args[4])
+    network_communication_time = float(args[5])
+    requests_cpu_time = float(args[6])
 
-    if len(args) >= 7:
-        results_path = args[6]
+    if len(args) >= 8:
+        results_path = args[7]
     else:
         results_path = "results"
 
-    if len(args) >= 8:
-        seed = int(args[7])
+    if len(args) >= 9:
+        seed = int(args[8])
     else:
         seed = int(time.time())
 
-    if len(args) >= 9:
-        log_path = args[8]
+    if len(args) >= 10:
+        log_path = args[9]
     else:
         log_path = None
 
     create_directory(results_path)
-    _initiate_csv_files(results_path, SERVERS_NUMBER, load, availability_rate, communication_rate)
+    _initiate_csv_files(results_path, SERVERS_NUMBER, load, shedded_requests_rate, network_communication_time, requests_cpu_time)
     
     if log_path:
         create_directory(log_path)
@@ -51,25 +52,20 @@ def main():
     
     env = simpy.Environment()
 
-    avg_unavailable_time = 1.00
-    avg_available_time = availability_rate * avg_unavailable_time
-    
-    communication_time = communication_rate * avg_unavailable_time
-    
-    load_balancer = LoadBalancer(env, loadbalancer_conf, communication_time, log_path)
+    load_balancer = LoadBalancer(env, loadbalancer_conf, network_communication_time, log_path)
 
     servers = list()
     for i in range(SERVERS_NUMBER):
-        server = Server(env, i, server_conf, log_path, avg_available_time, avg_unavailable_time, seed)
+        server = Server(env, i, server_conf, log_path, shedded_requests_rate, seed)
 
         load_balancer.add_server(server)
         servers.append(server)
 
-    clients = Clients(env, load_balancer, client_conf, SERVERS_NUMBER, SIM_DURATION_SECONDS, log_path)
+    clients = Clients(env, load_balancer, client_conf, SERVERS_NUMBER, SIM_DURATION_SECONDS, requests_cpu_time, log_path)
 
     env.run(until=int(SIM_DURATION_SECONDS + 1))
         
-    log_request(clients.requests, results_path, SERVERS_NUMBER, load, availability_rate, communication_rate)
+    log_request(clients.requests, results_path, SERVERS_NUMBER, load, shedded_requests_rate, network_communication_time, requests_cpu_time)
     
     after = time.time()
     

@@ -18,11 +18,11 @@ def csv_writer(data, path):
         for line in data:
             writer.writerow(line)
             
-def _initiate_csv_files(results_path, servers_number, load, availability_rate, communication_rate):
-    _initiate_request_csv_files(results_path, servers_number, load, availability_rate, communication_rate)
+def _initiate_csv_files(results_path, servers_number, load, shedded_requests_rate, communication_rate, requests_cpu_time):
+    _initiate_request_csv_files(results_path, servers_number, load, shedded_requests_rate, communication_rate, requests_cpu_time)
 
-def _initiate_request_csv_files(results_path, servers_number, load, availability_rate, communication_rate):
+def _initiate_request_csv_files(results_path, servers_number, load, shedded_requests_rate, communication_rate, requests_cpu_time):
     request_data = [["id", "sent_time", "arrived_time", "finished_time", "latency_time", "server_id", "redirects", "refused"]]
-    rsc_file_name = "request_" + str(servers_number) + "_" + load + "_" + str(availability_rate) + "_" + str(communication_rate) + ".csv"
+    rsc_file_name = "request_" + str(servers_number) + "_" + load + "_" + str(shedded_requests_rate) + "_" + str(communication_rate) + "_" + str(requests_cpu_time) + ".csv"
     csv_writer(request_data, results_path + "/" + rsc_file_name)
 
