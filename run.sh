@@ -2,17 +2,19 @@
 
 OUTPUT_PATH=$1
 
-REPETIONS_NUMBER=10
+REPETIONS_NUMBER=5
 SIMULATION_TIME=600
-SERVERS_NUMBER="2 4 8 50"
+SERVERS_NUMBER="2 4 8 16 32 64"
 
 LOAD="low
 high"
 
-AVAILABILITY_RATE="0.1 0.5 1 2 10"
+SHEDDED_REQUESTS_RATE="0.2 0.1 0.01 0.001 0.0001 0.00001"
 
 #AVG COMPONENTS COMMUNICATION TIME BY AVG UNAVAILABLE TIME
-COMMUNICATION_RATE="0.025"
+NETWORK_COMMUNICATION_TIME="0.002"
+
+REQUESTS_CPU_TIME="0.010"
 
 mkdir $OUTPUT_PATH 2> /dev/null
 
@@ -22,13 +24,16 @@ do
 	do
 		for LD in $LOAD
 		do
-			for AR in $AVAILABILITY_RATE
+			for SRR in $SHEDDED_REQUESTS_RATE
 			do
-				for CR in $COMMUNICATION_RATE
+				for NCT in $NETWORK_COMMUNICATION_TIME
 				do
-					mkdir $OUTPUT_PATH/$RN 2> /dev/null
-					echo "REP=$RN, Servers Number=$SN, Simulation Time=$SIMULATION_TIME, Load=$LD, Availability Rate=$AR, Communication_Rate=$CR"
-					python3 __main__.py $SN $SIMULATION_TIME $LD $AR $CR $OUTPUT_PATH/$RN
+					for RCT in $REQUESTS_CPU_TIME
+					do
+						mkdir $OUTPUT_PATH/$RN 2> /dev/null
+						echo "REP=$RN, Servers Number=$SN, Simulation Time=$SIMULATION_TIME, Load=$LD, Shedded Requests Rate=$SRR, Network Communication Time=$NCT, Requests CPU Time=$RCT"
+						python3 __main__.py $SN $SIMULATION_TIME $LD $SRR $NCT $RCT $OUTPUT_PATH/$RN
+					done
 				done
 			done
 		done
