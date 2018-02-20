@@ -93,7 +93,7 @@ def main():
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \
            + "\nlost requests: " + str(load_balancer.lost_requests) \
            + "\nsucceeded requests: " + str(load_balancer.succeeded_requests)
-    txt_writer(RESULTS_PATH + "/simulation_info_" + SCENARIO + "_load_" + str(LOAD) + ".txt", text)
+    txt_writer(RESULTS_PATH + "/simulation_info_" + SCENARIO + "_load_" + str(LOAD) + "_" + EXPERIMENT_NUMBER + ".txt", text)
 
     print("created requests: %f" % load_balancer.created_requests)
     print("shedded requests: %f" % load_balancer.shedded_requests)
