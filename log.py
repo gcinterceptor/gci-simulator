@@ -2,27 +2,23 @@ import csv
 
 
 def csv_writer(data, path):
-    with open(path, "a", newline='') as csv_file:
+    with open(path, "w", newline='') as csv_file:
         writer = csv.writer(csv_file, delimiter=',')
         for line in data:
             writer.writerow(line)
 
 
-def log_request(requests, results_path, scenario, load):
-    data = [["id", "created_time", "latency"]]
+def log_request(requests, results_path, results_name, scenario, load):
+    data = [["id", "created_time", "latency", "service_time",  "done", "times_forwarded"]]
 
     for request in requests:
-        data.append([request.id, request.created_time, request._latency])
+        data.append([request.id, request.created_time, request._latency, request.service_time, request.done, request.times_forwarded])
 
-    file_path = results_path + "/request_status_" + scenario + "_const_" + load + ".csv"
+    file_path = results_path + "/" + results_name + "_" + scenario + "_const_" + load + ".csv"
     csv_writer(data, file_path)
 
 
-def log_gc(gc_count, gc_time, results_path, scenario, load):
-    data = [["ts", "count", "time"]]
-
-    for i in range(len(gc_count)):
-        data.append([i + 1, gc_count[i], gc_time[i]])
-
-    file_path = results_path + "/gc_status_" + scenario + "_const_" + load + ".csv"
-    csv_writer(data, file_path)
+def txt_writer(file_name, text):
+    arq = open(file_name, 'w')
+    arq.write(text)
+    arq.close()

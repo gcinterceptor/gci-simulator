@@ -1,80 +1,78 @@
-from random import uniform
-import simpy
+import random
+
+
+class Distribution(object):
+
+    def __init__(self, data):
+        self.data = data
+        self.max = len(self.data)-1
+        self.min = 0
+
+    def next_value(self):
+        return self.data[random.randint(self.min, self.max)]
 
 
 class ServerBaseline(object):
 
-    def __init__(self, conf, env, id):
-        self.baseline_request_p50 = float(conf['baseline_request_p50']) # avarage
-        self.baseline_request_p999 = float(conf['baseline_request_p999']) # percentil 99.99
-        self.control_request_p50 = float(conf['control_request_avg'])
-        self.control_request_p999 = float(conf['control_request_p50'])
-        self.gc_st = float(conf['gc_st'])
-
+    def __init__(self, env, id, service_time_data):
         self.env = env
         self.id = id
-        self.is_gcing = False
-        self.heap = simpy.Container(env)  # our trash heap
+        self.service_time_distribution = Distribution(service_time_data)
 
         self.requests_arrived = 0
         self.processed_requests = 0
-        self.gc_exec_time_sum = 0
-        self.collects_performed = 0
+        self.requests = list()
 
     def request_arrived(self, request):
         self.requests_arrived += 1
         request.arrived_at(self.env.now)
-        if self.heap.level >= self.gc_st:
-            self.env.process(self.run_gc_collect())
         yield self.env.process(self.process_request(request))
 
     def process_request(self, request):
-        yield self.env.process(request.run(self.heap, self.get_service_time()))
+        yield self.env.process(request.run(self.service_time_distribution.next_value()))
         yield self.env.process(request.load_balancer.request_succeeded(request))
         self.processed_requests += 1
+        self.requests.append(request)
 
-    def get_service_time(self):
 
-        if self.is_gcing:
-            request_p50, request_p999 = self.baseline_request_p50, self.baseline_request_p999
-        else:
-            request_p50, request_p999 = self.control_request_p50, self.control_request_p999
+class Reprodution(object):
 
-        service_time = request_p50 + uniform(0, request_p999 - request_p50)
+    def __init__(self, data):
+        self.data = data
+        self.index = -1
 
-        return service_time
-
-    def run_gc_collect(self):
-        self.is_gcing, before = True, self.env.now
-        trash = self.heap.level
-        yield self.heap.get(trash)
-        yield self.env.timeout(self.gc_time_collecting(trash))  # wait the discarding time
-
-        trash = self.heap.level
-        if trash > 0:
-            yield self.heap.get(trash)
-        self.is_gcing, after = False, self.env.now
-
-        self.gc_exec_time_sum += after - before
-        self.collects_performed += 1
-
-    def gc_time_collecting(self, trash):
-        return ((trash * 10000000000) * 7.317 * (10 ** -8) + 78.34) / 1000
+    def next_value(self):
+        self.index = (self.index + 1) % len(self.data)
+        return self.data[self.index]
 
 
 class ServerControl(ServerBaseline):
 
-    def __init__(self, conf, gci_conf, env, id):
-        super().__init__(conf, env, id)
+    def __init__(self, env, id, service_time_data, processed_request_data, shedded_request_data):
+        super().__init__(env, id, service_time_data)
 
-        from .gci import GCI
-        self.gci = GCI(gci_conf, self.env, self, )
+        self.requests_finished_distribution = Reprodution(processed_request_data)
+        self.finished = int(self.requests_finished_distribution.next_value())
+
+        self.requests_shedded_distribution = Reprodution(shedded_request_data)
+        self.shedded = int(self.requests_shedded_distribution.next_value())
+
+        self.is_shedding = False
 
     def request_arrived(self, request):
-        yield self.env.process(self.gci.before(request))
+        if self.is_shedding:
+            self.shedded -= 1
+            if self.shedded == 0:
+                self.is_shedding = False
+                self.finished = int(self.requests_finished_distribution.next_value())
 
-    def process_request(self, request):
-        before = request.service_time
-        yield self.env.process(super().process_request(request))
-        after = request.service_time
-        self.gci.request_finished(after - before)
+            yield self.env.process(request.load_balancer.shed_request(request))
+
+        else:
+            yield self.env.process(super().request_arrived(request))
+            if not self.is_shedding:
+                self.finished -= 1
+                if self.finished == 0:
+                    self.is_shedding = True
+                    self.shedded = int(self.requests_shedded_distribution.next_value())
+
