@@ -24,7 +24,7 @@ class LoadBalancer(object):
         self.create_request = env.process(self.create_and_forward_requests())
 
     def create_and_forward_requests(self):
-        time_between_each_sending = 1 / (self.create_request_rate * len(self.servers))
+        time_between_each_sending = 1 / self.create_request_rate
         while True:
             request = Request(self.env, self.created_requests, self.env.now, self)
             self.created_requests += 1
