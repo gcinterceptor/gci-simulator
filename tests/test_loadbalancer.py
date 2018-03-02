@@ -22,7 +22,7 @@ class TestLoadBalancer(unittest.TestCase):
 
     def test_request(self):
         self.assert_equal(0, self.env.now)
-        sim_duration = 6.012500000000001  # time enought to process only one request
+        sim_duration = 6.012500000000001  # time enought to process only two request
         self.env.run(sim_duration)
         self.assert_equal(sim_duration, self.env.now)
 
