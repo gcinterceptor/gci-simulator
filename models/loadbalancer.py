@@ -46,7 +46,7 @@ class LoadBalancer(object):
             self.requests.append(request)
 
         else:
-            self.env.process(self.forward(request))
+            self.forward(request)
 
     def request_succeeded(self, request):
         request.finished_at(self.env.now)
