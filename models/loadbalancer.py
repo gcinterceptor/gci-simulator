@@ -28,26 +28,25 @@ class LoadBalancer(object):
         while True:
             request = Request(self.env, self.created_requests, self.env.now, self)
             self.created_requests += 1
-            self.env.process(self.forward(request))
+            self.forward(request)
             yield self.env.timeout(time_between_each_sending)
 
     def forward(self, request):
-        yield self.env.timeout(self.comunication_delay)
         request.times_forwarded += 1
         self.env.process(self.servers[self.server_index].request_arrived(request))
         self.server_index = (self.server_index + 1) % len(self.servers)
 
     def shed_request(self, request):
         self.shedded_requests += 1
+        yield self.env.timeout(self.comunication_delay)
+
         if request.times_forwarded == len(self.servers):
             self.lost_requests += 1
             request.finished_at(self.env.now)
             self.requests.append(request)
 
         else:
-            self.env.process(self.forward(request))
-
-        yield self.env.timeout(self.sleep)
+            self.forward(request)
 
     def request_succeeded(self, request):
         request.finished_at(self.env.now)

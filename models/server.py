@@ -35,7 +35,7 @@ class ServerBaseline(object):
         self.requests.append(request)
 
 
-class Reprodution(object):
+class Reproduction(object):
 
     def __init__(self, data):
         self.data = data
@@ -51,10 +51,10 @@ class ServerControl(ServerBaseline):
     def __init__(self, env, id, service_time_data, processed_request_data, shedded_request_data):
         super().__init__(env, id, service_time_data)
 
-        self.requests_finished_distribution = Reprodution(processed_request_data)
+        self.requests_finished_distribution = Reproduction(processed_request_data)
         self.finished = int(self.requests_finished_distribution.next_value())
 
-        self.requests_shedded_distribution = Reprodution(shedded_request_data)
+        self.requests_shedded_distribution = Reproduction(shedded_request_data)
         self.shedded = int(self.requests_shedded_distribution.next_value())
 
         self.is_shedding = False
