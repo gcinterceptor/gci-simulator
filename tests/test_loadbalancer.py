@@ -1,4 +1,4 @@
-from .context import LoadBalancer, ServerBaseline, ServerControl
+from context import LoadBalancer, ServerBaseline, ServerControl
 import unittest
 import simpy
 
