@@ -18,11 +18,11 @@ of services are used. The main objective here is to simulate web applications us
 
 ### How to run
 #### Parameters
-* **number_of_server**: The number of servers to be used.
-* **sim_duration**: How much time the simulation should take in seconds (must be integer or float).
+* **number_of_servers**: The number of servers to be used.
+* **duration**: How much time the simulation should take in seconds (must be integer or float).
 * **scenario**: There is two scenarios, control and baseline. Control means servers using GCI and baseline means servers with no GCI.
 * **load**: An integer meaning how much requests the load balance must to distribute to the servers.
-* **result_path**: The path where the simulator should keep the results.
+* **output_path**: The path where the simulator should put the results.
 * **data_path**: The path where the CSV files of experimental results are.
 * **service_time_file_name**: The name of a file with the service time of each request processed in an experiment.
 * **service_time_data_column**: The column number of that files (integer).
@@ -31,12 +31,14 @@ of services are used. The main objective here is to simulate web applications us
 * **shedding_number_of_files**: The number of shedding files.
 
 #### Execution
-After have cloned the simulator, move to the right director and execute one of those commands below. The command at Baseline simulates an experiment with **no GCI** on Servers, at control simulates with servers **using GCI**.
+After have cloned the simulator, move to the right director and execute one of those commands below. The command at Baseline simulates an experiment with **no GCI** on Servers, at control simulates with servers **using GCI**. The parameters must be passed as environment variables.
 
 * ##### **Baseline**
-  * bash simulation_run.sh number_of_server sim_duration **baseline** load result_path data_path service_time_file_name service_time_data_column simulation_number 
+  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**baseline**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" bash simulation_run.sh  
 * ##### **Control**
-  * bash simulation_run.sh number_of_server sim_duration **control** load result_path data_path service_time_file_name service_time_data_column simulation_number **shedding_file_name shedding_number_of_files**
+  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**control**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" **SHEDDING_FILE_NAME="shedding_file_name" SHEDDING_NUMBER_OF_FILES"shedding_number_of_files"** bash simulation_run.sh  
+
+Please, pay attention that the script run_simulation.sh already has some of these parameters with default values that make easier run simulations. 
 
 ### Results
 For each simulation the simulator will generate two files: an information file and a CSV file. The name of the files follow the pattern shown below.
