@@ -34,9 +34,9 @@ of services are used. The main objective here is to simulate web applications us
 After have cloned the simulator, move to the right director and execute one of those commands below. The command at Baseline simulates an experiment with **no GCI** on Servers, at control simulates with servers **using GCI**. The parameters must be passed as environment variables.
 
 * ##### **Baseline**
-  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**baseline**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" bash simulation_run.sh  
+  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**baseline**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" bash run_simulator.sh  
 * ##### **Control**
-  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**control**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" **SHEDDING_FILE_NAME="shedding_file_name" SHEDDING_NUMBER_OF_FILES="shedding_number_of_files"** bash simulation_run.sh  
+  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**control**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" **SHEDDING_FILE_NAME="shedding_file_name" SHEDDING_NUMBER_OF_FILES="shedding_number_of_files"** bash run_simulator.sh  
 
 Please, pay attention that the script run_simulation.sh already has some of these parameters with default values that make easier run simulations. 
 
