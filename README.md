@@ -14,7 +14,7 @@ of services are used. The main objective here is to simulate web applications us
 ### Requirements
 * Have experimental results CSV’s with the following information: 
   * **Service time**: A CSV with the service time of each request processed in experiment. 
-  * **Processed requests** and **shedded request** at the same window: A **CSV file** with the number of processed requests until start shedding and the number of shedded requests at the this shedding.
+  * **Processed requests** and **shedded request** at the same window: A **CSV file** with the number of processed requests until start shedding and the number of shedded requests at the this shedding. It is a requirement to simulate GCI on experiments only, there is no need of it to simulate GCI off experiments.
 
 ### How to run
 #### Parameters
