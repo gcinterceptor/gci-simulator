@@ -37,4 +37,3 @@ do
 done 
 
 rm -rf $NUMBER_OF_SERVERS"instance(s)" 
-	
