@@ -9,10 +9,17 @@ echo "NUMBER_OF_SERVERS: ${NUMBER_OF_SERVERS:=1}"
 echo "DURATION: ${DURATION:=120}"
 echo "LOAD: ${LOAD:=$((${NUMBER_OF_SERVERS} * 80))}"
 
+if [ "${NUMBER_OF_SERVERS}" == "1" ];
+then
+    INSTANCE="instance"
+else
+    INSTANCE="instances"
+fi
+
 echo "SCENARIO: ${SCENARIO}"
-RESULTS_PATH="${NUMBER_OF_SERVERS}instance(s)/${SCENARIO}"
+RESULTS_PATH="${NUMBER_OF_SERVERS}${INSTANCE}/${SCENARIO}/"
 mkdir -p $RESULTS_PATH
-echo "OUTPUT_PATH: ${OUTPUT_PATH:=/tmp/simulation/$RESULTS_PATH/}"
+echo "OUTPUT_PATH: ${OUTPUT_PATH:=/tmp/simulation/${RESULTS_PATH}}"
 mkdir -p $OUTPUT_PATH
 	
 echo "DATA_PATH: ${DATA_PATH}"
@@ -30,10 +37,10 @@ do
 	MAIN_PATH=$(pwd)/__main__.py
 	python3 __main__.py $NUMBER_OF_SERVERS $DURATION $SCENARIO $LOAD $RESULTS_PATH $DATA_PATH $SERVICE_TIME_FILE_NAME $SERVICE_TIME_DATA_COLUMN $round $SHEDDING_FILE_NAME $SHEDDING_NUMBER_OF_FILES
 	
-	mv -f $RESULTS_PATH/* $OUTPUT_PATH
 	echo "round ${round}: Finished."
     echo ""
 
 done 
 
-rm -rf $NUMBER_OF_SERVERS"instance(s)" 
+mv $RESULTS_PATH* $OUTPUT_PATH
+rm -rf "${NUMBER_OF_SERVERS}${INSTANCE}/"
