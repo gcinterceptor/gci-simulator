@@ -9,11 +9,8 @@ echo "NUMBER_OF_SERVERS: ${NUMBER_OF_SERVERS:=1}"
 echo "DURATION: ${DURATION:=120}"
 echo "LOAD: ${LOAD:=$((${NUMBER_OF_SERVERS} * 80))}"
 echo "SCENARIO: ${SCENARIO:=control}"
-
-RESULTS_PATH="${NUMBER_OF_SERVERS}i/${SCENARIO}/"
+echo "RESULTS_PATH: ${RESULTS_PATH:=/tmp/simulation/${NUMBER_OF_SERVERS}i/${SCENARIO}/}"
 mkdir -p $RESULTS_PATH
-echo "OUTPUT_PATH: ${OUTPUT_PATH:=/tmp/simulation/${RESULTS_PATH}}"
-mkdir -p $OUTPUT_PATH
 	
 echo "DATA_PATH: ${DATA_PATH}"
 echo "SERVICE_TIME_FILE_NAME: ${SERVICE_TIME_FILE_NAME}"
@@ -31,8 +28,6 @@ do
 	
 	echo "round ${round}: Finished."
     echo ""
-
 done 
 
 mv $RESULTS_PATH* $OUTPUT_PATH
-rm -rf "${NUMBER_OF_SERVERS}i/"
