@@ -14,7 +14,7 @@ of services are used. The main objective here is to simulate web applications us
 ### Requirements
 * Have experimental results CSV’s with the following information: 
   * **Service time**: A CSV with the service time of each request processed in experiment. 
-  * **Processed requests** and **shedded request** at the same window: A **CSV file** with the number of processed requests until start shedding and the number of shedded requests at the this shedding.
+  * **Processed requests** and **shedded request** at the same window: A **CSV file** with the number of processed requests until start shedding and the number of shedded requests at the this shedding. It is a requirement to simulate GCI on experiments only, there is no need of it to simulate GCI off experiments.
 
 ### How to run
 #### Parameters
@@ -26,7 +26,8 @@ of services are used. The main objective here is to simulate web applications us
 * **data_path**: The path where the CSV files of experimental results are.
 * **service_time_file_name**: The name of a file with the service time of each request processed in an experiment.
 * **service_time_data_column**: The column number of that files (integer).
-* **simulation_number**: An ID to identify each simulation result file.
+* **round_start**: It defines the ID to identify the first simulation result file.
+* **round_end**: It defines the ID to identify the last simulation result file. It also means the number of simulations to be executed.
 * **shedding_file_name**: The name of the CSV file containing a pair of values needed to do shedding. 
 * **shedding_number_of_files**: The number of shedding files.
 
@@ -34,9 +35,9 @@ of services are used. The main objective here is to simulate web applications us
 After have cloned the simulator, move to the right director and execute one of those commands below. The command at Baseline simulates an experiment with **no GCI** on Servers, at control simulates with servers **using GCI**. The parameters must be passed as environment variables.
 
 * ##### **Baseline**
-  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**baseline**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" bash run_simulator.sh  
+  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**baseline**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" ROUND_START="round_start" ROUND_END="round_end" bash run_simulator.sh  
 * ##### **Control**
-  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**control**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" SIMULATION_NUMBER="simulation_number" **SHEDDING_FILE_NAME="shedding_file_name" SHEDDING_NUMBER_OF_FILES="shedding_number_of_files"** bash run_simulator.sh  
+  * NUMBER_OF_SERVERS="number_of_server" DURATION="duration" SCENARIO="**control**" LOAD="load" OUTPUT_PATH="output_path" DATA_PATH="data_path" SERVICE_TIME_FILE_NAME="service_time_file_name" SERVICE_TIME_DATA_COLUMN="service_time_data_column" ROUND_START="round_start" ROUND_END="round_end" **SHEDDING_FILE_NAME="shedding_file_name" SHEDDING_NUMBER_OF_FILES="shedding_number_of_files"** bash run_simulator.sh  
 
 Please, pay attention that the script run_simulation.sh already has some of these parameters with default values that make easier run simulations. 
 
