@@ -29,5 +29,3 @@ do
 	echo "round ${round}: Finished."
     echo ""
 done 
-
-mv $RESULTS_PATH* $OUTPUT_PATH
