@@ -9,15 +9,8 @@ echo "NUMBER_OF_SERVERS: ${NUMBER_OF_SERVERS:=1}"
 echo "DURATION: ${DURATION:=120}"
 echo "LOAD: ${LOAD:=$((${NUMBER_OF_SERVERS} * 80))}"
 
-if [ "${NUMBER_OF_SERVERS}" == "1" ];
-then
-    SUFFIX="instance"
-else
-    SUFFIX="instances"
-fi
-
 echo "SCENARIO: ${SCENARIO}"
-RESULTS_PATH="${NUMBER_OF_SERVERS}${SUFFIX}/${SCENARIO}/"
+RESULTS_PATH="${NUMBER_OF_SERVERS}i/${SCENARIO}/"
 mkdir -p $RESULTS_PATH
 echo "OUTPUT_PATH: ${OUTPUT_PATH:=/tmp/simulation/${RESULTS_PATH}}"
 mkdir -p $OUTPUT_PATH
@@ -43,4 +36,4 @@ do
 done 
 
 mv $RESULTS_PATH* $OUTPUT_PATH
-rm -rf "${NUMBER_OF_SERVERS}${SUFFIX}/"
+rm -rf "${NUMBER_OF_SERVERS}i/"
