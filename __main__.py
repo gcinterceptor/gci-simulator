@@ -74,9 +74,8 @@ def main():
 
     after = time.time()
 
-    ROUND = sys.argv[1]
     RESULTS_NAME = env_var['RESULTS_NAME']
-    log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME + "_" + ROUND)
+    log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME)
 
     text = "created requests: " + str(load_balancer.created_requests) \
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \

@@ -24,7 +24,8 @@ for round in `seq ${ROUND_START} ${ROUND_END}`
 do
     echo ""
     echo "round ${round}: Simulating ${NUMBER_OF_SERVERS} instance(s)..."
-	python3 __main__.py $round
+	python3 __main__.py
+	mv "${RESULTS_PATH}${RESULTS_NAME}.csv" "${RESULTS_PATH}${RESULTS_NAME}_${round}.csv"
 	echo "round ${round}: Finished."
     echo ""
 done 
