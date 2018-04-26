@@ -25,19 +25,17 @@ def build_data(file_name, column):
 def main():
     before = time.time()
 
-    args = sys.argv
-
-    NUMBER_OF_SERVERS = int(args[1])
-    SIM_DURATION_SECONDS = float(args[2])
-    SCENARIO = args[3]
-    LOAD = int(args[4])
-    RESULTS_PATH = args[5]
+    NUMBER_OF_SERVERS = int(os.environ['NUMBER_OF_SERVERS'] )
+    DURATION = float(os.environ['DURATION'] )
+    SCENARIO = os.environ['SCENARIO']
+    LOAD = int(os.environ['LOAD'] )
+    RESULTS_PATH = os.environ['RESULTS_PATH']
     create_directory(RESULTS_PATH)
 
-    DATA_PATH = args[6]
-    SERVICE_TIME_FILE_NAME = args[7]
-    SERVICE_TIME_COLUMN = int(args[8])
-    service_time_data = build_data(DATA_PATH + SERVICE_TIME_FILE_NAME, SERVICE_TIME_COLUMN)
+    DATA_PATH = os.environ['DATA_PATH']
+    SERVICE_TIME_FILE_NAME = os.environ['SERVICE_TIME_FILE_NAME']
+    SERVICE_TIME_DATA_COLUMN = int(os.environ['SERVICE_TIME_DATA_COLUMN'] )
+    service_time_data = build_data(DATA_PATH + SERVICE_TIME_FILE_NAME, SERVICE_TIME_DATA_COLUMN)
 
     env = simpy.Environment()
 
@@ -51,12 +49,12 @@ def main():
     load_balancer = LoadBalancer(loadbalancer_load, env)
     for i in range(NUMBER_OF_SERVERS):
         if SCENARIO == 'control':
-            PROCESSED_REQUESTS_FILE_NAME = args[10]
+            PROCESSED_REQUESTS_FILE_NAME = os.environ['SHEDDING_FILE_NAME']
             PROCESSED_REQUESTS_COLUMN = 0
-            NUMBER_OF_FILES = int(args[11])
+            NUMBER_OF_FILES = int(os.environ['SHEDDING_NUMBER_OF_FILES'])
             processed_requests_data = build_data(DATA_PATH + PROCESSED_REQUESTS_FILE_NAME + str((i % NUMBER_OF_FILES) + 1), PROCESSED_REQUESTS_COLUMN)
 
-            SHEDDED_REQUESTS_FILE_NAME = args[10]
+            SHEDDED_REQUESTS_FILE_NAME = os.environ['SHEDDING_FILE_NAME']
             SHEDDED_REQUESTS_COLUMN = 1
             shedded_requests_data = build_data(DATA_PATH + SHEDDED_REQUESTS_FILE_NAME + str((i % NUMBER_OF_FILES) + 1), SHEDDED_REQUESTS_COLUMN)
 
@@ -71,15 +69,16 @@ def main():
         load_balancer.add_server(server)
         servers.append(server)
 
-    env.run(until=SIM_DURATION_SECONDS) # We must run all duration
+    env.run(until=DURATION) # We must run all duration
 
     after = time.time()
 
-    SIMULATION_NUMBER = args[9]
-    log_request(load_balancer.requests, RESULTS_PATH, str(NUMBER_OF_SERVERS) + "instances_loadbalancer_request_status", SCENARIO, str(LOAD) + "_" + SIMULATION_NUMBER)
+    ROUND = os.environ['ROUND'] #sys.argv[1]
+    RESULTS_NAME = os.environ['RESULTS_NAME']
+    log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME + "_" + ROUND)
 
     text = "number of service instances: " + str(NUMBER_OF_SERVERS) \
-           + "\nsimulation time duration: " + str(SIM_DURATION_SECONDS) \
+           + "\nsimulation time duration: " + str(DURATION) \
            + "\nconfiguration scenario: " + SCENARIO \
            + "\nworkload per instance: " + str(LOAD / NUMBER_OF_SERVERS) + "req/sec" \
            + "\ngeneral workload: " + str(LOAD) + "req/sec" \
@@ -87,12 +86,9 @@ def main():
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \
            + "\nlost requests: " + str(load_balancer.lost_requests) \
            + "\nsucceeded requests: " + str(load_balancer.succeeded_requests)
-    txt_writer(RESULTS_PATH + "/simulation_info_" + SCENARIO + "_load_" + str(LOAD) + "_" + SIMULATION_NUMBER + ".txt", text)
+    txt_writer(RESULTS_PATH + "/info_" + ROUND + ".txt", text)
 
-    print("created requests: %f" % load_balancer.created_requests)
-    print("shedded requests: %f" % load_balancer.shedded_requests)
-    print("lost requests: %f" % load_balancer.lost_requests)
-    print("succeeded requests: %f" % load_balancer.succeeded_requests)
+    print(text)
     print("Time of simulation execution in seconds: %.4f" % (after - before))
 
 
