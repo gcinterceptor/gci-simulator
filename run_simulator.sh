@@ -22,7 +22,7 @@ echo "SHEDDING_NUMBER_OF_FILES: ${SHEDDING_NUMBER_OF_FILES}"
 for round in `seq ${ROUND_START} ${ROUND_END}`
 do
     echo ""
-    echo "round ${ROUND}: Simulating..."
+    echo "round ${round}: Simulating..."
 	python3 __main__.py $round
 	echo "round ${round}: Finished."
     echo ""

@@ -25,16 +25,17 @@ def build_data(file_name, column):
 def main():
     before = time.time()
 
-    NUMBER_OF_SERVERS = int(os.environ['NUMBER_OF_SERVERS'] )
-    DURATION = float(os.environ['DURATION'] )
-    SCENARIO = os.environ['SCENARIO']
-    LOAD = int(os.environ['LOAD'] )
-    RESULTS_PATH = os.environ['RESULTS_PATH']
+    env_var = os.environ
+    NUMBER_OF_SERVERS = int(env_var['NUMBER_OF_SERVERS'] )
+    DURATION = float(env_var['DURATION'] )
+    SCENARIO = env_var['SCENARIO']
+    LOAD = int(env_var['LOAD'] )
+    RESULTS_PATH = env_var['RESULTS_PATH']
     create_directory(RESULTS_PATH)
 
-    DATA_PATH = os.environ['DATA_PATH']
-    SERVICE_TIME_FILE_NAME = os.environ['SERVICE_TIME_FILE_NAME']
-    SERVICE_TIME_DATA_COLUMN = int(os.environ['SERVICE_TIME_DATA_COLUMN'] )
+    DATA_PATH = env_var['DATA_PATH']
+    SERVICE_TIME_FILE_NAME = env_var['SERVICE_TIME_FILE_NAME']
+    SERVICE_TIME_DATA_COLUMN = int(env_var['SERVICE_TIME_DATA_COLUMN'] )
     service_time_data = build_data(DATA_PATH + SERVICE_TIME_FILE_NAME, SERVICE_TIME_DATA_COLUMN)
 
     env = simpy.Environment()
@@ -49,12 +50,12 @@ def main():
     load_balancer = LoadBalancer(loadbalancer_load, env)
     for i in range(NUMBER_OF_SERVERS):
         if SCENARIO == 'control':
-            PROCESSED_REQUESTS_FILE_NAME = os.environ['SHEDDING_FILE_NAME']
+            PROCESSED_REQUESTS_FILE_NAME = env_var['SHEDDING_FILE_NAME']
             PROCESSED_REQUESTS_COLUMN = 0
-            NUMBER_OF_FILES = int(os.environ['SHEDDING_NUMBER_OF_FILES'])
+            NUMBER_OF_FILES = int(env_var['SHEDDING_NUMBER_OF_FILES'])
             processed_requests_data = build_data(DATA_PATH + PROCESSED_REQUESTS_FILE_NAME + str((i % NUMBER_OF_FILES) + 1), PROCESSED_REQUESTS_COLUMN)
 
-            SHEDDED_REQUESTS_FILE_NAME = os.environ['SHEDDING_FILE_NAME']
+            SHEDDED_REQUESTS_FILE_NAME = env_var['SHEDDING_FILE_NAME']
             SHEDDED_REQUESTS_COLUMN = 1
             shedded_requests_data = build_data(DATA_PATH + SHEDDED_REQUESTS_FILE_NAME + str((i % NUMBER_OF_FILES) + 1), SHEDDED_REQUESTS_COLUMN)
 
@@ -73,8 +74,8 @@ def main():
 
     after = time.time()
 
-    ROUND = os.environ['ROUND'] #sys.argv[1]
-    RESULTS_NAME = os.environ['RESULTS_NAME']
+    ROUND = sys.argv[1]
+    RESULTS_NAME = env_var['RESULTS_NAME']
     log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME + "_" + ROUND)
 
     text = "number of service instances: " + str(NUMBER_OF_SERVERS) \
