@@ -11,7 +11,8 @@ echo "LOAD: ${LOAD:=$((${NUMBER_OF_SERVERS} * 80))}"
 echo "SCENARIO: ${SCENARIO:=control}"
 echo "RESULTS_PATH: ${RESULTS_PATH:=/tmp/simulation/${NUMBER_OF_SERVERS}i/${SCENARIO}/}"
 mkdir -p $RESULTS_PATH
-	
+
+echo "RESULTS_NAME: ${RESULTS_NAME}"
 echo "DATA_PATH: ${DATA_PATH}"
 echo "SERVICE_TIME_FILE_NAME: ${SERVICE_TIME_FILE_NAME}"
 echo "SERVICE_TIME_DATA_COLUMN: ${SERVICE_TIME_DATA_COLUMN}"
@@ -21,11 +22,8 @@ echo "SHEDDING_NUMBER_OF_FILES: ${SHEDDING_NUMBER_OF_FILES}"
 for round in `seq ${ROUND_START} ${ROUND_END}`
 do
     echo ""
-    echo "round ${round}: Simulating..."
-	
-	MAIN_PATH=$(pwd)/__main__.py
-	python3 __main__.py $NUMBER_OF_SERVERS $DURATION $SCENARIO $LOAD $RESULTS_PATH $DATA_PATH $SERVICE_TIME_FILE_NAME $SERVICE_TIME_DATA_COLUMN $round $SHEDDING_FILE_NAME $SHEDDING_NUMBER_OF_FILES
-	
+    echo "round ${ROUND}: Simulating..."
+	python3 __main__.py $round
 	echo "round ${round}: Finished."
     echo ""
 done 
