@@ -78,18 +78,12 @@ def main():
     RESULTS_NAME = env_var['RESULTS_NAME']
     log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME + "_" + ROUND)
 
-    text = "number of service instances: " + str(NUMBER_OF_SERVERS) \
-           + "\nsimulation time duration: " + str(DURATION) \
-           + "\nconfiguration scenario: " + SCENARIO \
-           + "\nworkload per instance: " + str(LOAD / NUMBER_OF_SERVERS) + "req/sec" \
-           + "\ngeneral workload: " + str(LOAD) + "req/sec" \
-           + "\ncreated requests: " + str(load_balancer.created_requests) \
+    text = "created requests: " + str(load_balancer.created_requests) \
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \
            + "\nlost requests: " + str(load_balancer.lost_requests) \
            + "\nsucceeded requests: " + str(load_balancer.succeeded_requests)
-    txt_writer(RESULTS_PATH + "/info_" + ROUND + ".txt", text)
-
     print(text)
+
     print("Time of simulation execution in seconds: %.4f" % (after - before))
 
 

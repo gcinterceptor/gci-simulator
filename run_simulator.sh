@@ -18,12 +18,16 @@ echo "SERVICE_TIME_FILE_NAME: ${SERVICE_TIME_FILE_NAME}"
 echo "SERVICE_TIME_DATA_COLUMN: ${SERVICE_TIME_DATA_COLUMN}"
 echo "SHEDDING_FILE_NAME: ${SHEDDING_FILE_NAME}"
 echo "SHEDDING_NUMBER_OF_FILES: ${SHEDDING_NUMBER_OF_FILES}"
+echo "SETUP_INFO: ${SETUP_INFO:=setup_info.txt}"
 
 for round in `seq ${ROUND_START} ${ROUND_END}`
 do
     echo ""
-    echo "round ${round}: Simulating..."
+    echo "round ${round}: Simulating ${NUMBER_OF_SERVERS} instance(s)..."
 	python3 __main__.py $round
 	echo "round ${round}: Finished."
     echo ""
 done 
+
+INFO="number of service instances: ${NUMBER_OF_SERVERS}\nsimulation time duration: ${DURATION}\nconfiguration scenario: ${SCENARIO}\nworkload per instance: $(($LOAD / $NUMBER_OF_SERVERS))req/sec\ngeneral workload: ${LOAD}req/sec"
+echo -e $INFO > $RESULTS_PATH$SETUP_INFO
