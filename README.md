@@ -18,10 +18,10 @@ of services are used. The main objective here is to simulate web applications us
 
 ### How to run
 #### Parameters
-* **number_of_servers**: The number of servers to be used.
+* **instances**: The numbers of servers to be used. It isn't straightforward, but you need pass a string with each number os instances to be simulated. Example: INSTANCES="1 2 4".
 * **duration**: How much time the simulation should take in seconds (must be integer or float).
 * **scenario**: There is two scenarios, control and baseline. Control means servers using GCI and baseline means servers with no GCI.
-* **load**: An integer meaning how much requests the load balance must to distribute to the servers.
+* **load_per_instance**: An integer meaning how much requests the load balance must to distribute to each server.
 * **results_path**: The path where the simulator should put the results.
 * **results_name**: A name to simulator name the results.
 * **setup_info_name**: A name to simulator name the setup information files.
@@ -37,9 +37,9 @@ of services are used. The main objective here is to simulate web applications us
 After have cloned the simulator, move to the right director and execute one of those commands below. The command at Baseline simulates an experiment with **no GCI** on Servers, at control simulates with servers **using GCI**. The parameters must be passed as environment variables. Follow below a full example.
 
 * ##### **Baseline**
-  * **NUMBER_OF_SERVERS**="number_of_server" **DURATION**="duration" **SCENARIO**="baseline" **LOAD**="load" **RESULTS_PATH**="results_path" **RESULTS_NAME**="results_name" **SETUP_INFO_NAME**="setup_info_name" **DATA_PATH**="data_path" **SERVICE_TIME_FILE_NAME**="service_time_file_name" **SERVICE_TIME_DATA_COLUMN**="service_time_data_column" **ROUND_START**="round_start" **ROUND_END**="round_end" **bash** **run_simulator.sh** 
+  * **INSTANCES**="instances" **DURATION**="duration" **SCENARIO**="baseline" **LOAD_PER_INSTANCE**="load_per_instance" **RESULTS_PATH**="results_path" **RESULTS_NAME**="results_name" **SETUP_INFO_NAME**="setup_info_name" **DATA_PATH**="data_path" **SERVICE_TIME_FILE_NAME**="service_time_file_name" **SERVICE_TIME_DATA_COLUMN**="service_time_data_column" **ROUND_START**="round_start" **ROUND_END**="round_end" **bash** **run_simulator.sh** 
 * ##### **Control**
-  * **NUMBER_OF_SERVERS**="number_of_server" **DURATION**="duration" **SCENARIO**="control" **LOAD**="load" **RESULTS_PATH**="results_path" **RESULTS_NAME**="results_name" **SETUP_INFO_NAME**="setup_info_name" **DATA_PATH**="data_path" **SERVICE_TIME_FILE_NAME**="service_time_file_name" **SERVICE_TIME_DATA_COLUMN**="service_time_data_column" **ROUND_START**="round_start" **ROUND_END**="round_end" **SHEDDING_FILE_NAME**="shedding_file_name" **SHEDDING_NUMBER_OF_FILES**="shedding_number_of_files" **bash** **run_simulator.sh**  
+  * **INSTANCES**="instances" **DURATION**="duration" **SCENARIO**="control" **LOAD_PER_INSTANCE**="load_per_instance" **RESULTS_PATH**="results_path" **RESULTS_NAME**="results_name" **SETUP_INFO_NAME**="setup_info_name" **DATA_PATH**="data_path" **SERVICE_TIME_FILE_NAME**="service_time_file_name" **SERVICE_TIME_DATA_COLUMN**="service_time_data_column" **ROUND_START**="round_start" **ROUND_END**="round_end" **SHEDDING_FILE_NAME**="shedding_file_name" **SHEDDING_NUMBER_OF_FILES**="shedding_number_of_files" **bash** **run_simulator.sh**  
 
 Please, pay attention that the script run_simulation.sh already has some of these parameters with default values that make easier run simulations. 
 
