@@ -1,6 +1,6 @@
 from models import LoadBalancer, ServerControl, ServerBaseline
-from log import log_request, txt_writer
-import simpy, os, sys, time
+from log import log_request
+import simpy, os, time
 
 
 def create_directory(path):
@@ -70,12 +70,11 @@ def main():
         load_balancer.add_server(server)
         servers.append(server)
 
-    env.run(until=DURATION) # We must run all duration
-
+    env.run(until=DURATION)
     after = time.time()
 
     RESULTS_NAME = env_var['RESULTS_NAME']
-    log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME)
+    log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
 
     text = "created requests: " + str(load_balancer.created_requests) \
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \
