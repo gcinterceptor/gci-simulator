@@ -29,6 +29,7 @@ class Server(object):
         service_time = tmp[1]
 
         if status == "503":
+            yield self.env.timeout(service_time)
             request.service_time += service_time
             yield self.env.process(request.load_balancer.shed_request(request))
 

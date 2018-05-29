@@ -6,9 +6,11 @@ class Request(object):
         self.env = env
         self.id = id
         self.load_balancer = load_balancer
-        self.service_time = 0
 
         self.created_time = created_at  # The moment when the request was created
+        self.finished_time = None
+
+        self.service_time = 0
         self.times_forwarded = 0
         self._arrived_time = None  # The moment when the request arrived at server
         self._latency = None
@@ -25,5 +27,6 @@ class Request(object):
         self._arrived_time = arrived_time
 
     def finished_at(self, finished_time):
+        self.finished_time = finished_time
         self._latency = finished_time - self.created_time
 
