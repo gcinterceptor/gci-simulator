@@ -25,15 +25,16 @@ class Server(object):
 
     def request_arrived(self, request):
         tmp = self.data.next_value()
-        status = tmp[0]
-        service_time = tmp[1]
+        status = int(tmp[0])
+        service_time = tmp[1] / 1000.0  # We use seconds as unit of time.
+        request.status = status
 
-        if status == "503":
+        if status == 503:
             yield self.env.timeout(service_time)
             request.service_time += service_time
             yield self.env.process(request.load_balancer.shed_request(request))
 
-        elif status == "200":
+        elif status == 200:
             self.requests_arrived += 1
             request.arrived_at(self.env.now)
             yield self.env.process(self.process_request(request, service_time))

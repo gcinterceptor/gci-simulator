@@ -14,7 +14,7 @@ def log_request(requests, results_path, results_name, mode):
         data.append(["timestamp", "status", "request_time"])
 
     for request in requests:
-        data.append([request.finished_time, request.status, request._latency])
+        data.append([request.finished_time * 1000, request.status, request._latency * 1000])
 
     file_path = results_path + "/" + results_name + ".csv"
     csv_writer(data, file_path, mode)
@@ -30,6 +30,6 @@ def log_debbug(requests, debbug_path, debbug_name, mode):
         data.append([request.id, request.created_time, request.finished_time, request._latency,
                      request.service_time, request.status, request.done, request.times_forwarded])
 
-    file_path = debbug_path + "/" + debbug_name + ".csv"
+    file_path = debbug_path + "/" + debbug_name + "_debbug.csv"
     csv_writer(data, file_path, mode)
 

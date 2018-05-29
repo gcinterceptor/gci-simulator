@@ -29,13 +29,12 @@ def main():
     env_var = os.environ
     NUMBER_OF_SERVERS = int(env_var['NUMBER_OF_SERVERS'])
     DURATION = float(env_var['DURATION'])
-    LOAD = int(env_var['LOAD'] )
+    LOAD = int(env_var['LOAD'])
     RESULTS_PATH = env_var['RESULTS_PATH']
-    create_directory(RESULTS_PATH)
 
     DATA_PATH = env_var['DATA_PATH']
-    SERVICE_TIME_FILE_NAME = env_var['SERVICE_TIME_FILE_NAME']
-    data = build_data(DATA_PATH + SERVICE_TIME_FILE_NAME)
+    INPUT_FILE_NAME = env_var['INPUT_FILE_NAME']
+    data = build_data(DATA_PATH + INPUT_FILE_NAME)
 
     env = simpy.Environment()
 
@@ -58,8 +57,8 @@ def main():
     RESULTS_NAME = env_var['RESULTS_NAME']
     log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
 
-    if env_var['DEBBUG'].upper() == "TRUE":
-        log_debbug(load_balancer.requests, RESULTS_PATH + "debbug/", RESULTS_NAME, "w")
+    if env_var['DEBBUG_LOG'] == "true":
+        log_debbug(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
 
     text = "created requests: " + str(load_balancer.created_requests) \
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \
