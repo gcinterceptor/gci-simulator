@@ -1,4 +1,4 @@
-from context import LoadBalancer, ServerBaseline, ServerControl, Distribution, Reproduction
+from context import LoadBalancer, Server
 import unittest
 import simpy
 
@@ -16,22 +16,10 @@ class TestServer(unittest.TestCase):
     def assert_equal(self, expected, received):
         self.assertEqual(expected, received, msg=self.failure_msg(expected, received))
 
-    def test_reproduction_and_distribution(self):
-        data = []
-        for i in range(1000):
-            data.append(i)
-
-        distribution = Distribution(data)
-        reproduction = Reproduction(data)
-
-        for i in range(1000):
-            self.assert_equal(i, reproduction.next_value())
-            self.assertTrue(distribution.next_value() in data)
-
     def test_server_baseline(self):
         id = 0
-        service_time_data = [0.001]
-        server = ServerBaseline(self.env, id, service_time_data)
+        log_data = [["200", 1]]
+        server = Server(self.env, id, log_data)
         self.lb.add_server(server)
 
         self.env.run(0.05)
@@ -50,10 +38,8 @@ class TestServer(unittest.TestCase):
 
     def test_server_control(self):
         id = 0
-        service_time_data = [0.001]
-        processed_request_data = [3]
-        shedded_request_data = [1]
-        server = ServerControl(self.env, id, service_time_data, processed_request_data, shedded_request_data)
+        log_data = [["200", 1], ["200", 1], ["200", 1], ["503", 1]]
+        server = Server(self.env, id, log_data)
         self.lb.add_server(server)
 
         self.env.run(0.05)
