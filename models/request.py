@@ -14,9 +14,10 @@ class Request(object):
         self._latency = None
 
         self.done = False
+        self.status = None
 
     def run(self, service_time):
-        self.service_time = service_time
+        self.service_time += service_time
         yield self.env.timeout(service_time)
         self.done = True
 
