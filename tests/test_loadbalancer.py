@@ -66,10 +66,12 @@ class TestLoadBalancer(unittest.TestCase):
         id = 0
         log_data = [["200", 10], ["503", 0], ["503", 0]]
         self.lb.servers[0] = Server(self.env, id, log_data)
+        self.lb.servers[0].data.index = -1  # ensures that we start from beginning since at next_value call it becomes 0.
 
         id = 1
         log_data = [["200", 10], ["200", 10], ["503", 0]]
         self.lb.add_server(Server(self.env, id, log_data))
+        self.lb.servers[1].data.index = -1  # ensures that we start from beginning since at next_value call it becomes 0
 
         self.env.run(0.05)  # 80 in 1s, 8 in 0.1s, 4 in 0.05s.
 

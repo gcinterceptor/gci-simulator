@@ -40,6 +40,8 @@ class TestServer(unittest.TestCase):
         id = 0
         log_data = [["200", 1], ["200", 1], ["200", 1], ["503", 1]]
         server = Server(self.env, id, log_data)
+        server.data.index = -1  # ensures that we start from beginning since at next_value call it becomes 0
+
         self.lb.add_server(server)
 
         self.env.run(0.05)
