@@ -1,9 +1,11 @@
+import random
+
 
 class DataIterator(object):
 
     def __init__(self, data):
         self.data = data
-        self.index = -1  # This -1 ensures the first next_value() has a self.index with value 0.
+        self.index = random.randint(0, len(data) - 1)
 
     def next_value(self):
         self.index = (self.index + 1) % len(self.data)
