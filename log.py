@@ -11,7 +11,7 @@ def csv_writer(data, path, mode):
 def log_request(requests, results_path, results_name, mode):
     data = []
     if mode == "w":
-        data.append(["timestamp", "status", "request_time", "hops"])
+        data.append(["timestamp", "status", "latency", "hops"])
 
     for request in requests:
         data.append([request.finished_time * 1000, request.status, request._latency * 1000, " ".join(request.hops)])
