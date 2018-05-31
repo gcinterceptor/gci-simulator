@@ -11,10 +11,10 @@ def csv_writer(data, path, mode):
 def log_request(requests, results_path, results_name, mode):
     data = []
     if mode == "w":
-        data.append(["timestamp", "status", "request_time"])
+        data.append(["timestamp", "status", "request_time", "hops"])
 
     for request in requests:
-        data.append([request.finished_time * 1000, request.status, request._latency * 1000])
+        data.append([request.finished_time * 1000, request.status, request._latency * 1000, " ".join(request.hops)])
 
     file_path = results_path + "/" + results_name + ".csv"
     csv_writer(data, file_path, mode)
@@ -24,11 +24,11 @@ def log_debbug(requests, debbug_path, debbug_name, mode):
     data = []
     if mode == "w":
         data.append(["id", "timestamp", "created_time", "latency",
-                     "service_time", "status", "done", "times_forwarded"])
+                     "service_time", "status", "done", "times_forwarded", "hops"])
 
     for request in requests:
         data.append([request.id, request.finished_time * 1000, request.created_time, request._latency,
-                     request.service_time, request.status, request.done, request.times_forwarded])
+                     request.service_time, request.status, request.done, request.times_forwarded, " ".join(request.hops)])
 
     file_path = debbug_path + "/" + debbug_name + "_debbug.csv"
     csv_writer(data, file_path, mode)

@@ -28,8 +28,9 @@ class Server(object):
     def request_arrived(self, request):
         tmp = self.data.next_value()
         status = int(tmp[0])
-        service_time = tmp[1] / 1000.0  # We use seconds as unit of time.
         request.status = status
+        service_time = tmp[1] / 1000.0  # We use seconds as unit of time.
+        request.hops.append(str(tmp[1]))
 
         if status == 503:
             yield self.env.timeout(service_time)
