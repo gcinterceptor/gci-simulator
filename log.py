@@ -23,11 +23,11 @@ def log_request(requests, results_path, results_name, mode):
 def log_debbug(requests, debbug_path, debbug_name, mode):
     data = []
     if mode == "w":
-        data.append(["id", "created_time", "finished_time", "latency",
+        data.append(["id", "timestamp", "created_time", "latency",
                      "service_time", "status", "done", "times_forwarded"])
 
     for request in requests:
-        data.append([request.id, request.created_time, request.finished_time, request._latency,
+        data.append([request.id, request.finished_time * 1000, request.created_time, request._latency,
                      request.service_time, request.status, request.done, request.times_forwarded])
 
     file_path = debbug_path + "/" + debbug_name + "_debbug.csv"
