@@ -7,7 +7,7 @@ class LoadBalancer(object):
         self.create_request_rate = create_request_rate
         self.env = env
 
-        self.comunication_delay = 0.008 # 1ms
+        self.comunication_delay = 0.001 # 1ms
         self.sleep = 0.00001 #  0.01ms
 
         self.requests = list()

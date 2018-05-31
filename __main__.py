@@ -1,5 +1,5 @@
-from models import LoadBalancer, ServerControl, ServerBaseline
-from log import log_request
+from models import LoadBalancer, Server
+from log import log_request, log_debbug
 import simpy, os, time
 
 
@@ -8,13 +8,14 @@ def create_directory(path):
         os.mkdir(path)
 
 
-def build_data(file_name, column):
+def build_data(file_name):
     data = list()
     file_obj = open(file_name + ".csv", 'r')
     for linha in file_obj:
         try:
             result = list(map(float, linha.split(",")))
-            data.append(result[column])
+            result.pop(0)  # removes the timestamp column
+            data.append(result)
         except:
             # avoid invalid values.
             pass
@@ -26,17 +27,14 @@ def main():
     before = time.time()
 
     env_var = os.environ
-    NUMBER_OF_SERVERS = int(env_var['NUMBER_OF_SERVERS'] )
-    DURATION = float(env_var['DURATION'] )
-    SCENARIO = env_var['SCENARIO']
-    LOAD = int(env_var['LOAD'] )
+    NUMBER_OF_SERVERS = int(env_var['NUMBER_OF_SERVERS'])
+    DURATION = float(env_var['DURATION'])
+    LOAD = int(env_var['LOAD'])
     RESULTS_PATH = env_var['RESULTS_PATH']
-    create_directory(RESULTS_PATH)
 
     DATA_PATH = env_var['DATA_PATH']
-    SERVICE_TIME_FILE_NAME = env_var['SERVICE_TIME_FILE_NAME']
-    SERVICE_TIME_DATA_COLUMN = int(env_var['SERVICE_TIME_DATA_COLUMN'] )
-    service_time_data = build_data(DATA_PATH + SERVICE_TIME_FILE_NAME, SERVICE_TIME_DATA_COLUMN)
+    INPUT_FILE_NAME = env_var['INPUT_FILE_NAME']
+    data = build_data(DATA_PATH + INPUT_FILE_NAME)
 
     env = simpy.Environment()
 
@@ -49,24 +47,7 @@ def main():
     servers = list()
     load_balancer = LoadBalancer(loadbalancer_load, env)
     for i in range(NUMBER_OF_SERVERS):
-        if SCENARIO == 'control':
-            PROCESSED_REQUESTS_FILE_NAME = env_var['SHEDDING_FILE_NAME']
-            PROCESSED_REQUESTS_COLUMN = 0
-            NUMBER_OF_FILES = int(env_var['SHEDDING_NUMBER_OF_FILES'])
-            processed_requests_data = build_data(DATA_PATH + PROCESSED_REQUESTS_FILE_NAME + str((i % NUMBER_OF_FILES) + 1), PROCESSED_REQUESTS_COLUMN)
-
-            SHEDDED_REQUESTS_FILE_NAME = env_var['SHEDDING_FILE_NAME']
-            SHEDDED_REQUESTS_COLUMN = 1
-            shedded_requests_data = build_data(DATA_PATH + SHEDDED_REQUESTS_FILE_NAME + str((i % NUMBER_OF_FILES) + 1), SHEDDED_REQUESTS_COLUMN)
-
-            server = ServerControl(env, i, service_time_data, processed_requests_data, shedded_requests_data)
-
-        elif SCENARIO == 'baseline':
-            server = ServerBaseline(env, i, service_time_data)
-
-        else:
-            raise Exception("INVALID SCENARIO")
-
+        server = Server(env, i, data)
         load_balancer.add_server(server)
         servers.append(server)
 
@@ -75,6 +56,9 @@ def main():
 
     RESULTS_NAME = env_var['RESULTS_NAME']
     log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
+
+    if env_var['DEBBUG_LOG'] == "true":
+        log_debbug(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
 
     text = "created requests: " + str(load_balancer.created_requests) \
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \

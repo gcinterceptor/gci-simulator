@@ -1,4 +1,4 @@
-from context import LoadBalancer, ServerBaseline, ServerControl
+from context import LoadBalancer, Server
 import unittest
 import simpy
 
@@ -9,8 +9,8 @@ class TestLoadBalancer(unittest.TestCase):
     def setUp(self):
         self.env = simpy.Environment()
         id = 0
-        service_time_data = [6]
-        self.server = ServerBaseline(self.env, id, service_time_data)
+        log_data = [["200", 6000]]
+        self.server = Server(self.env, id, log_data)
         create_request_rate = 80
         self.lb = LoadBalancer(create_request_rate, self.env, self.server)
 
@@ -46,11 +46,10 @@ class TestLoadBalancer(unittest.TestCase):
         self.assert_equal(8000, self.lb.created_requests)
 
     def test_forward(self):
-
         servers = [self.server]
-        service_time_data = [6]
+        log_data = [["200", 6000]]
         for i in range(1, 4):
-            servers.append(ServerBaseline(self.env, i, service_time_data))
+            servers.append(Server(self.env, i, log_data))
             self.lb.add_server(servers[i])
 
         self.env.run(0.05) # run enough time to send only 4 requests.
@@ -65,18 +64,16 @@ class TestLoadBalancer(unittest.TestCase):
 
     def test_shed(self):
         id = 0
-        service_time_data = [0.01]
-        processed_request_data = [1]
-        shedded_request_data = [2]
-        self.lb.servers[0] = ServerControl(self.env, id, service_time_data, processed_request_data, shedded_request_data)
+        log_data = [["200", 10], ["503", 0], ["503", 0]]
+        self.lb.servers[0] = Server(self.env, id, log_data)
+        self.lb.servers[0].data.index = -1  # ensures that we start from beginning since at next_value call it becomes 0.
 
         id = 1
-        service_time_data = [0.01]
-        processed_request_data = [2]
-        shedded_request_data = [1]
-        self.lb.add_server(ServerControl(self.env, id, service_time_data, processed_request_data, shedded_request_data))
+        log_data = [["200", 10], ["200", 10], ["503", 0]]
+        self.lb.add_server(Server(self.env, id, log_data))
+        self.lb.servers[1].data.index = -1  # ensures that we start from beginning since at next_value call it becomes 0
 
-        self.env.run(0.05)
+        self.env.run(0.05)  # 80 in 1s, 8 in 0.1s, 4 in 0.05s.
 
         self.assertTrue(self.lb.requests[0].done)
         self.assertTrue(self.lb.requests[1].done)
@@ -88,8 +85,8 @@ class TestLoadBalancer(unittest.TestCase):
         self.assert_equal(2, self.lb.requests[2].times_forwarded)
         self.assert_equal(2, self.lb.requests[3].times_forwarded)
 
-        self.assert_equal(1, self.lb.lost_requests) # only one requests have be shedded by both servers
-        self.assert_equal(3, self.lb.shedded_requests) # One request were shedded by one server and processed by the other and one request were shedded by both servers.
+        self.assert_equal(1, self.lb.lost_requests)  # only one requests have be shedded by both servers
+        self.assert_equal(3, self.lb.shedded_requests)  # One request were shedded by one server and processed by the other and one request were shedded by both servers.
 
 
 if __name__ == '__main__':

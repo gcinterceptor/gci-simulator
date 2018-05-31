@@ -12,42 +12,45 @@ of services are used. The main objective here is to simulate web applications us
 * [SimPy](https://simpy.readthedocs.io/en/latest/simpy_intro/installation.html)
 
 ### Requirements
-* Have experimental results CSV’s with the following information: 
-  * **Service time**: A CSV with the service time of each request processed in experiment. 
-  * **Processed requests** and **shedded request** at the same window: A **CSV file** with the number of processed requests until start shedding and the number of shedded requests at the this shedding. It is a requirement to simulate GCI on experiments only, there is no need of it to simulate GCI off experiments.
-
+* Have an experimental results CSV file with the following information: 
+  * **Status**: The http status that each request has received.
+  * **Request time**: the service time of each request processed in experiment. 
+  
 ### How to run
 #### Parameters
 * **instances**: The numbers of servers to be used. It isn't straightforward, but you need pass a string with each number os instances to be simulated. Example: INSTANCES="1 2 4".
 * **duration**: How much time the simulation should take in seconds (must be integer or float).
-* **scenario**: There is two scenarios, control and baseline. Control means servers using GCI and baseline means servers with no GCI.
 * **load_per_instance**: An integer meaning how much requests the load balance must to distribute to each server.
 * **results_path**: The path where the simulator should put the results.
-* **results_name**: A name to simulator name the results.
-* **setup_info_name**: A name to simulator name the setup information files.
-* **data_path**: The path where the CSV files of experimental results are.
-* **service_time_file_name**: The name of a file with the service time of each request processed in an experiment.
-* **service_time_data_column**: The column number of that files (integer).
+* **prefix_results_name**: A pattern to simulator use it as a prefix in result names.
+* **data_path**: The path where the CSV file of the experimental results is kept.
+* **input_file_name**: The name of the CSV file with the service time and status http of each request processed in an experiment.
 * **round_start**: It defines the ID to identify the first simulation result file.
 * **round_end**: It defines the ID to identify the last simulation result file. It also means the number of simulations to be executed.
-* **shedding_file_name**: The name of the CSV file containing a pair of values needed to do shedding. 
-* **shedding_number_of_files**: The number of shedding files.
+* **debbug_log**: It is used to generate more detailed results.
 
 #### Execution
-After have cloned the simulator, move to the right director and execute one of those commands below. The command at Baseline simulates an experiment with **no GCI** on Servers, at control simulates with servers **using GCI**. The parameters must be passed as environment variables. Follow below a full example.
+After have cloned the simulator, move to the right directory and execute the command below. Note that the input file will shape your simulation behavior.
 
-* ##### **Baseline**
-  * **INSTANCES**="instances" **DURATION**="duration" **SCENARIO**="baseline" **LOAD_PER_INSTANCE**="load_per_instance" **RESULTS_PATH**="results_path" **RESULTS_NAME**="results_name" **SETUP_INFO_NAME**="setup_info_name" **DATA_PATH**="data_path" **SERVICE_TIME_FILE_NAME**="service_time_file_name" **SERVICE_TIME_DATA_COLUMN**="service_time_data_column" **ROUND_START**="round_start" **ROUND_END**="round_end" **bash** **run_simulator.sh** 
-* ##### **Control**
-  * **INSTANCES**="instances" **DURATION**="duration" **SCENARIO**="control" **LOAD_PER_INSTANCE**="load_per_instance" **RESULTS_PATH**="results_path" **RESULTS_NAME**="results_name" **SETUP_INFO_NAME**="setup_info_name" **DATA_PATH**="data_path" **SERVICE_TIME_FILE_NAME**="service_time_file_name" **SERVICE_TIME_DATA_COLUMN**="service_time_data_column" **ROUND_START**="round_start" **ROUND_END**="round_end" **SHEDDING_FILE_NAME**="shedding_file_name" **SHEDDING_NUMBER_OF_FILES**="shedding_number_of_files" **bash** **run_simulator.sh**  
+  * **INSTANCES**="instances" **DURATION**="duration" **LOAD_PER_INSTANCE**="load_per_instance" **RESULTS_PATH**="results_path" **PREFIX_RESULTS_NAME**="prefix_results_name" **DATA_PATH**="data_path" **INPUT_FILE_NAME**="input_file_name" **ROUND_START**="round_start" **ROUND_END**="round_end" **bash** **run_simulator.sh**  
 
 Please, pay attention that the script run_simulation.sh already has some of these parameters with default values that make easier run simulations. 
 
 ### Results
-The simulation will generate two kind of files: an information file and a CSV file. Both of files may be named as said before. The information file keeps the parameters used to simulate and the CSV file keeps data of each request processed during the simulation. The column description follow below. 
-* **id**: The request identify.
+The simulation will generate one or two kind of result files: If you pass no debbug key the
+simulate will generate only a simple file result containing three columns. If you pass DEBBUG=true, a more detailed 
+result will be created. The debbug result has the same name as the normal file but with debbug 
+as sufix. The bullets below explains what each column represent.
+* **id**: A number that identifies some request.
+* **timestamp**: The moment at the request was finished.
 * **created_time**: The moment at the request was created.
-* **latency**: The all life time of a request processed startind at its created moment until it be processed and finished.
-* **service_time**: Is only the time that the request have passed in a server. 
+* **latency**: The all life time of a request processed starting at its created moment until it be processed and finished.
+* **service_time**: It is only the time that the request have passed in a server. 
+* **status**: It gives the http status of a request. 200 means successfully request, 503 means failed requests.  
 * **done**: It gives the request state. True if the request was processed and False otherwise. 
 * **times_forwarded**: It gives how many times a request was sent to a server.
+
+Since who run a simulation have chose a prefix name, the result name radical is always named 
+based on simulation configuration following the pattern "duration_load_instances_round", where "duration" means the
+simulation duration, "load" means how much request where sent each second, "instances" means how much instances where used and
+"round" means which round each file belongs to.
