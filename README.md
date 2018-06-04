@@ -49,6 +49,7 @@ as sufix. The bullets below explains what each column represent.
 * **status**: It gives the http status of a request. 200 means successfully request, 503 means failed requests.  
 * **done**: It gives the request state. True if the request was processed and False otherwise. 
 * **times_forwarded**: It gives how many times a request was sent to a server.
+* **hops**: Each service time that a request has gain in some server.
 
 Since who run a simulation have chose a prefix name, the result name radical is always named 
 based on simulation configuration following the pattern "duration_load_instances_round", where "duration" means the

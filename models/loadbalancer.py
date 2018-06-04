@@ -7,7 +7,6 @@ class LoadBalancer(object):
         self.create_request_rate = create_request_rate
         self.env = env
 
-        self.comunication_delay = 0.001 # 1ms
         self.sleep = 0.00001 #  0.01ms
 
         self.requests = list()
@@ -38,7 +37,6 @@ class LoadBalancer(object):
 
     def shed_request(self, request):
         self.shedded_requests += 1
-        yield self.env.timeout(self.comunication_delay)
 
         if request.times_forwarded == len(self.servers):
             self.lost_requests += 1
@@ -47,6 +45,8 @@ class LoadBalancer(object):
 
         else:
             self.forward(request)
+
+        yield self.env.timeout(self.sleep)
 
     def request_succeeded(self, request):
         request.finished_at(self.env.now)

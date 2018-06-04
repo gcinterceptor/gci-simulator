@@ -10,6 +10,7 @@ class Request(object):
         self.created_time = created_at  # The moment when the request was created
         self.finished_time = None
 
+        self.hops = []
         self.service_time = 0
         self.times_forwarded = 0
         self._arrived_time = None  # The moment when the request arrived at server
