@@ -27,16 +27,9 @@ def main():
     before = time.time()
 
     env_var = os.environ
-    NUMBER_OF_SERVERS = int(env_var['NUMBER_OF_SERVERS'])
-    DURATION = float(env_var['DURATION'])
-    LOAD = int(env_var['LOAD'])
-    RESULTS_PATH = env_var['RESULTS_PATH']
-
-    DATA_PATH = env_var['DATA_PATH']
-    INPUT_FILE_NAME = env_var['INPUT_FILE_NAME']
-
     env = simpy.Environment()
 
+    LOAD = int(env_var['LOAD'])
     if LOAD > 0:
         loadbalancer_load = LOAD
 
@@ -44,19 +37,23 @@ def main():
         raise Exception("INVALID LOAD")
 
     itr = 0
-    NUMBER_OF_INPUT_FILES = int(env_var['NUMBER_OF_INPUT_FILES'])
     servers = list()
     load_balancer = LoadBalancer(loadbalancer_load, env)
+    DATA_PATH = env_var['DATA_PATH']
+    INPUT_FILE_NAMES = env_var['INPUT_FILE_NAMES'].split()
+    NUMBER_OF_SERVERS = int(env_var['NUMBER_OF_SERVERS'])
     for i in range(NUMBER_OF_SERVERS):
-        itr = (itr % NUMBER_OF_INPUT_FILES) + 1
-        data = build_data(DATA_PATH + INPUT_FILE_NAME + "_" + str(itr))
+        data = build_data(DATA_PATH + INPUT_FILE_NAMES[itr])
+        itr = (itr + 1) % len(INPUT_FILE_NAMES)
         server = Server(env, i, data)
         load_balancer.add_server(server)
         servers.append(server)
 
+    DURATION = float(env_var['DURATION'])
     env.run(until=DURATION)
     after = time.time()
 
+    RESULTS_PATH = env_var['RESULTS_PATH']
     RESULTS_NAME = env_var['RESULTS_NAME']
     log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
 
