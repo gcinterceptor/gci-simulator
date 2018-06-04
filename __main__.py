@@ -34,7 +34,6 @@ def main():
 
     DATA_PATH = env_var['DATA_PATH']
     INPUT_FILE_NAME = env_var['INPUT_FILE_NAME']
-    data = build_data(DATA_PATH + INPUT_FILE_NAME)
 
     env = simpy.Environment()
 
@@ -44,9 +43,13 @@ def main():
     else:
         raise Exception("INVALID LOAD")
 
+    itr = 0
+    NUMBER_OF_INPUT_FILES = int(env_var['NUMBER_OF_INPUT_FILES'])
     servers = list()
     load_balancer = LoadBalancer(loadbalancer_load, env)
     for i in range(NUMBER_OF_SERVERS):
+        itr = (itr % NUMBER_OF_INPUT_FILES) + 1
+        data = build_data(DATA_PATH + INPUT_FILE_NAME + "_" + str(itr))
         server = Server(env, i, data)
         load_balancer.add_server(server)
         servers.append(server)
