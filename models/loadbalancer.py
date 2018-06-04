@@ -46,13 +46,13 @@ class LoadBalancer(object):
         else:
             self.forward(request)
 
-        yield self.env.timeout(self.sleep)  # Aim at make this function a generator function.
+        yield self.env.timeout(self.sleep)
 
     def request_succeeded(self, request):
         request.finished_at(self.env.now)
         self.succeeded_requests += 1
         self.requests.append(request)
-        yield self.env.timeout(self.sleep)  # Aim at make this function a generator function.
+        yield self.env.timeout(self.sleep)
 
     def add_server(self, server):
         if server:
