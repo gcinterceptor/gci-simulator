@@ -27,7 +27,6 @@ of services are used. The main objective here is to simulate web applications us
 * **input_file_names**: The list of CSV file names with the service time and status http of each request processed in an experiment.
 * **round_start**: It defines the ID to identify the first simulation result file.
 * **round_end**: It defines the ID to identify the last simulation result file. It also means the number of simulations to be executed.
-* **debbug_log**: It is used to generate more detailed results.
 
 #### Execution
 After have cloned the simulator, move to the right directory and execute the command below. Note that the input file will shape your simulation behavior.
@@ -37,17 +36,10 @@ After have cloned the simulator, move to the right directory and execute the com
 Please, pay attention that the script run_simulation.sh already has some of these parameters with default values that make easier run simulations. 
 
 ### Results
-The simulation will generate one or two kind of result files: If you pass no debbug key the
-simulate will generate only a simple file result containing three columns. If you pass DEBBUG=true, a more detailed 
-result will be created. The debbug result has the same name as the normal file but with debbug 
-as sufix. The bullets below explains what each column represent.
-* **id**: A number that identifies some request.
+The simulation will generate a result file containing four columns. The bullets below explains what each column represent.
 * **timestamp**: The moment at the request was finished.
-* **created_time**: The moment at the request was created.
-* **latency**: The all life time of a request processed starting at its created moment until it be processed and finished.
-* **service_time**: It is only the time that the request have passed in a server. 
 * **status**: It gives the http status of a request. 200 means successfully request, 503 means failed requests.  
-* **times_forwarded**: It gives how many times a request was sent to a server.
+* **latency**: The all life time of a request processed starting at its created moment until it be processed and finished.
 * **hops**: Each service time that a request has gain in some server.
 
 Since who run a simulation have chose a prefix name, the result name radical is always named 

@@ -1,5 +1,5 @@
 from models import LoadBalancer, Server
-from log import log_request, log_debbug
+from log import log_request
 import simpy, os, time
 
 
@@ -56,9 +56,6 @@ def main():
     RESULTS_PATH = env_var['RESULTS_PATH']
     RESULTS_NAME = env_var['RESULTS_NAME']
     log_request(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
-
-    if env_var['DEBBUG_LOG'] == "true":
-        log_debbug(load_balancer.requests, RESULTS_PATH, RESULTS_NAME, "w")
 
     text = "created requests: " + str(load_balancer.created_requests) \
            + "\nshedded requests: " + str(load_balancer.shedded_requests) \

@@ -22,7 +22,6 @@ mkdir -p $RESULTS_PATH
 echo "PREFIX_RESULTS_NAME: ${PREFIX_RESULTS_NAME}"
 echo "DATA_PATH: ${DATA_PATH}"
 echo -e "${YELLOW}INPUT_FILE_NAMES: ${INPUT_FILE_NAMES}${NC}"
-echo "DEBBUG_LOG: ${DEBBUG_LOG:='false'}"
 
 for instance in ${INSTANCES};
 do
@@ -31,7 +30,7 @@ do
 	do
 		echo ""
 		echo -e "${BLUE}ROUND ${round}!${NC}"
-		NUMBER_OF_SERVERS=$instance DURATION=$DURATION LOAD=$(($LOAD_PER_INSTANCE * $instance)) DATA_PATH=$DATA_PATH INPUT_FILE_NAMES=$INPUT_FILE_NAMES RESULTS_PATH=$RESULTS_PATH RESULTS_NAME="${PREFIX_RESULTS_NAME}_${DURATION}_${LOAD}_${instance}_${round}" DEBBUG_LOG=$DEBBUG_LOG python3 __main__.py
+		NUMBER_OF_SERVERS=$instance DURATION=$DURATION LOAD=$(($LOAD_PER_INSTANCE * $instance)) DATA_PATH=$DATA_PATH INPUT_FILE_NAMES=$INPUT_FILE_NAMES RESULTS_PATH=$RESULTS_PATH RESULTS_NAME="${PREFIX_RESULTS_NAME}_${DURATION}_${LOAD}_${instance}_${round}" python3 __main__.py
 		echo "round ${round}: Finished."
 		echo ""
 	done
