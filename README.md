@@ -24,8 +24,7 @@ of services are used. The main objective here is to simulate web applications us
 * **results_path**: The path where the simulator should put the results.
 * **prefix_results_name**: A pattern to simulator use it as a prefix in result names.
 * **data_path**: The path where the CSV file of the experimental results is kept.
-* **input_file_name**: The name of the CSV file with the service time and status http of each request processed in an experiment.
-* **number_of_input_files**: The number of CSV files that exists to be used.  
+* **input_file_names**: The list of CSV file names with the service time and status http of each request processed in an experiment.
 * **round_start**: It defines the ID to identify the first simulation result file.
 * **round_end**: It defines the ID to identify the last simulation result file. It also means the number of simulations to be executed.
 * **debbug_log**: It is used to generate more detailed results.
@@ -33,7 +32,7 @@ of services are used. The main objective here is to simulate web applications us
 #### Execution
 After have cloned the simulator, move to the right directory and execute the command below. Note that the input file will shape your simulation behavior.
 
-  * **INSTANCES**="instances" **DURATION**="duration" **LOAD_PER_INSTANCE**="load_per_instance" **RESULTS_PATH**="results_path" **PREFIX_RESULTS_NAME**="prefix_results_name" **DATA_PATH**="data_path" **INPUT_FILE_NAME**="input_file_name" NUMBER_OF_INPUT_FILES=**number_of_input_files** **ROUND_START**="round_start" **ROUND_END**="round_end" **bash** **run_simulator.sh**  
+  * **INSTANCES**="instances" **DURATION**="duration" **LOAD_PER_INSTANCE**="load_per_instance" **RESULTS_PATH**="results_path" **PREFIX_RESULTS_NAME**="prefix_results_name" **DATA_PATH**="data_path" **INPUT_FILE_NAMES**="input_file_names" **ROUND_START**="round_start" **ROUND_END**="round_end" **bash** **run_simulator.sh**  
 
 Please, pay attention that the script run_simulation.sh already has some of these parameters with default values that make easier run simulations. 
 
