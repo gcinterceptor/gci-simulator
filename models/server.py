@@ -35,7 +35,7 @@ class Server(object):
         if status == 503:
             yield self.env.timeout(service_time)
             request.service_time += service_time
-            yield self.env.process(request.load_balancer.shed_request(request))
+            yield self.env.process(request.load_balancer.request_returned(request))
 
         elif status == 200:
             self.requests_arrived += 1
@@ -43,10 +43,10 @@ class Server(object):
             yield self.env.process(self.process_request(request, service_time))
 
         else:
-            raise Exception("INVALID LATENCY DATA")
+            raise Exception("INVALID HTTP STATUS. Server receives http status " + str(request.status))
 
     def process_request(self, request, service_time):
         yield self.env.process(request.run(service_time))
-        yield self.env.process(request.load_balancer.request_succeeded(request))
+        yield self.env.process(request.load_balancer.request_returned(request))
         self.processed_requests += 1
         self.requests.append(request)

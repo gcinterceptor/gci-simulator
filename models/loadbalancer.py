@@ -46,12 +46,21 @@ class LoadBalancer(object):
         else:
             self.forward(request)
 
-        yield self.env.timeout(self.sleep)
-
     def request_succeeded(self, request):
         request.finished_at(self.env.now)
         self.succeeded_requests += 1
         self.requests.append(request)
+
+    def request_returned(self, request):
+        if request.status == 503:
+            self.shed_request(request)
+
+        elif request.status == 200:
+            self.request_succeeded(request)
+
+        else:
+            raise Exception("INVALID HTTP STATUS. LB receives a http status " + str(request.status))
+
         yield self.env.timeout(self.sleep)
 
     def add_server(self, server):
