@@ -43,7 +43,7 @@ class Server(object):
             yield self.env.process(self.process_request(request, service_time))
 
         else:
-            raise Exception("INVALID STATUS DATA AT SERVER")
+            raise Exception("INVALID HTTP STATUS. Server receives http status " + str(request.status))
 
     def process_request(self, request, service_time):
         yield self.env.process(request.run(service_time))

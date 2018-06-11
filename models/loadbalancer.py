@@ -59,7 +59,7 @@ class LoadBalancer(object):
             self.request_succeeded(request)
 
         else:
-            raise Exception("INVALID STATUS DATA AT LB")
+            raise Exception("INVALID HTTP STATUS. LB receives a http status " + str(request.status))
 
         yield self.env.timeout(self.sleep)
 
