@@ -74,7 +74,7 @@ func (lb *loadBalancer) terminate() {
 }
 
 func (lb *loadBalancer) Run() {
-	fmt.Println("status,latency")
+	fmt.Println("id,status,latency,nhops,hops")
 	for {
 		arrivalCond.Wait(true)
 		if arrivalQueue.Len() > 0 {
@@ -82,7 +82,7 @@ func (lb *loadBalancer) Run() {
 			if r.status != 200 && len(r.hops) < len(lb.servers) {
 				lb.nextServer().newRequest(r)
 			} else {
-				fmt.Printf("%d,%f\n", r.status, r.latency*1000)
+				fmt.Printf("%d,%d,%.1f,%d,%v\n", r.id, r.status, r.latency*1000, len(r.hops), r.hops)
 			}
 		}
 		if lb.isTerminated && arrivalQueue.Len() == 0 {
