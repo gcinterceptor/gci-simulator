@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/agoussia/godes"
@@ -21,6 +20,9 @@ var (
 	inputs   = flag.String("i", "", "Comma-separated file paths (one per server)")
 )
 
+var arrivalQueue = godes.NewFIFOQueue("arrival")
+var arrivalCond = godes.NewBooleanControl()
+
 func main() {
 	flag.Parse()
 	if *inputs == "" {
@@ -32,70 +34,120 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error loading file \"%s\":%q", f, err)
 		}
+		godes.AddRunner(s)
 		servers = append(servers, s)
 	}
-	lb := newLoadBalancer(servers)
 
-	fmt.Println("status,latency")
-	godes.Run()
+	lb := newLoadBalancer(servers)
+	godes.AddRunner(lb)
+
 	reqID := int64(0)
+	godes.Run()
 	for godes.GetSystemTime() < duration.Seconds() {
-		godes.AddRunner(&trigger{&godes.Runner{}, lb, reqID})
+		arrivalQueue.Place(&request{id: reqID})
+		arrivalCond.Set(true)
 		godes.Advance(1.0 / float64(*rate))
 		reqID++
+	}
+	lb.terminate()
+	for _, s := range servers {
+		s.terminate()
 	}
 	godes.WaitUntilDone()
 }
 
 type loadBalancer struct {
-	sync.Mutex
-	servers []*server
-	next    int
+	*godes.Runner
+	servers      []*server
+	next         int
+	isTerminated bool
 }
 
-func (lb *loadBalancer) dispatch(r *request) {
-	for attempts := 0; attempts < len(lb.servers); attempts++ {
-		status := lb.nextUpstream().process(r)
-		if status == 200 {
-			break
-		}
-	}
-	fmt.Printf("%d,%f\n", r.status, r.latency)
-}
-
-func (lb *loadBalancer) nextUpstream() *server {
-	lb.Lock()
-	defer lb.Unlock()
+func (lb *loadBalancer) nextServer() *server {
 	lb.next = (lb.next + 1) % len(lb.servers)
 	return lb.servers[lb.next]
 }
 
+func (lb *loadBalancer) terminate() {
+	arrivalCond.Set(true)
+	lb.isTerminated = true
+}
+
+func (lb *loadBalancer) Run() {
+	fmt.Println("status,latency")
+	for {
+		arrivalCond.Wait(true)
+		if arrivalQueue.Len() > 0 {
+			r := arrivalQueue.Get().(*request)
+			if r.status != 200 && len(r.hops) < len(lb.servers) {
+				lb.nextServer().newRequest(r)
+			} else {
+				fmt.Printf("%d,%f\n", r.status, r.latency*1000)
+			}
+		}
+		if lb.isTerminated && arrivalQueue.Len() == 0 {
+			break
+		}
+		if arrivalQueue.Len() == 0 {
+			arrivalCond.Set(false)
+		}
+	}
+}
+
 func newLoadBalancer(servers []*server) *loadBalancer {
-	return &loadBalancer{sync.Mutex{}, servers, 0}
+	return &loadBalancer{&godes.Runner{}, servers, 0, false}
 }
 
 type server struct {
-	sync.Mutex
-	id      int
-	entries []inputEntry
-	index   int
-	busy    bool
+	*godes.Runner
+	id           int
+	entries      []inputEntry
+	index        int
+	cond         *godes.BooleanControl
+	queue        *godes.FIFOQueue
+	isTerminated bool
 }
 
-func (s *server) process(r *request) int {
-	e := s.next()
-	r.latency += e.latency
-	r.status = e.status
-	r.hops = append(r.hops, hop{serverID: s.id, duration: e.latency, status: e.status})
-	return r.status
+func (s *server) Run() {
+	for {
+		s.cond.Wait(true)
+		if s.queue.Len() > 0 {
+			// Processing request.
+			duration, status := s.next()
+			r := s.queue.Get().(*request)
+			r.latency += duration
+			r.status = status
+			r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: status})
+
+			// Sending updated request back to the load balancer.
+			arrivalQueue.Place(r)
+			arrivalCond.Set(true)
+			// Advancing simulation time.
+			godes.Advance(duration)
+		}
+		if s.isTerminated && arrivalQueue.Len() == 0 {
+			break
+		}
+		if s.queue.Len() == 0 {
+			s.cond.Set(false)
+		}
+	}
 }
 
-func (s *server) next() inputEntry {
-	s.Lock()
-	defer s.Unlock()
+func (s *server) newRequest(r *request) {
+	s.queue.Place(r)
+	s.cond.Set(true)
+}
+
+func (s *server) next() (float64, int) {
 	i := s.entries[s.index]
 	s.index = (s.index + 1) % len(s.entries)
-	return i
+	return i.duration, i.status
+}
+
+func (s *server) terminate() {
+	s.cond.Set(true)
+	s.isTerminated = true
 }
 
 func newServer(p string, id int) (*server, error) {
@@ -132,7 +184,7 @@ func newServer(p string, id int) (*server, error) {
 			entries = append(entries, e)
 		}
 	}
-	return &server{id: id, entries: entries}, nil
+	return &server{&godes.Runner{}, id, entries, 0, godes.NewBooleanControl(), godes.NewFIFOQueue(fmt.Sprintf("server%d", id)), false}, nil
 }
 
 func toEntry(row []string) (float64, inputEntry, error) {
@@ -145,26 +197,16 @@ func toEntry(row []string) (float64, inputEntry, error) {
 	if err != nil {
 		return 0, inputEntry{}, fmt.Errorf("Error parsing state in row (%v): %q", row, err)
 	}
-	latency, err := strconv.ParseFloat(row[2], 64)
+	duration, err := strconv.ParseFloat(row[2], 64)
 	if err != nil {
-		return 0, inputEntry{}, fmt.Errorf("Error parsing latency in row (%v): %q", row, err)
+		return 0, inputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
 	}
-	return timestamp, inputEntry{latency * 1000, state}, nil
+	return timestamp, inputEntry{duration, state}, nil
 }
 
 type inputEntry struct {
-	latency float64
-	status  int
-}
-
-type trigger struct {
-	*godes.Runner
-	lb *loadBalancer
-	id int64
-}
-
-func (t *trigger) Run() {
-	t.lb.dispatch(&request{id: t.id})
+	duration float64
+	status   int
 }
 
 type request struct {
