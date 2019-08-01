@@ -15,13 +15,12 @@ var (
 	lambda   = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
 )
 
-var arrivalQueue = godes.NewFIFOQueue("arrival")
-
 func main() {
 	fmt.Println("Simulation Started")
 	flag.Parse()
 	
-	poisson_dist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
+	arrivalQueue := godes.NewFIFOQueue("arrival")
+	poissonDist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
 	reqID := int64(0)
 	godes.Run()
 	for godes.GetSystemTime() < duration.Seconds() {
@@ -36,6 +35,6 @@ func main() {
 
 type request struct {
 	id      int64
-	latency float64
+	responseTime float64
 	status  int
 }
