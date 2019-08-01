@@ -19,7 +19,6 @@ var arrivalQueue = godes.NewFIFOQueue("arrival")
 var arrivalCond = godes.NewBooleanControl()
 
 func main() {
-	fmt.Println("Simulation Started")
 	flag.Parse()
 	
 	lb := newLoadBalancer()
@@ -38,7 +37,6 @@ func main() {
 
 	lb.terminate()
 	godes.WaitUntilDone()
-	fmt.Println("Simulation Ended")
 }
 
 type loadBalancer struct {
@@ -56,7 +54,7 @@ func (lb *loadBalancer) terminate() {
 }
 
 func (lb *loadBalancer) Run() {
-	fmt.Println("id,status,latency")
+	fmt.Println("timestamp,id,status,latency")
 	for {
 		arrivalCond.Wait(true)
 		if arrivalQueue.Len() > 0 {
@@ -66,7 +64,7 @@ func (lb *loadBalancer) Run() {
 				r.responseTime = *lambda // temporary value
 				arrivalQueue.Place(r)
 			} else {
-				fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
+				fmt.Printf("%.1f,%d,%d,%.1f\n", godes.GetSystemTime(), r.id, r.status, r.responseTime*1000)
 			}
 		}
 
