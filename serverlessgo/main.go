@@ -25,7 +25,10 @@ func main() {
 	godes.Run()
 	for godes.GetSystemTime() < duration.Seconds() {
 		arrivalQueue.Place(&request{id: reqID})
-		godes.Advance(poisson_dist.Rand())
+		interArrivalTime := poisson_dist.Rand()
+		godes.Advance(interArrivalTime)
+		r := arrivalQueue.Get().(*request)
+		r.responseTime = interArrivalTime 
 		reqID++
 	}
 
