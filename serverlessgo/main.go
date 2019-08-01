@@ -28,7 +28,7 @@ func main() {
 	reqID := int64(0)
 	godes.Run()
 	for godes.GetSystemTime() < duration.Seconds() {
-		arrivalQueue.Place(&request{id: reqID})
+		arrivalQueue.Place(&request{id: reqID, creatingTimestamp: godes.GetSystemTime()})
 		arrivalCond.Set(true)
 		interArrivalTime := poissonDist.Rand()
 		godes.Advance(interArrivalTime)
@@ -54,7 +54,7 @@ func (lb *loadBalancer) terminate() {
 }
 
 func (lb *loadBalancer) Run() {
-	fmt.Println("timestamp,id,status,latency")
+	fmt.Println("creatingTimestamp,finishingTimestamp,id,status,latency")
 	for {
 		arrivalCond.Wait(true)
 		if arrivalQueue.Len() > 0 {
@@ -62,9 +62,11 @@ func (lb *loadBalancer) Run() {
 			if r.status != 200 {
 				r.status = 200
 				r.responseTime = *lambda // temporary value
+				godes.Advance(*lambda)
+				r.finishingTimestamp = godes.GetSystemTime()
 				arrivalQueue.Place(r)
 			} else {
-				fmt.Printf("%.1f,%d,%d,%.1f\n", godes.GetSystemTime(), r.id, r.status, r.responseTime*1000)
+				fmt.Printf("%.1f,%.1f,%d,%d,%.1f\n", r.creatingTimestamp, r.finishingTimestamp, r.id, r.status, r.responseTime*1000)
 			}
 		}
 
@@ -81,4 +83,6 @@ type request struct {
 	id      int64
 	responseTime float64
 	status  int
+	creatingTimestamp float64
+	finishingTimestamp float64
 }
