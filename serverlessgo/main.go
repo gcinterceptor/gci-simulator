@@ -43,12 +43,16 @@ func main() {
 
 type loadBalancer struct {
 	*godes.Runner
-	finishedRequests *FIFOQueue
 	isTerminated bool
 }
 
 func newLoadBalancer() *loadBalancer {
 	return &loadBalancer{&godes.Runner{}, false}
+}
+
+func (lb *loadBalancer) terminate() {
+	arrivalCond.Set(true)
+	lb.isTerminated = true
 }
 
 func (lb *loadBalancer) Run() {
@@ -63,7 +67,6 @@ func (lb *loadBalancer) Run() {
 				arrivalQueue.Place(r)
 			} else {
 				fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
-				lb.finishedRequests.Place(r)
 			}
 		}
 
