@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"flag"
 	"time"
+	"sort"
 
 	"github.com/agoussia/godes"
 
@@ -66,23 +67,17 @@ func (lb *loadBalancer) terminate() {
 
 func (lb *loadBalancer) nextInstance() *instance {
 	var selected *instance
-	var index int
+	// sorting instances to have the most recently used ones ahead on the array
+	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
 		if !instance.isWorking() && !instance.isTerminated() {
 			selected = instance
-			index = i
 			break
 		}
 	}
-
-	if selected != nil {
-		// TODO(David) - update this block to use sort instead appends and slices
-		// removes the chosen instance from the array
-		lb.instances = append(lb.instances[:index], lb.instances[index+1:]...)
-		// inserts the instance ahead of the array
-		lb.instances = append([]*instance{selected}, lb.instances...)
-	} else {
+	
+	if selected == nil {
 		selected = newInstance(len(lb.instances))
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
