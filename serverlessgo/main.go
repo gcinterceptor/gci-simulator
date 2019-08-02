@@ -68,7 +68,7 @@ func (lb *loadBalancer) nextInstance() *instance {
 	var index int
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
-		if !instance.isWorking() && !instance.isTerminated {
+		if !instance.isWorking() && !instance.isTerminated() {
 			selected = instance
 			index = i
 			break
@@ -111,17 +111,17 @@ func (lb *loadBalancer) Run() {
 type instance struct {
 	*godes.Runner
 	id           int
-	isTerminated bool
+	terminated   bool
 	cond  *godes.BooleanControl
 	req   *request
+	createdTime   float64
+	terminateTime float64
+	lastUsage     float64
+	busyTime      float64
 }
 
 func newInstance(id int) *instance {
-	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil}
-}
-
-func (i *instance) isWorking() bool {
-	return i.cond.GetState() == true
+	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0}
 }
 
 func (i *instance) receiveRequest(r *request) {
@@ -133,25 +133,57 @@ func (i *instance) receiveRequest(r *request) {
 }
 
 func (i *instance) terminate() {
-	i.isTerminated = true
+	i.terminateTime = godes.GetSystemTime()
+	i.terminated = true
 	i.cond.Set(true)
 }
 
 func (i *instance) Run() {
 	for {
 		i.cond.Wait(true)
-		if i.isTerminated {
+		if i.isTerminated() {
 			break
 		}
 
-		i.req.status = 200
-		i.req.responseTime += *lambda // temporary value
-		godes.Advance(*lambda)
+		status, responseTime := 200, *lambda // temporary line
+		i.req.status = status
+		i.req.responseTime += responseTime 
+		i.busyTime += responseTime
+		godes.Advance(responseTime)
+		i.lastUsage = godes.GetSystemTime()
 		
 		fmt.Printf("%d,%d,%.1f\n", i.req.id, i.req.status, i.req.responseTime*1000)
 
 		i.cond.Set(false)
 	}
+}
+
+func (i *instance) isWorking() bool {
+	return i.cond.GetState() == true
+}
+
+func (i *instance) isTerminated() bool {
+	return i.terminated
+}
+
+func (i *instance) getUpTime() float64 {
+	return i.terminateTime - i.createdTime
+}
+
+func (i *instance) getIdleTime() float64 {
+	return i.getUpTime() - i.getBusyTime()
+}
+
+func (i *instance) getBusyTime() float64 {
+	return i.busyTime
+}
+
+func (i *instance) getLastUsage() float64 {
+	return i.lastUsage
+}
+
+func (i *instance) getEfficiency() float64 {
+	return i.getBusyTime() / i.getUpTime()
 }
 
 type request struct {
