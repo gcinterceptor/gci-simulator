@@ -44,10 +44,11 @@ type loadBalancer struct {
 	arrivalQueue *godes.FIFOQueue
 	arrivalCond *godes.BooleanControl
 	instances      []*instance
+	idlenessDeadline time.Duration
 }
 
 func newLoadBalancer() *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0)}
+	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), 300*time.Second}
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
@@ -58,7 +59,7 @@ func (lb *loadBalancer) receiveRequest(r *request) {
 func (lb *loadBalancer) terminate() {
 	for _, i := range lb.instances {
 		i.terminate()
-	 }
+	}
 	lb.isTerminated = true
 	lb.arrivalCond.Set(true)
 }
@@ -105,6 +106,15 @@ func (lb *loadBalancer) Run() {
 			}
 			lb.arrivalCond.Set(false)
 		}
+		lb.tryScaleDown()
+	}
+}
+
+func (lb *loadBalancer) tryScaleDown() {
+	for _, i := range lb.instances {
+		if godes.GetSystemTime() - i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
+			i.terminate()
+		}
 	}
 }
 
@@ -116,7 +126,7 @@ type instance struct {
 	req   *request
 	createdTime   float64
 	terminateTime float64
-	lastUsage     float64
+	lastWorked     float64
 	busyTime      float64
 }
 
@@ -150,7 +160,7 @@ func (i *instance) Run() {
 		i.req.responseTime += responseTime 
 		i.busyTime += responseTime
 		godes.Advance(responseTime)
-		i.lastUsage = godes.GetSystemTime()
+		i.lastWorked = godes.GetSystemTime()
 		
 		fmt.Printf("%d,%d,%.1f\n", i.req.id, i.req.status, i.req.responseTime*1000)
 
@@ -178,8 +188,8 @@ func (i *instance) getBusyTime() float64 {
 	return i.busyTime
 }
 
-func (i *instance) getLastUsage() float64 {
-	return i.lastUsage
+func (i *instance) getLastWorked() float64 {
+	return i.lastWorked
 }
 
 func (i *instance) getEfficiency() float64 {
