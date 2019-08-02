@@ -78,6 +78,43 @@ func (lb *loadBalancer) Run() {
 	}
 }
 
+type instance struct {
+	*godes.Runner
+	id           int
+	isTerminated bool
+	cond  *godes.BooleanControl
+	req   *request
+}
+
+func newInstance(id int) *instance {
+	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil}
+}
+
+func (i *instance) receiveRequest(r *request) {
+	i.req = r
+	i.cond.Set(true)
+}
+
+func (i *instance) terminate() {
+	i.isTerminated = true
+}
+
+func (i *instance) Run() {
+	for {
+		if i.isTerminated {
+			break
+		}
+
+		i.cond.Wait(true)
+		
+		i.req.status = 200
+		i.req.responseTime += *lambda // temporary value
+		godes.Advance(*lambda)
+		
+		si.cond.Set(false)
+	}
+}
+
 type request struct {
 	id      int64
 	responseTime float64
