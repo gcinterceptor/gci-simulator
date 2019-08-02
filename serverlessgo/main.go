@@ -18,7 +18,7 @@ var (
 
 func main() {
 	// TODO(David): to abstract output via struct
-	fmt.Println("id,status,responde_time")
+	fmt.Println("id,status,response_time")
 	flag.Parse()
 	
 	lb := newLoadBalancer()
