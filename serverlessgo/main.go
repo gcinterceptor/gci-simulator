@@ -64,29 +64,29 @@ func (lb *loadBalancer) terminate() {
 }
 
 func (lb *loadBalancer) nextInstance() *instance {
-	var instanceChoosed *instance
-	var instanceIndex int
-	hasChosen := false
+	var instanceSelected *instance
+	var index int
+	hasSelected := false
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
 		if !instance.isWorking() && !instance.isTerminated {
-			instanceChoosed = instance
-			instanceIndex = i
-			hasChosen = true
+			instanceSelected = instance
+			index = i
+			hasSelected = true
 			break
 		}
 	}
 
-	if hasChosen {
+	if hasSelected {
 		// removes the chosen instance from the array
-		lb.instances = append(lb.instances[:instanceIndex], lb.instances[instanceIndex+1:]...)
+		lb.instances = append(lb.instances[:index], lb.instances[index+1:]...)
 	} else {
-		instanceChoosed = newInstance(len(lb.instances))
-		godes.AddRunner(instanceChoosed)
+		instanceSelected = newInstance(len(lb.instances))
+		godes.AddRunner(instanceSelected)
 	}
 	// inserts the instance ahead of the array
-	lb.instances = append([]*instance{instanceChoosed}, lb.instances...)
-	return instanceChoosed
+	lb.instances = append([]*instance{instanceSelected}, lb.instances...)
+	return instanceSelected
 }
 
 func (lb *loadBalancer) Run() {
