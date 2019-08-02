@@ -64,29 +64,31 @@ func (lb *loadBalancer) terminate() {
 }
 
 func (lb *loadBalancer) nextInstance() *instance {
-	var instanceSelected *instance
+	var selected *instance
 	var index int
-	hasSelected := false
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
 		if !instance.isWorking() && !instance.isTerminated {
-			instanceSelected = instance
+			selected = instance
 			index = i
-			hasSelected = true
 			break
 		}
 	}
 
-	if hasSelected {
+	if selected != nil {
+		// TODO(David) - update this block to use sort instead appends and slices
 		// removes the chosen instance from the array
 		lb.instances = append(lb.instances[:index], lb.instances[index+1:]...)
+		// inserts the instance ahead of the array
+		lb.instances = append([]*instance{selected}, lb.instances...)
 	} else {
-		instanceSelected = newInstance(len(lb.instances))
-		godes.AddRunner(instanceSelected)
+		selected = newInstance(len(lb.instances))
+		godes.AddRunner(selected)
+		// inserts the instance ahead of the array
+		lb.instances = append([]*instance{selected}, lb.instances...)
 	}
-	// inserts the instance ahead of the array
-	lb.instances = append([]*instance{instanceSelected}, lb.instances...)
-	return instanceSelected
+
+	return selected
 }
 
 func (lb *loadBalancer) Run() {
