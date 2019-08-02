@@ -17,6 +17,7 @@ var (
 )
 
 func main() {
+	// TODO(David): to abstract output via struct
 	fmt.Println("id,status,latency")
 	flag.Parse()
 	
@@ -121,7 +122,7 @@ func (i *instance) Run() {
 		}
 
 		i.cond.Wait(true)
-				
+
 		i.req.status = 200
 		i.req.responseTime += *lambda // temporary value
 		godes.Advance(*lambda)
