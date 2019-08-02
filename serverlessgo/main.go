@@ -53,7 +53,6 @@ func (lb *loadBalancer) receiveRequest(r *request) {
 }
 
 func (lb *loadBalancer) terminate() {
-	lb.arrivalCond.Set(true)
 	lb.isTerminated = true
 }
 
