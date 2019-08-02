@@ -69,7 +69,7 @@ func (lb *loadBalancer) nextInstance() *instance {
 	hasChosen := false
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
-		if !instance.isWorking() {
+		if !instance.isWorking() && !instance.isTerminated {
 			instanceChoosed = instance
 			instanceIndex = i
 			hasChosen = true
