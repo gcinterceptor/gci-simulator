@@ -17,14 +17,15 @@ var (
 )
 
 func main() {
+	fmt.Println("id,status,latency")
 	flag.Parse()
 	
 	lb := newLoadBalancer()
 	godes.AddRunner(lb)
-
-	poissonDist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
-	reqID := int64(0)
 	godes.Run()
+
+	reqID := int64(0)
+	poissonDist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
 	for godes.GetSystemTime() < duration.Seconds() {
 		lb.receiveRequest(&request{id: reqID})
 		interArrivalTime := poissonDist.Rand()
@@ -41,10 +42,11 @@ type loadBalancer struct {
 	isTerminated bool
 	arrivalQueue *godes.FIFOQueue
 	arrivalCond *godes.BooleanControl
+	instances      []*instance
 }
 
 func newLoadBalancer() *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl()}
+	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0)}
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
@@ -53,19 +55,26 @@ func (lb *loadBalancer) receiveRequest(r *request) {
 }
 
 func (lb *loadBalancer) terminate() {
+	for i := 0; i < len(lb.instances); i++ {
+		lb.instances[i].terminate()
+	}
 	lb.isTerminated = true
 }
 
+func (lb *loadBalancer) nextInstance() *instance {
+	var instance *instance
+	instance = newInstance(len(lb.instances))
+	lb.instances = append(lb.instances, instance)
+	godes.AddRunner(instance)
+	return instance
+}
+
 func (lb *loadBalancer) Run() {
-	fmt.Println("id,status,latency")
 	for {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*request)
-			r.status = 200
-			r.responseTime += *lambda // temporary value
-			godes.Advance(*lambda)
-			fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
+			lb.nextInstance().receiveRequest(r)			
 		}
 
 		if lb.arrivalQueue.Len() == 0 {
@@ -89,7 +98,14 @@ func newInstance(id int) *instance {
 	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil}
 }
 
+func (i *instance) isWorking() bool {
+	return i.cond.GetState() == true
+}
+
 func (i *instance) receiveRequest(r *request) {
+	if i.isWorking() == true {
+		panic(fmt.Sprintf("Instances may not enqueue requests."))
+	}
 	i.req = r
 	i.cond.Set(true)
 }
@@ -105,12 +121,14 @@ func (i *instance) Run() {
 		}
 
 		i.cond.Wait(true)
-		
+				
 		i.req.status = 200
 		i.req.responseTime += *lambda // temporary value
 		godes.Advance(*lambda)
 		
-		si.cond.Set(false)
+		fmt.Printf("%d,%d,%.1f\n", i.req.id, i.req.status, i.req.responseTime*1000)
+
+		i.cond.Set(false)
 	}
 }
 
