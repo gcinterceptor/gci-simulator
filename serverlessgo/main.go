@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/agoussia/godes"
+
 	"golang.org/x/exp/rand"
 	"gonum.org/v1/gonum/stat/distuv"
 )
@@ -16,24 +17,65 @@ var (
 )
 
 func main() {
-	fmt.Println("Simulation Started")
 	flag.Parse()
 	
-	arrivalQueue := godes.NewFIFOQueue("arrival")
+	lb := newLoadBalancer()
+	godes.AddRunner(lb)
+
 	poissonDist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
 	reqID := int64(0)
 	godes.Run()
 	for godes.GetSystemTime() < duration.Seconds() {
-		arrivalQueue.Place(&request{id: reqID})
+		lb.receiveRequest(&request{id: reqID})
 		interArrivalTime := poissonDist.Rand()
 		godes.Advance(interArrivalTime)
-		r := arrivalQueue.Get().(*request)
-		r.responseTime = interArrivalTime 
 		reqID++
 	}
 
+	lb.terminate()
 	godes.WaitUntilDone()
-	fmt.Println("Simulation Ended")
+}
+
+type loadBalancer struct {
+	*godes.Runner
+	isTerminated bool
+	arrivalQueue *godes.FIFOQueue
+	arrivalCond *godes.BooleanControl
+}
+
+func newLoadBalancer() *loadBalancer {
+	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl()}
+}
+
+func (lb *loadBalancer) receiveRequest(r *request) {
+	lb.arrivalQueue.Place(r)
+	lb.arrivalCond.Set(true)
+}
+
+func (lb *loadBalancer) terminate() {
+	lb.arrivalCond.Set(true)
+	lb.isTerminated = true
+}
+
+func (lb *loadBalancer) Run() {
+	fmt.Println("id,status,latency")
+	for {
+		lb.arrivalCond.Wait(true)
+		if lb.arrivalQueue.Len() > 0 {
+			r := lb.arrivalQueue.Get().(*request)
+			r.status = 200
+			r.responseTime += *lambda // temporary value
+			godes.Advance(*lambda)
+			fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
+		}
+
+		if lb.arrivalQueue.Len() == 0 {
+			if lb.isTerminated {
+				break
+			}
+			lb.arrivalCond.Set(false)
+		}
+	}
 }
 
 type request struct {
