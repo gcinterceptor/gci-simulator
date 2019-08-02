@@ -18,7 +18,7 @@ var (
 
 func main() {
 	// TODO(David): to abstract output via struct
-	fmt.Println("id,status,latency")
+	fmt.Println("id,status,responde_time")
 	flag.Parse()
 	
 	lb := newLoadBalancer()
@@ -56,15 +56,15 @@ func (lb *loadBalancer) receiveRequest(r *request) {
 }
 
 func (lb *loadBalancer) terminate() {
-	for i := 0; i < len(lb.instances); i++ {
-		lb.instances[i].terminate()
-	}
+	for _, i := range lb.instances {
+		i.terminate()
+	 }
 	lb.isTerminated = true
+	i.cond.Set(true)
 }
 
 func (lb *loadBalancer) nextInstance() *instance {
-	var instance *instance
-	instance = newInstance(len(lb.instances))
+	instance := newInstance(len(lb.instances))
 	lb.instances = append(lb.instances, instance)
 	godes.AddRunner(instance)
 	return instance
@@ -113,15 +113,15 @@ func (i *instance) receiveRequest(r *request) {
 
 func (i *instance) terminate() {
 	i.isTerminated = true
+	i.cond.Set(true)
 }
 
 func (i *instance) Run() {
 	for {
+		i.cond.Wait(true)
 		if i.isTerminated {
 			break
 		}
-
-		i.cond.Wait(true)
 
 		i.req.status = 200
 		i.req.responseTime += *lambda // temporary value
