@@ -93,7 +93,7 @@ func (lb *loadBalancer) nextInstance() *instance {
 	}
 	
 	if selected == nil {
-		selected = newInstance(len(lb.instances), lb.nextInstanceInputFile())
+		selected = newInstance(len(lb.instances), lb.idlenessDeadline, lb.nextInstanceInputFile())
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
@@ -123,7 +123,7 @@ func (lb *loadBalancer) Run() {
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
 		if godes.GetSystemTime() - i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
-			i.terminate()
+			i.scaleDown()
 		}
 	}
 }
@@ -138,12 +138,13 @@ type instance struct {
 	terminateTime float64
 	lastWorked     float64
 	busyTime      float64
-	entries       []inputEntry
+	idlenessDeadline time.Duration
+  entries       []inputEntry
 	index 		  int
 }
 
-func newInstance(id int, input string) *instance {
-	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0, buildEntryArray(input), 0}
+func newInstance(id int, idlenessDeadline time.Duration, input string) *instance {
+	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0, idlenessDeadline, buildEntryArray(input), 0}
 }
 
 func (i *instance) receiveRequest(r *request) {
@@ -164,6 +165,11 @@ func (i *instance) next() (float64, int) {
 	e := i.entries[i.index]
 	i.index = (i.index + 1) % len(i.entries)
 	return e.duration, e.status
+}
+
+func (i *instance) scaleDown() {
+	i.terminate()
+	i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
 }
 
 func (i *instance) Run() {
