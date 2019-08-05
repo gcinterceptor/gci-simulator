@@ -13,10 +13,10 @@ type inputEntry struct {
 	status   int
 }
 
-func buildEntryArray(p string) []inputEntry {
+func buildEntryArray(p string) ([]inputEntry, error) {
 	f, err := os.Open(p)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer f.Close()
 	r := csv.NewReader(f)
@@ -24,10 +24,10 @@ func buildEntryArray(p string) []inputEntry {
 
 	records, err := r.ReadAll()
 	if err != nil {
-		panic(fmt.Errorf("Error reading input file (%s): %q", p, err))
+		return nil, fmt.Errorf("Error reading input file (%s): %q", p, err)
 	}
 	if len(records) <= 1 {
-		panic(fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p))
+		return nil, fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p)
 	}
 
 	var entries []inputEntry
@@ -39,7 +39,7 @@ func buildEntryArray(p string) []inputEntry {
 		entries = append(entries, entry)
 	}
 
-	return entries
+	return entries, nil
 }
 
 func toEntry(row []string) (inputEntry, error) {

@@ -6,6 +6,7 @@ import (
 	"time"
 	"sort"
 	"strings"
+	"errors"
 
 	"github.com/agoussia/godes"
 	"golang.org/x/exp/rand"
@@ -24,7 +25,11 @@ func main() {
 	fmt.Println("id,status,response_time")
 	flag.Parse()
 	
-	lb := newLoadBalancer(*idlenessDeadline, *inputs)
+	lb, err := newLoadBalancer(*idlenessDeadline, *inputs)
+	if err != nil {
+		panic(err)
+	}
+
 	godes.AddRunner(lb)
 	godes.Run()
 
@@ -41,6 +46,12 @@ func main() {
 	godes.WaitUntilDone()
 }
 
+type request struct {
+	id      int64
+	responseTime float64
+	status  int
+}
+
 type loadBalancer struct {
 	*godes.Runner
 	isTerminated bool
@@ -52,8 +63,23 @@ type loadBalancer struct {
 	index    int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs string) *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), idlenessDeadline, strings.Split(inputs, ","), 0}
+func newLoadBalancer(idlenessDeadline time.Duration, inputs string) (*loadBalancer, error) {
+	if len(inputs) == 0 {
+		return nil, errors.New("Must have at least on file input!")
+	}
+
+	lb := &loadBalancer{
+		Runner: &godes.Runner{}, 
+		isTerminated: false, 
+		arrivalQueue: godes.NewFIFOQueue("arrival"), 
+		arrivalCond: godes.NewBooleanControl(), 
+		instances: make([]*instance, 0), 
+		idlenessDeadline: idlenessDeadline, 
+		inputs: strings.Split(inputs, ","), 
+		index: 0,
+	}
+
+	return lb, nil
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
@@ -86,9 +112,20 @@ func (lb *loadBalancer) nextInstance() *instance {
 			break
 		}
 	}
-	
 	if selected == nil {
-		selected = newInstance(len(lb.instances), lb.idlenessDeadline, lb.nextInstanceInputFile())
+		var err error
+		for i := 0; i < len(lb.inputs); i++ {
+			selected, err = newInstance(len(lb.instances), lb.idlenessDeadline, lb.nextInstanceInputFile())
+			// try to initiate an instance
+			if err == nil {
+				break
+			}
+		}
+		
+		if err != nil {
+			panic(fmt.Sprintf("No valid input file to initiate an instance. Error: %s", err))
+		}
+		
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
@@ -102,7 +139,7 @@ func (lb *loadBalancer) Run() {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*request)
-			lb.nextInstance().receiveRequest(r)			
+			lb.nextInstance().receiveRequest(r)
 		}
 
 		if lb.arrivalQueue.Len() == 0 {
@@ -138,8 +175,28 @@ type instance struct {
 	index 		  int
 }
 
-func newInstance(id int, idlenessDeadline time.Duration, input string) *instance {
-	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0, idlenessDeadline, buildEntryArray(input), 0}
+func newInstance(id int, idlenessDeadline time.Duration, input string) (*instance, error) {
+	entries, err := buildEntryArray(input)
+	if err != nil {
+		return nil, err
+	}
+
+	instance := &instance{
+		Runner: &godes.Runner{}, 
+		id: id, 
+		terminated: false, 
+		cond: godes.NewBooleanControl(), 
+		req: nil, 
+		createdTime: godes.GetSystemTime(), 
+		terminateTime: 0, 
+		lastWorked: 0, 
+		busyTime: 0, 
+		idlenessDeadline: idlenessDeadline, 
+		entries: entries, 
+		index: 0,
+	}
+
+	return instance, nil 
 }
 
 func (i *instance) receiveRequest(r *request) {
@@ -213,10 +270,4 @@ func (i *instance) getLastWorked() float64 {
 
 func (i *instance) getEfficiency() float64 {
 	return i.getBusyTime() / i.getUpTime()
-}
-
-type request struct {
-	id      int64
-	responseTime float64
-	status  int
 }
