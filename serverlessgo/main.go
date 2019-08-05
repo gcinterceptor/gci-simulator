@@ -5,6 +5,11 @@ import (
 	"flag"
 	"time"
 	"sort"
+	"strings"
+	"os"
+	"log"
+	"strconv"
+	"encoding/csv"
 
 	"github.com/agoussia/godes"
 
@@ -16,6 +21,7 @@ var (
 	idlenessDeadline = flag.Duration("i", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
 	duration = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
 	lambda   = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
+	inputs   = flag.String("inputs", "test.csv", "Comma-separated file paths (one per instance)")
 )
 
 func main() {
@@ -23,7 +29,7 @@ func main() {
 	fmt.Println("id,status,response_time")
 	flag.Parse()
 	
-	lb := newLoadBalancer(*idlenessDeadline)
+	lb := newLoadBalancer(*idlenessDeadline, *inputs)
 	godes.AddRunner(lb)
 	godes.Run()
 
@@ -47,10 +53,12 @@ type loadBalancer struct {
 	arrivalCond *godes.BooleanControl
 	instances      []*instance
 	idlenessDeadline time.Duration
+	inputs   []string
+	index    int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration) *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), idlenessDeadline}
+func newLoadBalancer(idlenessDeadline time.Duration, inputs string) *loadBalancer {
+	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), idlenessDeadline, strings.Split(inputs, ","), 0}
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
@@ -66,6 +74,12 @@ func (lb *loadBalancer) terminate() {
 	lb.arrivalCond.Set(true)
 }
 
+func (lb *loadBalancer) nextInstanceInputFile() string {
+	input := lb.inputs[lb.index]
+	lb.index = (lb.index + 1) % len(lb.inputs)
+	return input
+}
+
 func (lb *loadBalancer) nextInstance() *instance {
 	var selected *instance
 	// sorting instances to have the most recently used ones ahead on the array
@@ -79,7 +93,7 @@ func (lb *loadBalancer) nextInstance() *instance {
 	}
 	
 	if selected == nil {
-		selected = newInstance(len(lb.instances))
+		selected = newInstance(len(lb.instances), lb.nextInstanceInputFile())
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
@@ -124,10 +138,12 @@ type instance struct {
 	terminateTime float64
 	lastWorked     float64
 	busyTime      float64
+	entries       []inputEntry
+	index 		  int
 }
 
-func newInstance(id int) *instance {
-	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0}
+func newInstance(id int, input string) *instance {
+	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0, buildEntryArray(input), 0}
 }
 
 func (i *instance) receiveRequest(r *request) {
@@ -144,6 +160,12 @@ func (i *instance) terminate() {
 	i.cond.Set(true)
 }
 
+func (i *instance) next() (float64, int) {
+	e := i.entries[i.index]
+	i.index = (i.index + 1) % len(i.entries)
+	return e.duration, e.status
+}
+
 func (i *instance) Run() {
 	for {
 		i.cond.Wait(true)
@@ -151,7 +173,7 @@ func (i *instance) Run() {
 			break
 		}
 
-		status, responseTime := 200, *lambda // temporary line
+		responseTime, status := i.next() // temporary line
 		i.req.status = status
 		i.req.responseTime += responseTime 
 		i.busyTime += responseTime
@@ -190,6 +212,53 @@ func (i *instance) getLastWorked() float64 {
 
 func (i *instance) getEfficiency() float64 {
 	return i.getBusyTime() / i.getUpTime()
+}
+
+type inputEntry struct {
+	duration float64
+	status   int
+}
+
+func buildEntryArray(p string) []inputEntry {
+	f, err := os.Open(p)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	r := csv.NewReader(f)
+	r.Comma = ';'
+
+	records, err := r.ReadAll()
+	if err != nil {
+		panic(fmt.Errorf("Error reading input file (%s): %q", p, err))
+	}
+	if len(records) <= 1 {
+		panic(fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p))
+	}
+
+	var entries []inputEntry
+	for _, row := range records[1:] {
+		entry, err := toEntry(row)
+		if err != nil {
+			log.Fatal(err)
+		}
+		entries = append(entries, entry)
+	}
+
+	return entries
+}
+
+func toEntry(row []string) (inputEntry, error) {
+	// Row format: timestamp;status;request_time;upstream_response_time
+	state, err := strconv.Atoi(row[1])
+	if err != nil {
+		return inputEntry{}, fmt.Errorf("Error parsing state in row (%v): %q", row, err)
+	}
+	duration, err := strconv.ParseFloat(row[2], 64)
+	if err != nil {
+		return inputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+	}
+	return inputEntry{duration, state}, nil
 }
 
 type request struct {
