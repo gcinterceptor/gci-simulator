@@ -38,7 +38,7 @@ func main() {
 	for godes.GetSystemTime() < duration.Seconds() {
 		lb.receiveRequest(&request{id: reqID})
 		interArrivalTime := poissonDist.Rand()
-		godes.Advance(interArrivalTime)
+		godes.Advance(interArrivalTime/1000)
 		reqID++
 	}
 
@@ -107,7 +107,11 @@ func (lb *loadBalancer) Run() {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*request)
-			lb.nextInstance().receiveRequest(r)			
+			if r.status == 200 {
+				fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
+			} else {
+				lb.nextInstance().receiveRequest(lb, r)		
+			}
 		}
 
 		if lb.arrivalQueue.Len() == 0 {
@@ -128,12 +132,17 @@ func (lb *loadBalancer) tryScaleDown() {
 	}
 }
 
+type reqRef struct {
+	lb   *loadBalancer
+	r   *request
+}
+
 type instance struct {
 	*godes.Runner
 	id           int
 	terminated   bool
 	cond  *godes.BooleanControl
-	req   *request
+	req   *reqRef
 	createdTime   float64
 	terminateTime float64
 	lastWorked     float64
@@ -146,11 +155,11 @@ func newInstance(id int, input string) *instance {
 	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0, buildEntryArray(input), 0}
 }
 
-func (i *instance) receiveRequest(r *request) {
+func (i *instance) receiveRequest(lb *loadBalancer, r *request) {
 	if i.isWorking() == true {
 		panic(fmt.Sprintf("Instances may not enqueue requests."))
 	}
-	i.req = r
+	i.req = &reqRef{lb, r}
 	i.cond.Set(true)
 }
 
@@ -174,13 +183,13 @@ func (i *instance) Run() {
 		}
 
 		responseTime, status := i.next() // temporary line
-		i.req.status = status
-		i.req.responseTime += responseTime 
+		i.req.r.status = status
+		i.req.r.responseTime += responseTime 
 		i.busyTime += responseTime
+
 		godes.Advance(responseTime)
 		i.lastWorked = godes.GetSystemTime()
-		
-		fmt.Printf("%d,%d,%.1f\n", i.req.id, i.req.status, i.req.responseTime*1000)
+		i.req.lb.receiveRequest(i.req.r)
 
 		i.cond.Set(false)
 	}
