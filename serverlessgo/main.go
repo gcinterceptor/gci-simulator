@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	idlenessDeadline = flag.Duration("i", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
 	duration = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
 	lambda   = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
 )
@@ -22,7 +23,7 @@ func main() {
 	fmt.Println("id,status,response_time")
 	flag.Parse()
 	
-	lb := newLoadBalancer()
+	lb := newLoadBalancer(*idlenessDeadline)
 	godes.AddRunner(lb)
 	godes.Run()
 
@@ -48,8 +49,8 @@ type loadBalancer struct {
 	idlenessDeadline time.Duration
 }
 
-func newLoadBalancer() *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), 300*time.Second}
+func newLoadBalancer(idlenessDeadline time.Duration) *loadBalancer {
+	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), idlenessDeadline}
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
