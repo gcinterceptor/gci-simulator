@@ -1,11 +1,10 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
-	"log"
 	"strconv"
-	"encoding/csv"
 )
 
 type inputEntry struct {
@@ -16,7 +15,7 @@ type inputEntry struct {
 func buildEntryArray(p string) ([]inputEntry, error) {
 	f, err := os.Open(p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error opening the file (%s), %q", p, err)
 	}
 	defer f.Close()
 	r := csv.NewReader(f)
@@ -34,7 +33,7 @@ func buildEntryArray(p string) ([]inputEntry, error) {
 	for _, row := range records[1:] {
 		entry, err := toEntry(row)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		entries = append(entries, entry)
 	}
