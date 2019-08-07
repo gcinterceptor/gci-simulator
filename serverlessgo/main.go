@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"sort"
@@ -65,7 +64,7 @@ type loadBalancer struct {
 
 func newLoadBalancer(idlenessDeadline time.Duration, inputs string) (*loadBalancer, error) {
 	if len(inputs) == 0 {
-		return nil, errors.New("Must have at least on file input!")
+		return nil, fmt.Errorf("Must have at least on file input!")
 	}
 	lb := &loadBalancer{
 		Runner:           &godes.Runner{},
