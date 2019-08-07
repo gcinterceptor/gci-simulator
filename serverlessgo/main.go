@@ -1,15 +1,15 @@
 package main
 
 import (
-	"fmt"
-	"flag"
-	"time"
-	"sort"
-	"strings"
-	"os"
-	"log"
-	"strconv"
 	"encoding/csv"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/agoussia/godes"
 
@@ -19,16 +19,16 @@ import (
 
 var (
 	idlenessDeadline = flag.Duration("i", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
-	duration = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
-	lambda   = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
-	inputs   = flag.String("inputs", "test.csv", "Comma-separated file paths (one per instance)")
+	duration         = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
+	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
+	inputs           = flag.String("inputs", "test.csv", "Comma-separated file paths (one per instance)")
 )
 
 func main() {
 	// TODO(David): to abstract output via struct
 	fmt.Println("id,status,response_time")
 	flag.Parse()
-	
+
 	lb := newLoadBalancer(*idlenessDeadline, *inputs)
 	godes.AddRunner(lb)
 	godes.Run()
@@ -38,7 +38,7 @@ func main() {
 	for godes.GetSystemTime() < duration.Seconds() {
 		lb.receiveRequest(&request{id: reqID})
 		interArrivalTime := poissonDist.Rand()
-		godes.Advance(interArrivalTime/1000)
+		godes.Advance(interArrivalTime / 1000)
 		reqID++
 	}
 
@@ -48,13 +48,13 @@ func main() {
 
 type loadBalancer struct {
 	*godes.Runner
-	isTerminated bool
-	arrivalQueue *godes.FIFOQueue
-	arrivalCond *godes.BooleanControl
-	instances      []*instance
+	isTerminated     bool
+	arrivalQueue     *godes.FIFOQueue
+	arrivalCond      *godes.BooleanControl
+	instances        []*instance
 	idlenessDeadline time.Duration
-	inputs   []string
-	index    int
+	inputs           []string
+	index            int
 }
 
 func newLoadBalancer(idlenessDeadline time.Duration, inputs string) *loadBalancer {
@@ -91,7 +91,7 @@ func (lb *loadBalancer) nextInstance() *instance {
 			break
 		}
 	}
-	
+
 	if selected == nil {
 		selected = newInstance(len(lb.instances), lb.nextInstanceInputFile())
 		godes.AddRunner(selected)
@@ -110,7 +110,7 @@ func (lb *loadBalancer) Run() {
 			if r.status == 200 {
 				fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
 			} else {
-				lb.nextInstance().receiveRequest(lb, r)		
+				lb.nextInstance().receiveRequest(lb, r)
 			}
 		}
 
@@ -126,29 +126,29 @@ func (lb *loadBalancer) Run() {
 
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
-		if godes.GetSystemTime() - i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
+		if godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
 			i.terminate()
 		}
 	}
 }
 
 type reqRef struct {
-	lb   *loadBalancer
-	r   *request
+	lb *loadBalancer
+	r  *request
 }
 
 type instance struct {
 	*godes.Runner
-	id           int
-	terminated   bool
-	cond  *godes.BooleanControl
-	req   *reqRef
+	id            int
+	terminated    bool
+	cond          *godes.BooleanControl
+	req           *reqRef
 	createdTime   float64
 	terminateTime float64
-	lastWorked     float64
+	lastWorked    float64
 	busyTime      float64
 	entries       []inputEntry
-	index 		  int
+	index         int
 }
 
 func newInstance(id int, input string) *instance {
@@ -184,7 +184,7 @@ func (i *instance) Run() {
 
 		responseTime, status := i.next() // temporary line
 		i.req.r.status = status
-		i.req.r.responseTime += responseTime 
+		i.req.r.responseTime += responseTime
 		i.busyTime += responseTime
 
 		godes.Advance(responseTime)
@@ -271,7 +271,7 @@ func toEntry(row []string) (inputEntry, error) {
 }
 
 type request struct {
-	id      int64
+	id           int64
 	responseTime float64
-	status  int
+	status       int
 }
