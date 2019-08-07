@@ -1,18 +1,15 @@
 package main
 
 import (
-	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/agoussia/godes"
-
 	"golang.org/x/exp/rand"
 	"gonum.org/v1/gonum/stat/distuv"
 )
@@ -21,7 +18,7 @@ var (
 	idlenessDeadline = flag.Duration("i", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
 	duration         = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
 	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
-	inputs           = flag.String("inputs", "test.csv", "Comma-separated file paths (one per instance)")
+	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
 )
 
 func main() {
@@ -29,12 +26,40 @@ func main() {
 	fmt.Println("id,status,response_time")
 	flag.Parse()
 
-	lb := newLoadBalancer(*idlenessDeadline, *inputs)
+	if len(*inputs) == 0 {
+		log.Fatalf("Must have at least one file input!")
+	}
+
+	var entries [][]inputEntry
+	for _, p := range strings.Split(*inputs, ",") {
+		func() {
+			f, err := os.Open(p)
+			if err != nil {
+				log.Fatalf("Error opening the file (%s), %q", p, err)
+			}
+			defer f.Close()
+
+			records, err := readRecords(f, p)
+			if err != nil {
+				log.Fatalf("Error reading records: %q", err)
+			}
+			e, err := buildEntryArray(records)
+			if err != nil {
+				log.Fatalf("Error building entries %s. Error: %q", p, err)
+			}
+			entries = append(entries, e)
+		}()
+	}
+
+	lb := newLoadBalancer(*idlenessDeadline, entries)
 	godes.AddRunner(lb)
 	godes.Run()
 
 	reqID := int64(0)
-	poissonDist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
+	poissonDist := &distuv.Poisson{
+		Lambda: *lambda,
+		Src:    rand.NewSource(uint64(time.Now().Nanosecond())),
+	}
 	for godes.GetSystemTime() < duration.Seconds() {
 		lb.receiveRequest(&request{id: reqID})
 		interArrivalTime := poissonDist.Rand()
@@ -46,6 +71,12 @@ func main() {
 	godes.WaitUntilDone()
 }
 
+type request struct {
+	id           int64
+	responseTime float64
+	status       int
+}
+
 type loadBalancer struct {
 	*godes.Runner
 	isTerminated     bool
@@ -53,12 +84,19 @@ type loadBalancer struct {
 	arrivalCond      *godes.BooleanControl
 	instances        []*instance
 	idlenessDeadline time.Duration
-	inputs           []string
+	inputs           [][]inputEntry
 	index            int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs string) *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), idlenessDeadline, strings.Split(inputs, ","), 0}
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry) *loadBalancer {
+	return &loadBalancer{
+		Runner:           &godes.Runner{},
+		arrivalQueue:     godes.NewFIFOQueue("arrival"),
+		arrivalCond:      godes.NewBooleanControl(),
+		instances:        make([]*instance, 0),
+		idlenessDeadline: idlenessDeadline,
+		inputs:           inputs,
+	}
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
@@ -74,7 +112,7 @@ func (lb *loadBalancer) terminate() {
 	lb.arrivalCond.Set(true)
 }
 
-func (lb *loadBalancer) nextInstanceInputFile() string {
+func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
 	input := lb.inputs[lb.index]
 	lb.index = (lb.index + 1) % len(lb.inputs)
 	return input
@@ -91,9 +129,8 @@ func (lb *loadBalancer) nextInstance() *instance {
 			break
 		}
 	}
-
 	if selected == nil {
-		selected = newInstance(len(lb.instances), lb.nextInstanceInputFile())
+		selected = newInstance(len(lb.instances), lb.idlenessDeadline, lb.nextInstanceInputs())
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
@@ -127,7 +164,7 @@ func (lb *loadBalancer) Run() {
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
 		if godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
-			i.terminate()
+			i.scaleDown()
 		}
 	}
 }
@@ -139,20 +176,28 @@ type reqRef struct {
 
 type instance struct {
 	*godes.Runner
-	id            int
-	terminated    bool
-	cond          *godes.BooleanControl
-	req           *reqRef
-	createdTime   float64
-	terminateTime float64
-	lastWorked    float64
-	busyTime      float64
-	entries       []inputEntry
-	index         int
+	id               int
+	terminated       bool
+	cond             *godes.BooleanControl
+	req              *request
+	createdTime      float64
+	terminateTime    float64
+	lastWorked       float64
+	busyTime         float64
+	idlenessDeadline time.Duration
+	entries          []inputEntry
+	index            int
 }
 
-func newInstance(id int, input string) *instance {
-	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0, buildEntryArray(input), 0}
+func newInstance(id int, idlenessDeadline time.Duration, input []inputEntry) *instance {
+	return &instance{
+		Runner:           &godes.Runner{},
+		id:               id,
+		cond:             godes.NewBooleanControl(),
+		createdTime:      godes.GetSystemTime(),
+		idlenessDeadline: idlenessDeadline,
+		entries:          input,
+	}
 }
 
 func (i *instance) receiveRequest(lb *loadBalancer, r *request) {
@@ -175,6 +220,11 @@ func (i *instance) next() (float64, int) {
 	return e.duration, e.status
 }
 
+func (i *instance) scaleDown() {
+	i.terminate()
+	i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
+}
+
 func (i *instance) Run() {
 	for {
 		i.cond.Wait(true)
@@ -182,14 +232,14 @@ func (i *instance) Run() {
 			break
 		}
 
-		responseTime, status := i.next() // temporary line
-		i.req.r.status = status
-		i.req.r.responseTime += responseTime
+		responseTime, status := i.next()
+		i.req.status = status
+		i.req.responseTime += responseTime
 		i.busyTime += responseTime
 
 		godes.Advance(responseTime)
 		i.lastWorked = godes.GetSystemTime()
-		i.req.lb.receiveRequest(i.req.r)
+		i.req.lb.receiveRequest(i.req)
 
 		i.cond.Set(false)
 	}
@@ -221,57 +271,4 @@ func (i *instance) getLastWorked() float64 {
 
 func (i *instance) getEfficiency() float64 {
 	return i.getBusyTime() / i.getUpTime()
-}
-
-type inputEntry struct {
-	duration float64
-	status   int
-}
-
-func buildEntryArray(p string) []inputEntry {
-	f, err := os.Open(p)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	r := csv.NewReader(f)
-	r.Comma = ';'
-
-	records, err := r.ReadAll()
-	if err != nil {
-		panic(fmt.Errorf("Error reading input file (%s): %q", p, err))
-	}
-	if len(records) <= 1 {
-		panic(fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p))
-	}
-
-	var entries []inputEntry
-	for _, row := range records[1:] {
-		entry, err := toEntry(row)
-		if err != nil {
-			log.Fatal(err)
-		}
-		entries = append(entries, entry)
-	}
-
-	return entries
-}
-
-func toEntry(row []string) (inputEntry, error) {
-	// Row format: timestamp;status;request_time;upstream_response_time
-	state, err := strconv.Atoi(row[1])
-	if err != nil {
-		return inputEntry{}, fmt.Errorf("Error parsing state in row (%v): %q", row, err)
-	}
-	duration, err := strconv.ParseFloat(row[2], 64)
-	if err != nil {
-		return inputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
-	}
-	return inputEntry{duration, state}, nil
-}
-
-type request struct {
-	id           int64
-	responseTime float64
-	status       int
 }
