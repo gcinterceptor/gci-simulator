@@ -1,34 +1,65 @@
 package main
 
 import (
-	"fmt"
 	"flag"
-	"time"
+	"fmt"
+	"log"
+	"os"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/agoussia/godes"
-
 	"golang.org/x/exp/rand"
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
 var (
 	idlenessDeadline = flag.Duration("i", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
-	duration = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
-	lambda   = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
+	duration         = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
+	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
+	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
 )
 
 func main() {
 	// TODO(David): to abstract output via struct
 	fmt.Println("id,status,response_time")
 	flag.Parse()
-	
-	lb := newLoadBalancer(*idlenessDeadline)
+
+	if len(*inputs) == 0 {
+		log.Fatalf("Must have at least one file input!")
+	}
+
+	var entries [][]inputEntry
+	for _, p := range strings.Split(*inputs, ",") {
+		func() {
+			f, err := os.Open(p)
+			if err != nil {
+				log.Fatalf("Error opening the file (%s), %q", p, err)
+			}
+			defer f.Close()
+
+			records, err := readRecords(f, p)
+			if err != nil {
+				log.Fatalf("Error reading records: %q", err)
+			}
+			e, err := buildEntryArray(records)
+			if err != nil {
+				log.Fatalf("Error building entries %s. Error: %q", p, err)
+			}
+			entries = append(entries, e)
+		}()
+	}
+
+	lb := newLoadBalancer(*idlenessDeadline, entries)
 	godes.AddRunner(lb)
 	godes.Run()
 
 	reqID := int64(0)
-	poissonDist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
+	poissonDist := &distuv.Poisson{
+		Lambda: *lambda,
+		Src:    rand.NewSource(uint64(time.Now().Nanosecond())),
+	}
 	for godes.GetSystemTime() < duration.Seconds() {
 		lb.receiveRequest(&request{id: reqID})
 		interArrivalTime := poissonDist.Rand()
@@ -40,17 +71,32 @@ func main() {
 	godes.WaitUntilDone()
 }
 
-type loadBalancer struct {
-	*godes.Runner
-	isTerminated bool
-	arrivalQueue *godes.FIFOQueue
-	arrivalCond *godes.BooleanControl
-	instances      []*instance
-	idlenessDeadline time.Duration
+type request struct {
+	id           int64
+	responseTime float64
+	status       int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration) *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, false, godes.NewFIFOQueue("arrival"), godes.NewBooleanControl(), make([]*instance, 0), idlenessDeadline}
+type loadBalancer struct {
+	*godes.Runner
+	isTerminated     bool
+	arrivalQueue     *godes.FIFOQueue
+	arrivalCond      *godes.BooleanControl
+	instances        []*instance
+	idlenessDeadline time.Duration
+	inputs           [][]inputEntry
+	index            int
+}
+
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry) *loadBalancer {
+	return &loadBalancer{
+		Runner:           &godes.Runner{},
+		arrivalQueue:     godes.NewFIFOQueue("arrival"),
+		arrivalCond:      godes.NewBooleanControl(),
+		instances:        make([]*instance, 0),
+		idlenessDeadline: idlenessDeadline,
+		inputs:           inputs,
+	}
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
@@ -66,6 +112,12 @@ func (lb *loadBalancer) terminate() {
 	lb.arrivalCond.Set(true)
 }
 
+func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
+	input := lb.inputs[lb.index]
+	lb.index = (lb.index + 1) % len(lb.inputs)
+	return input
+}
+
 func (lb *loadBalancer) nextInstance() *instance {
 	var selected *instance
 	// sorting instances to have the most recently used ones ahead on the array
@@ -77,9 +129,8 @@ func (lb *loadBalancer) nextInstance() *instance {
 			break
 		}
 	}
-	
 	if selected == nil {
-		selected = newInstance(len(lb.instances), lb.idlenessDeadline)
+		selected = newInstance(len(lb.instances), lb.idlenessDeadline, lb.nextInstanceInputs())
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
@@ -93,7 +144,7 @@ func (lb *loadBalancer) Run() {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*request)
-			lb.nextInstance().receiveRequest(r)			
+			lb.nextInstance().receiveRequest(r)
 		}
 
 		if lb.arrivalQueue.Len() == 0 {
@@ -108,7 +159,7 @@ func (lb *loadBalancer) Run() {
 
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
-		if godes.GetSystemTime() - i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
+		if godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
 			i.scaleDown()
 		}
 	}
@@ -116,19 +167,28 @@ func (lb *loadBalancer) tryScaleDown() {
 
 type instance struct {
 	*godes.Runner
-	id           int
-	terminated   bool
-	cond  *godes.BooleanControl
-	req   *request
-	createdTime   float64
-	terminateTime float64
-	lastWorked     float64
-	busyTime      float64
+	id               int
+	terminated       bool
+	cond             *godes.BooleanControl
+	req              *request
+	createdTime      float64
+	terminateTime    float64
+	lastWorked       float64
+	busyTime         float64
 	idlenessDeadline time.Duration
+	entries          []inputEntry
+	index            int
 }
 
-func newInstance(id int, idlenessDeadline time.Duration) *instance {
-	return &instance{&godes.Runner{}, id, false, godes.NewBooleanControl(), nil, godes.GetSystemTime(), 0, 0, 0, idlenessDeadline}
+func newInstance(id int, idlenessDeadline time.Duration, input []inputEntry) *instance {
+	return &instance{
+		Runner:           &godes.Runner{},
+		id:               id,
+		cond:             godes.NewBooleanControl(),
+		createdTime:      godes.GetSystemTime(),
+		idlenessDeadline: idlenessDeadline,
+		entries:          input,
+	}
 }
 
 func (i *instance) receiveRequest(r *request) {
@@ -145,6 +205,12 @@ func (i *instance) terminate() {
 	i.cond.Set(true)
 }
 
+func (i *instance) next() (float64, int) {
+	e := i.entries[i.index]
+	i.index = (i.index + 1) % len(i.entries)
+	return e.duration, e.status
+}
+
 func (i *instance) scaleDown() {
 	i.terminate()
 	i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
@@ -157,13 +223,13 @@ func (i *instance) Run() {
 			break
 		}
 
-		status, responseTime := 200, *lambda // temporary line
+		responseTime, status := i.next()
 		i.req.status = status
-		i.req.responseTime += responseTime 
+		i.req.responseTime += responseTime
 		i.busyTime += responseTime
 		godes.Advance(responseTime)
 		i.lastWorked = godes.GetSystemTime()
-		
+
 		fmt.Printf("%d,%d,%.1f\n", i.req.id, i.req.status, i.req.responseTime*1000)
 
 		i.cond.Set(false)
@@ -196,10 +262,4 @@ func (i *instance) getLastWorked() float64 {
 
 func (i *instance) getEfficiency() float64 {
 	return i.getBusyTime() / i.getUpTime()
-}
-
-type request struct {
-	id      int64
-	responseTime float64
-	status  int
 }
