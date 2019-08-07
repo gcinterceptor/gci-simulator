@@ -13,6 +13,24 @@ type inputEntry struct {
 }
 
 func buildEntryArray(p string) ([]inputEntry, error) {
+	records, err := getRecords(p)
+	if err != nil {
+		return nil, fmt.Errorf("%q", err)
+	}
+
+	var entries []inputEntry
+	for _, row := range records[1:] {
+		entry, err := toEntry(row)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
+}
+
+func getRecords(p string) ([][]string, error) {
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening the file (%s), %q", p, err)
@@ -28,17 +46,7 @@ func buildEntryArray(p string) ([]inputEntry, error) {
 	if len(records) <= 1 {
 		return nil, fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p)
 	}
-
-	var entries []inputEntry
-	for _, row := range records[1:] {
-		entry, err := toEntry(row)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, entry)
-	}
-
-	return entries, nil
+	return records, nil
 }
 
 func toEntry(row []string) (inputEntry, error) {
