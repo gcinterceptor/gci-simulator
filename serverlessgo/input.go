@@ -3,61 +3,53 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"os"
+	"io"
 	"strconv"
 )
 
 type inputEntry struct {
-	duration float64
 	status   int
+	duration float64
 }
 
-func buildEntryArray(p string) ([]inputEntry, error) {
-	records, err := getRecords(p)
-	if err != nil {
-		return nil, fmt.Errorf("%q", err)
+func buildEntryArray(records [][]string) ([]inputEntry, error) {
+	if len(records) == 0 {
+		return nil, fmt.Errorf("Must have at least one file input!")
 	}
-
 	var entries []inputEntry
-	for _, row := range records[1:] {
+	for _, row := range records {
 		entry, err := toEntry(row)
 		if err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)
 	}
-
 	return entries, nil
 }
 
-func getRecords(p string) ([][]string, error) {
-	f, err := os.Open(p)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening the file (%s), %q", p, err)
-	}
-	defer f.Close()
+func readRecords(f io.Reader, p string) ([][]string, error) {
 	r := csv.NewReader(f)
-	r.Comma = ';'
+	r.Comma = ','
 
 	records, err := r.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("Error reading input file (%s): %q", p, err)
+		return nil, fmt.Errorf("Error parsing csv (%s): %q", p, err)
 	}
 	if len(records) <= 1 {
 		return nil, fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p)
 	}
-	return records, nil
+	return records[1:], nil
 }
 
 func toEntry(row []string) (inputEntry, error) {
-	// Row format: timestamp;status;request_time;upstream_response_time
-	state, err := strconv.Atoi(row[1])
+	// Row format: status;request_time
+	status, err := strconv.Atoi(row[0])
 	if err != nil {
-		return inputEntry{}, fmt.Errorf("Error parsing state in row (%v): %q", row, err)
+		return inputEntry{}, fmt.Errorf("Error parsing status in row (%v): %q", row, err)
 	}
-	duration, err := strconv.ParseFloat(row[2], 64)
+	duration, err := strconv.ParseFloat(row[1], 64)
 	if err != nil {
 		return inputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
 	}
-	return inputEntry{duration, state}, nil
+	return inputEntry{status, duration}, nil
 }

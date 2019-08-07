@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -16,7 +18,7 @@ var (
 	idlenessDeadline = flag.Duration("i", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
 	duration         = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
 	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
-	inputs           = flag.String("inputs", "test.csv", "Comma-separated file paths (one per instance)")
+	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
 )
 
 func main() {
@@ -24,16 +26,40 @@ func main() {
 	fmt.Println("id,status,response_time")
 	flag.Parse()
 
-	lb, err := newLoadBalancer(*idlenessDeadline, *inputs)
-	if err != nil {
-		panic(err)
+	if len(*inputs) == 0 {
+		log.Fatalf("Must have at least one file input!")
 	}
 
+	var entries [][]inputEntry
+	for _, p := range strings.Split(*inputs, ",") {
+		func() {
+			f, err := os.Open(p)
+			if err != nil {
+				log.Fatalf("Error opening the file (%s), %q", p, err)
+			}
+			defer f.Close()
+
+			records, err := readRecords(f, p)
+			if err != nil {
+				log.Fatalf("Error reading records: %q", err)
+			}
+			e, err := buildEntryArray(records)
+			if err != nil {
+				log.Fatalf("Error building entries %s. Error: %q", p, err)
+			}
+			entries = append(entries, e)
+		}()
+	}
+
+	lb := newLoadBalancer(*idlenessDeadline, entries)
 	godes.AddRunner(lb)
 	godes.Run()
 
 	reqID := int64(0)
-	poissonDist := &distuv.Poisson{*lambda, rand.NewSource(uint64(time.Now().Nanosecond()))}
+	poissonDist := &distuv.Poisson{
+		Lambda: *lambda,
+		Src:    rand.NewSource(uint64(time.Now().Nanosecond())),
+	}
 	for godes.GetSystemTime() < duration.Seconds() {
 		lb.receiveRequest(&request{id: reqID})
 		interArrivalTime := poissonDist.Rand()
@@ -58,25 +84,19 @@ type loadBalancer struct {
 	arrivalCond      *godes.BooleanControl
 	instances        []*instance
 	idlenessDeadline time.Duration
-	inputs           []string
+	inputs           [][]inputEntry
 	index            int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs string) (*loadBalancer, error) {
-	if len(inputs) == 0 {
-		return nil, fmt.Errorf("Must have at least on file input!")
-	}
-	lb := &loadBalancer{
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry) *loadBalancer {
+	return &loadBalancer{
 		Runner:           &godes.Runner{},
-		isTerminated:     false,
 		arrivalQueue:     godes.NewFIFOQueue("arrival"),
 		arrivalCond:      godes.NewBooleanControl(),
 		instances:        make([]*instance, 0),
 		idlenessDeadline: idlenessDeadline,
-		inputs:           strings.Split(inputs, ","),
-		index:            0,
+		inputs:           inputs,
 	}
-	return lb, nil
 }
 
 func (lb *loadBalancer) receiveRequest(r *request) {
@@ -92,7 +112,7 @@ func (lb *loadBalancer) terminate() {
 	lb.arrivalCond.Set(true)
 }
 
-func (lb *loadBalancer) nextInstanceInputFile() string {
+func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
 	input := lb.inputs[lb.index]
 	lb.index = (lb.index + 1) % len(lb.inputs)
 	return input
@@ -110,19 +130,7 @@ func (lb *loadBalancer) nextInstance() *instance {
 		}
 	}
 	if selected == nil {
-		var err error
-		for i := 0; i < len(lb.inputs); i++ {
-			selected, err = newInstance(len(lb.instances), lb.idlenessDeadline, lb.nextInstanceInputFile())
-			// try to initiate an instance
-			if err == nil {
-				break
-			}
-		}
-
-		if err != nil {
-			panic(fmt.Sprintf("No valid input file to initiate an instance. Error: %s", err))
-		}
-
+		selected = newInstance(len(lb.instances), lb.idlenessDeadline, lb.nextInstanceInputs())
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
@@ -172,28 +180,15 @@ type instance struct {
 	index            int
 }
 
-func newInstance(id int, idlenessDeadline time.Duration, input string) (*instance, error) {
-	entries, err := buildEntryArray(input)
-	if err != nil {
-		return nil, err
-	}
-
-	instance := &instance{
+func newInstance(id int, idlenessDeadline time.Duration, input []inputEntry) *instance {
+	return &instance{
 		Runner:           &godes.Runner{},
 		id:               id,
-		terminated:       false,
 		cond:             godes.NewBooleanControl(),
-		req:              nil,
 		createdTime:      godes.GetSystemTime(),
-		terminateTime:    0,
-		lastWorked:       0,
-		busyTime:         0,
 		idlenessDeadline: idlenessDeadline,
-		entries:          entries,
-		index:            0,
+		entries:          input,
 	}
-
-	return instance, nil
 }
 
 func (i *instance) receiveRequest(r *request) {
