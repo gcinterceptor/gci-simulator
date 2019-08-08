@@ -18,7 +18,7 @@ type loadBalancer struct {
 	inputs           [][]inputEntry
 	index            int
 	output           *outputWriter
-	finishedReqs     int 
+	finishedReqs     int
 }
 
 func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter) *loadBalancer {

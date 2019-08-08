@@ -51,10 +51,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating LB's outputWriter: %q", err)
 	}
-	
+
 	lb := newLoadBalancer(*idlenessDeadline, entries, outputWriter)
 	defer lb.terminate()
-	
+
 	godes.AddRunner(lb)
 	godes.Run()
 
