@@ -7,7 +7,7 @@ type request struct {
 	hops		 []int
 }
 
-func (r *request) hasPassedInstance(id int) bool {
+func (r *request) hasBeenProcessed(id int) bool {
 	for _, i := range r.hops {
 		if id == i {
 			return true

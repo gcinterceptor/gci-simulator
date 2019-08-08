@@ -63,7 +63,7 @@ func (lb *loadBalancer) nextInstance(r *request) *instance {
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
-		if !instance.isWorking() && !instance.isTerminated() && !r.hasPassedInstance(instance.id) {
+		if !instance.isWorking() && !instance.isTerminated() && !r.hasBeenProcessed(instance.id) {
 			selected = instance
 			break
 		}
