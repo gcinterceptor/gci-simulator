@@ -30,12 +30,12 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry) *loa
 	}
 }
 
-func (lb *loadBalancer) receive(r *request) {
+func (lb *loadBalancer) foward(r *request) {
 	lb.arrivalQueue.Place(r)
 	lb.arrivalCond.Set(true)
 }
 
-func (lb *loadBalancer) foward(r *request) {
+func (lb *loadBalancer) response(r *request) {
 	if r.status == 200 {
 		fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
 	} else {
@@ -92,7 +92,7 @@ func (lb *loadBalancer) Run() {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*request)
-			lb.nextInstance(r).receive(lb, r)
+			lb.nextInstance(r).receive(r)
 		}
 
 		if lb.arrivalQueue.Len() == 0 {

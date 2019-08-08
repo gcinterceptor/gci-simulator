@@ -35,7 +35,7 @@ func newInstance(id int, lb *loadBalancer, idlenessDeadline time.Duration, input
 	}
 }
 
-func (i *instance) receive(lb *loadBalancer, r *request) {
+func (i *instance) receive(r *request) {
 	if i.isWorking() == true {
 		panic(fmt.Sprintf("Instances may not enqueue requests."))
 	}
@@ -75,7 +75,7 @@ func (i *instance) Run() {
 
 		godes.Advance(responseTime)
 		i.lastWorked = godes.GetSystemTime()
-		i.lb.foward(i.req)
+		i.lb.response(i.req)
 
 		i.cond.Set(false)
 	}
