@@ -12,11 +12,7 @@ type outputWriter struct {
 func newOutputWriter(path, header string) (*outputWriter, error) {
 	f, err := os.Create(path)
 	if err != nil {
-		if os.IsExist(err) {
-			return nil, fmt.Errorf("File to output already exists: %q", err)
-		} else {
-			return nil, fmt.Errorf("Error trying to create the output file: %q", err)
-		}
+		return nil, fmt.Errorf("Error trying to create the output file: %q", err)
 	}
 	_, err = f.WriteString(header)
 	if err != nil {
