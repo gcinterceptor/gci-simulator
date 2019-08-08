@@ -17,7 +17,7 @@ var (
 	duration         = flag.Duration("duration", 300*time.Second, "Duration of the simulation.")
 	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
-	output          = flag.String("output", "", "file paths to output")
+	output           = flag.String("output", "", "file paths to output without extension")
 )
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	outputWriter, err := newOutputWriter(*output)
 	defer outputWriter.close()
 	if err != nil {
-		log.Fatalf("Error creating outputWriter: %q", err)
+		log.Fatalf("Error creating LB's outputWriter: %q", err)
 	}
 	
 	lb := newLoadBalancer(*idlenessDeadline, entries, outputWriter)
