@@ -106,6 +106,10 @@ func (lb *loadBalancer) tryScaleDown() {
 	}
 }
 
+func (lb *loadBalancer) getFinishedReqs() int {
+	return lb.finishedReqs
+}
+
 func (lb *loadBalancer) getTotalCost() float64 {
 	var totalCost float64
 	for _, i := range lb.instances {
