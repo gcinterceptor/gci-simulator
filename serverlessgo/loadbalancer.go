@@ -18,6 +18,7 @@ type loadBalancer struct {
 	inputs           [][]inputEntry
 	index            int
 	output           *outputWriter
+	finishedReqs     int 
 }
 
 func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter) *loadBalancer {
@@ -40,6 +41,7 @@ func (lb *loadBalancer) foward(r *request) {
 func (lb *loadBalancer) response(r *request) {
 	if r.status == 200 {
 		lb.output.record(fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000))
+		lb.finishedReqs++
 	} else {
 		lb.nextInstance(r).receive(r)
 	}
