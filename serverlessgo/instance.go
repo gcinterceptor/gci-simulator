@@ -7,13 +7,6 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type request struct {
-	id           int64
-	responseTime float64
-	status       int
-	hops		 []int
-}
-
 type instance struct {
 	*godes.Runner
 	id               int
