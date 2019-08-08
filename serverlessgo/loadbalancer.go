@@ -17,9 +17,10 @@ type loadBalancer struct {
 	idlenessDeadline time.Duration
 	inputs           [][]inputEntry
 	index            int
+	output           *outputWriter
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry) *loadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter) *loadBalancer {
 	return &loadBalancer{
 		Runner:           &godes.Runner{},
 		arrivalQueue:     godes.NewFIFOQueue("arrival"),
@@ -27,6 +28,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry) *loa
 		instances:        make([]*instance, 0),
 		idlenessDeadline: idlenessDeadline,
 		inputs:           inputs,
+		output:           output,
 	}
 }
 
@@ -37,7 +39,7 @@ func (lb *loadBalancer) foward(r *request) {
 
 func (lb *loadBalancer) response(r *request) {
 	if r.status == 200 {
-		fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
+		lb.output.record(fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000))
 	} else {
 		lb.nextInstance(r).receive(r)
 	}
