@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"time"
-	
+
 	"github.com/agoussia/godes"
 )
 
@@ -39,7 +39,7 @@ func (lb *loadBalancer) foward(r *request) {
 	if r.status == 200 {
 		fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
 	} else {
-		lb.nextInstance().receive(lb, r)
+		lb.nextInstance(r).receive(lb, r)
 	}
 }
 
@@ -57,13 +57,22 @@ func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
 	return input
 }
 
-func (lb *loadBalancer) nextInstance() *instance {
+func contains(ids []int, id int) bool {
+	for _, i := range ids {
+		if id == i {
+			return true
+		}
+	}
+	return false
+}
+
+func (lb *loadBalancer) nextInstance(r *request) *instance {
 	var selected *instance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
-		if !instance.isWorking() && !instance.isTerminated() {
+		if !instance.isWorking() && !instance.isTerminated() && !contains(r.hops, instance.id) {
 			selected = instance
 			break
 		}
@@ -83,7 +92,7 @@ func (lb *loadBalancer) Run() {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*request)
-			lb.nextInstance().receive(lb, r)
+			lb.nextInstance(r).receive(lb, r)
 		}
 
 		if lb.arrivalQueue.Len() == 0 {
