@@ -46,12 +46,12 @@ func main() {
 			entries = append(entries, e)
 		}()
 	}
-	outputWriter, err := newOutputWriter(*output)
+	header := "id,status,response_time\n"
+	outputWriter, err := newOutputWriter(*output, header)
 	defer outputWriter.close()
 	if err != nil {
 		log.Fatalf("Error creating LB's outputWriter: %q", err)
 	}
-
 	lb := newLoadBalancer(*idlenessDeadline, entries, outputWriter)
 	defer lb.terminate()
 

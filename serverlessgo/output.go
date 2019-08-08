@@ -9,8 +9,8 @@ type outputWriter struct {
 	f *os.File
 }
 
-func newOutputWriter(p string) (*outputWriter, error) {
-	f, err := os.Create(p)
+func newOutputWriter(path, header string) (*outputWriter, error) {
+	f, err := os.Create(path)
 	if err != nil {
 		if os.IsExist(err) {
 			return nil, fmt.Errorf("File to output already exists: %q", err)
@@ -18,7 +18,7 @@ func newOutputWriter(p string) (*outputWriter, error) {
 			return nil, fmt.Errorf("Error trying to create the output file: %q", err)
 		}
 	}
-	_, err = f.WriteString("id,status,response_time\n")
+	_, err = f.WriteString(header)
 	if err != nil {
 		return nil, fmt.Errorf("Error trying to write the csv header: %q", err)
 	}

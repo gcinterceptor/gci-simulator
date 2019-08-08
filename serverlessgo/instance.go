@@ -40,7 +40,7 @@ func (i *instance) receive(r *request) {
 		panic(fmt.Sprintf("Instances may not enqueue requests."))
 	}
 	i.req = r
-	i.req.hops = append(i.req.hops, i.id) 
+	i.req.hops = append(i.req.hops, i.id)
 	i.cond.Set(true)
 }
 
@@ -67,7 +67,6 @@ func (i *instance) Run() {
 		if i.isTerminated() {
 			break
 		}
-
 		responseTime, status := i.next()
 		i.req.status = status
 		i.req.responseTime += responseTime

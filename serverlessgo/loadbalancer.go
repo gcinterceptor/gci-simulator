@@ -78,7 +78,6 @@ func (lb *loadBalancer) nextInstance(r *request) *instance {
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
 	}
-
 	return selected
 }
 
@@ -89,7 +88,6 @@ func (lb *loadBalancer) Run() {
 			r := lb.arrivalQueue.Get().(*request)
 			lb.nextInstance(r).receive(r)
 		}
-
 		if lb.arrivalQueue.Len() == 0 {
 			if lb.isTerminated {
 				break
@@ -106,4 +104,20 @@ func (lb *loadBalancer) tryScaleDown() {
 			i.scaleDown()
 		}
 	}
+}
+
+func (lb *loadBalancer) getTotalCost() float64 {
+	var totalCost float64
+	for _, i := range lb.instances {
+		totalCost += i.getUpTime()
+	}
+	return totalCost
+}
+
+func (lb *loadBalancer) getTotalEfficiency() float64 {
+	var totalEfficiency float64
+	for _, i := range lb.instances {
+		totalEfficiency += i.getEfficiency()
+	}
+	return totalEfficiency / float64(len(lb.instances))
 }
