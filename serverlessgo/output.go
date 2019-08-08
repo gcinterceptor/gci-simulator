@@ -32,3 +32,10 @@ func (o *outputWriter) record(s string) error {
 func (o *outputWriter) close() {
 	o.f.Close()
 }
+
+func printSimulationMetrics(throughput int, totalCost, totalEfficiency float64, simulationTime int64) {
+	fmt.Printf("Throughput: %d\n", throughput)
+	fmt.Printf("Total cost of instances: %.5f\n", totalCost)
+	fmt.Printf("Total efficiency of instances: %.10f\n", totalEfficiency)
+	fmt.Printf("time running the simulation: %d seconds\n", simulationTime)
+}
