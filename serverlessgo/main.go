@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -15,7 +14,7 @@ import (
 
 var (
 	idlenessDeadline = flag.Duration("idleness", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
-	duration         = flag.Duration("duration", 12000*time.Second, "Duration of the simulation.")
+	duration         = flag.Duration("duration", 36000*time.Second, "Duration of the simulation.") // default value is 10 hours
 	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
 	output           = flag.String("output", "", "file paths to output without extension")
@@ -76,8 +75,6 @@ func main() {
 	throughput := lb.getFinishedReqs()
 	totalCost := lb.getTotalCost()
 	totalEfficiency := lb.getTotalEfficiency()
-	fmt.Println("throughput,totalCost,totalEfficiency")
-	fmt.Printf("%d,%.5f,%.10f\n", throughput, totalCost, totalEfficiency)
-
-	fmt.Printf("time running the simulation: %v seconds\n", time.Since(before).Nanoseconds()/1000000000)
+	simulationTime := time.Since(before).Nanoseconds()/1000000000
+	printSimulationMetrics(throughput, totalCost, totalEfficiency, simulationTime)
 }
