@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -70,4 +71,11 @@ func main() {
 		reqID++
 	}
 	godes.WaitUntilDone()
+
+	throughput := lb.getFinishedReqs()
+	totalCost := lb.getTotalCost()
+	totalEfficiency := lb.getTotalEfficiency()
+
+	fmt.Println("throughput,totalCost,totalEfficiency")
+	fmt.Printf("%d,%.1f,%.1f", throughput, totalCost, totalEfficiency)
 }
