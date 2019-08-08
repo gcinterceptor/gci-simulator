@@ -39,7 +39,7 @@ func (lb *loadBalancer) response(r *request) {
 	if r.status == 200 {
 		fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
 	} else {
-		lb.nextInstance(r).receive(lb, r)
+		lb.nextInstance(r).receive(r)
 	}
 }
 
@@ -57,22 +57,13 @@ func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
 	return input
 }
 
-func contains(ids []int, id int) bool {
-	for _, i := range ids {
-		if id == i {
-			return true
-		}
-	}
-	return false
-}
-
 func (lb *loadBalancer) nextInstance(r *request) *instance {
 	var selected *instance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
-		if !instance.isWorking() && !instance.isTerminated() && !contains(r.hops, instance.id) {
+		if !instance.isWorking() && !instance.isTerminated() && !r.hasPassedInstance(instance.id) {
 			selected = instance
 			break
 		}
