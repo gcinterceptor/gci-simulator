@@ -10,23 +10,28 @@ import (
 
 type loadBalancer struct {
 	*godes.Runner
-	isTerminated     bool
-	arrivalQueue     *godes.FIFOQueue
-	arrivalCond      *godes.BooleanControl
-	instances        []*instance
-	idlenessDeadline time.Duration
-	inputs           [][]inputEntry
-	index            int
+	isTerminated       bool
+	arrivalQueue       *godes.FIFOQueue
+	arrivalCond        *godes.BooleanControl
+	instances          []*instance
+	idlenessDeadline   time.Duration
+	inputs             [][]inputEntry
+	index              int
+	output             *outputWriter
+	finishedReqs       int
+	optimizedScheduler bool
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry) *loadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter, optimizedScheduler bool) *loadBalancer {
 	return &loadBalancer{
-		Runner:           &godes.Runner{},
-		arrivalQueue:     godes.NewFIFOQueue("arrival"),
-		arrivalCond:      godes.NewBooleanControl(),
-		instances:        make([]*instance, 0),
-		idlenessDeadline: idlenessDeadline,
-		inputs:           inputs,
+		Runner:             &godes.Runner{},
+		arrivalQueue:       godes.NewFIFOQueue("arrival"),
+		arrivalCond:        godes.NewBooleanControl(),
+		instances:          make([]*instance, 0),
+		idlenessDeadline:   idlenessDeadline,
+		inputs:             inputs,
+		output:             output,
+		optimizedScheduler: optimizedScheduler,
 	}
 }
 
@@ -37,18 +42,21 @@ func (lb *loadBalancer) foward(r *request) {
 
 func (lb *loadBalancer) response(r *request) {
 	if r.status == 200 {
-		fmt.Printf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
+		lb.output.record(fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000))
+		lb.finishedReqs++
 	} else {
 		lb.nextInstance(r).receive(r)
 	}
 }
 
 func (lb *loadBalancer) terminate() {
-	for _, i := range lb.instances {
-		i.terminate()
+	if !lb.isTerminated {
+		for _, i := range lb.instances {
+			i.terminate()
+		}
+		lb.isTerminated = true
+		lb.arrivalCond.Set(true)
 	}
-	lb.isTerminated = true
-	lb.arrivalCond.Set(true)
 }
 
 func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
@@ -69,12 +77,15 @@ func (lb *loadBalancer) nextInstance(r *request) *instance {
 		}
 	}
 	if selected == nil {
-		selected = newInstance(len(lb.instances), lb, lb.idlenessDeadline, lb.nextInstanceInputs())
+		nextInstanceInput := lb.nextInstanceInputs()
+		if lb.optimizedScheduler && r.status != 503 {
+			nextInstanceInput = nextInstanceInput[1:]
+		}
+		selected = newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
 	}
-
 	return selected
 }
 
@@ -85,7 +96,6 @@ func (lb *loadBalancer) Run() {
 			r := lb.arrivalQueue.Get().(*request)
 			lb.nextInstance(r).receive(r)
 		}
-
 		if lb.arrivalQueue.Len() == 0 {
 			if lb.isTerminated {
 				break
@@ -102,4 +112,24 @@ func (lb *loadBalancer) tryScaleDown() {
 			i.scaleDown()
 		}
 	}
+}
+
+func (lb *loadBalancer) getFinishedReqs() int {
+	return lb.finishedReqs
+}
+
+func (lb *loadBalancer) getTotalCost() float64 {
+	var totalCost float64
+	for _, i := range lb.instances {
+		totalCost += i.getUpTime()
+	}
+	return totalCost
+}
+
+func (lb *loadBalancer) getTotalEfficiency() float64 {
+	var totalEfficiency float64
+	for _, i := range lb.instances {
+		totalEfficiency += i.getEfficiency()
+	}
+	return totalEfficiency / float64(len(lb.instances))
 }

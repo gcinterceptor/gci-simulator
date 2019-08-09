@@ -30,6 +30,7 @@ func newInstance(id int, lb *loadBalancer, idlenessDeadline time.Duration, input
 		id:               id,
 		cond:             godes.NewBooleanControl(),
 		createdTime:      godes.GetSystemTime(),
+		lastWorked:       godes.GetSystemTime(),
 		idlenessDeadline: idlenessDeadline,
 		entries:          input,
 	}
@@ -40,19 +41,23 @@ func (i *instance) receive(r *request) {
 		panic(fmt.Sprintf("Instances may not enqueue requests."))
 	}
 	i.req = r
-	i.req.hops = append(i.req.hops, i.id) 
+	i.req.hops = append(i.req.hops, i.id)
 	i.cond.Set(true)
 }
 
 func (i *instance) terminate() {
-	i.terminateTime = godes.GetSystemTime()
-	i.terminated = true
-	i.cond.Set(true)
+	if !i.terminated {
+		i.terminateTime = godes.GetSystemTime()
+		i.terminated = true
+		i.cond.Set(true)
+	}
 }
 
 func (i *instance) scaleDown() {
-	i.terminate()
-	i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
+	if !i.terminated {
+		i.terminate()
+		i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
+	}
 }
 
 func (i *instance) next() (float64, int) {
@@ -67,7 +72,6 @@ func (i *instance) Run() {
 		if i.isTerminated() {
 			break
 		}
-
 		responseTime, status := i.next()
 		i.req.status = status
 		i.req.responseTime += responseTime

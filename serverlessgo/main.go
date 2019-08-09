@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -14,21 +13,21 @@ import (
 )
 
 var (
-	idlenessDeadline = flag.Duration("i", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
-	duration         = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
+	idlenessDeadline = flag.Duration("idleness", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
+	duration         = flag.Duration("duration", 36000*time.Second, "Duration of the simulation.") // default value is 10 hours
 	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
+	output           = flag.String("output", "", "file paths to output without extension")
+	optimized        = flag.Bool("optimized", false, "Define if the simulation must use the optimized scheduler")
 )
 
 func main() {
-	// TODO(David): to abstract output via struct
-	fmt.Println("id,status,response_time")
+	before := time.Now()
 	flag.Parse()
 
 	if len(*inputs) == 0 {
 		log.Fatalf("Must have at least one file input!")
 	}
-
 	var entries [][]inputEntry
 	for _, p := range strings.Split(*inputs, ",") {
 		func() {
@@ -50,7 +49,14 @@ func main() {
 		}()
 	}
 
-	lb := newLoadBalancer(*idlenessDeadline, entries)
+	header := "id,status,response_time\n"
+	outputWriter, err := newOutputWriter(*output, header)
+	defer outputWriter.close()
+	if err != nil {
+		log.Fatalf("Error creating LB's outputWriter: %q", err)
+	}
+	lb := newLoadBalancer(*idlenessDeadline, entries, outputWriter, *optimized)
+
 	godes.AddRunner(lb)
 	godes.Run()
 
@@ -65,7 +71,12 @@ func main() {
 		godes.Advance(interArrivalTime / 1000)
 		reqID++
 	}
-
 	lb.terminate()
 	godes.WaitUntilDone()
+
+	throughput := lb.getFinishedReqs()
+	totalCost := lb.getTotalCost()
+	totalEfficiency := lb.getTotalEfficiency()
+	simulationTime := time.Since(before).Nanoseconds()/1000000000
+	printSimulationMetrics(throughput, totalCost, totalEfficiency, simulationTime)
 }
