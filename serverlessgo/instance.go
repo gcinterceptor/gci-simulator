@@ -30,6 +30,7 @@ func newInstance(id int, lb *loadBalancer, idlenessDeadline time.Duration, input
 		id:               id,
 		cond:             godes.NewBooleanControl(),
 		createdTime:      godes.GetSystemTime(),
+		lastWorked:       godes.GetSystemTime(),
 		idlenessDeadline: idlenessDeadline,
 		entries:          input,
 	}
