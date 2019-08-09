@@ -45,14 +45,18 @@ func (i *instance) receive(r *request) {
 }
 
 func (i *instance) terminate() {
-	i.terminateTime = godes.GetSystemTime()
-	i.terminated = true
-	i.cond.Set(true)
+	if !i.terminated {
+		i.terminateTime = godes.GetSystemTime()
+		i.terminated = true
+		i.cond.Set(true)
+	}
 }
 
 func (i *instance) scaleDown() {
-	i.terminate()
-	i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
+	if !i.terminated {
+		i.terminate()
+		i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
+	}
 }
 
 func (i *instance) next() (float64, int) {
