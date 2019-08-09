@@ -18,6 +18,7 @@ var (
 	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
 	output           = flag.String("output", "", "file paths to output without extension")
+	optimized        = flag.Bool("optimized", false, "Define if the simulation must use the optimized scheduler")
 )
 
 func main() {
@@ -47,13 +48,14 @@ func main() {
 			entries = append(entries, e)
 		}()
 	}
+
 	header := "id,status,response_time\n"
 	outputWriter, err := newOutputWriter(*output, header)
 	defer outputWriter.close()
 	if err != nil {
 		log.Fatalf("Error creating LB's outputWriter: %q", err)
 	}
-	lb := newLoadBalancer(*idlenessDeadline, entries, outputWriter)
+	lb := newLoadBalancer(*idlenessDeadline, entries, outputWriter, *optimized)
 
 	godes.AddRunner(lb)
 	godes.Run()

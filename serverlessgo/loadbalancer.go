@@ -10,26 +10,28 @@ import (
 
 type loadBalancer struct {
 	*godes.Runner
-	isTerminated     bool
-	arrivalQueue     *godes.FIFOQueue
-	arrivalCond      *godes.BooleanControl
-	instances        []*instance
-	idlenessDeadline time.Duration
-	inputs           [][]inputEntry
-	index            int
-	output           *outputWriter
-	finishedReqs     int
+	isTerminated       bool
+	arrivalQueue       *godes.FIFOQueue
+	arrivalCond        *godes.BooleanControl
+	instances          []*instance
+	idlenessDeadline   time.Duration
+	inputs             [][]inputEntry
+	index              int
+	output             *outputWriter
+	finishedReqs       int
+	optimizedScheduler bool
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter) *loadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter, optimizedScheduler bool) *loadBalancer {
 	return &loadBalancer{
-		Runner:           &godes.Runner{},
-		arrivalQueue:     godes.NewFIFOQueue("arrival"),
-		arrivalCond:      godes.NewBooleanControl(),
-		instances:        make([]*instance, 0),
-		idlenessDeadline: idlenessDeadline,
-		inputs:           inputs,
-		output:           output,
+		Runner:             &godes.Runner{},
+		arrivalQueue:       godes.NewFIFOQueue("arrival"),
+		arrivalCond:        godes.NewBooleanControl(),
+		instances:          make([]*instance, 0),
+		idlenessDeadline:   idlenessDeadline,
+		inputs:             inputs,
+		output:             output,
+		optimizedScheduler: optimizedScheduler,
 	}
 }
 
@@ -48,11 +50,13 @@ func (lb *loadBalancer) response(r *request) {
 }
 
 func (lb *loadBalancer) terminate() {
-	for _, i := range lb.instances {
-		i.terminate()
+	if !lb.isTerminated {
+		for _, i := range lb.instances {
+			i.terminate()
+		}
+		lb.isTerminated = true
+		lb.arrivalCond.Set(true)
 	}
-	lb.isTerminated = true
-	lb.arrivalCond.Set(true)
 }
 
 func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
@@ -73,7 +77,11 @@ func (lb *loadBalancer) nextInstance(r *request) *instance {
 		}
 	}
 	if selected == nil {
-		selected = newInstance(len(lb.instances), lb, lb.idlenessDeadline, lb.nextInstanceInputs())
+		nextInstanceInput := lb.nextInstanceInputs()
+		if lb.optimizedScheduler && r.status != 503 {
+			nextInstanceInput = nextInstanceInput[1:]
+		}
+		selected = newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
 		lb.instances = append([]*instance{selected}, lb.instances...)
