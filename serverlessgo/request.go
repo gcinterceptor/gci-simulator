@@ -4,7 +4,11 @@ type request struct {
 	id           int64
 	responseTime float64
 	status       int
-	hops		 []int
+	hops         []int
+}
+
+func newRequest(id int64) *request {
+	return &request{id: id}
 }
 
 func (r *request) hasBeenProcessed(id int) bool {
