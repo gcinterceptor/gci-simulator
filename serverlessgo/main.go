@@ -17,7 +17,7 @@ var (
 	duration         = flag.Duration("duration", 36000*time.Second, "Duration of the simulation.") // default value is 10 hours
 	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "", "Comma-separated file paths (one per instance)")
-	output           = flag.String("output", "", "file paths to output without extension")
+	output           = flag.String("output", "output.csv", "file paths to output without extension")
 	optimized        = flag.Bool("optimized", false, "Define if the simulation must use the optimized scheduler")
 )
 
@@ -77,6 +77,6 @@ func main() {
 	throughput := lb.getFinishedReqs()
 	totalCost := lb.getTotalCost()
 	totalEfficiency := lb.getTotalEfficiency()
-	simulationTime := time.Since(before).Nanoseconds()/1000000000
+	simulationTime := time.Since(before).Nanoseconds() / 1000000000
 	printSimulationMetrics(throughput, totalCost, totalEfficiency, simulationTime)
 }

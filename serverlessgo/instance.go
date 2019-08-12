@@ -21,6 +21,7 @@ type instance struct {
 	idlenessDeadline time.Duration
 	entries          []inputEntry
 	index            int
+	warmed           bool
 }
 
 func newInstance(id int, lb *loadBalancer, idlenessDeadline time.Duration, input []inputEntry) *instance {
@@ -63,6 +64,10 @@ func (i *instance) scaleDown() {
 func (i *instance) next() (float64, int) {
 	e := i.entries[i.index]
 	i.index = (i.index + 1) % len(i.entries)
+	if !i.isWarm() {
+		i.entries = i.entries[1:] // remove first entry
+		i.warmed = true
+	}
 	return e.duration, e.status
 }
 
@@ -91,6 +96,10 @@ func (i *instance) isWorking() bool {
 
 func (i *instance) isTerminated() bool {
 	return i.terminated
+}
+
+func (i *instance) isWarm() bool {
+	return i.warmed
 }
 
 func (i *instance) getUpTime() float64 {
