@@ -24,7 +24,7 @@ func TestHasBeenProcessed(t *testing.T) {
 			for i, w := range d.want {
 				got := d.request.hasBeenProcessed(d.instances[i])
 				if !reflect.DeepEqual(w, got) {
-					t.Fatalf("Want: %v+, got: %v+", w, got)
+					t.Fatalf("Want: %v, got: %v", w, got)
 				}
 			}
 		})

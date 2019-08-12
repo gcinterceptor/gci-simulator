@@ -26,7 +26,7 @@ func TestBuildEntryArray_Success(t *testing.T) {
 				t.Fatalf("Error while using toEntry function: %q", err)
 			}
 			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v+, got: %v+", d.want, got)
+				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
 	}
@@ -61,7 +61,7 @@ func TestReadRecords_Success(t *testing.T) {
 		t.Fatalf("Error not expected: %q", err)
 	}
 	if !reflect.DeepEqual(want, got) {
-		t.Fatalf("Want: %v+, got: %v+", want, got)
+		t.Fatalf("Want: %v, got: %v", want, got)
 	}
 }
 
@@ -81,7 +81,7 @@ func TestToEntry_Success(t *testing.T) {
 				t.Fatalf("Error while using toEntry function: %q", err)
 			}
 			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v+, got: %v+", d.want, got)
+				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
 	}
