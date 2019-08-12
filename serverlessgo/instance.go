@@ -75,6 +75,7 @@ func (i *instance) Run() {
 	for {
 		i.cond.Wait(true)
 		if i.isTerminated() {
+			i.cond.Set(false)
 			break
 		}
 		responseTime, status := i.next()

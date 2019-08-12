@@ -95,12 +95,11 @@ func (lb *loadBalancer) Run() {
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*request)
 			lb.nextInstance(r).receive(r)
-		}
-		if lb.arrivalQueue.Len() == 0 {
+		} else {
+			lb.arrivalCond.Set(false)
 			if lb.isTerminated {
 				break
 			}
-			lb.arrivalCond.Set(false)
 		}
 		lb.tryScaleDown()
 	}
