@@ -10,7 +10,7 @@ const (
 	input_test = "test.csv"
 )
 
-func TestBuildEntryArray_Sucess(t *testing.T) {
+func TestBuildEntryArray_Success(t *testing.T) {
 	var testData = []struct {
 		desc string
 		row  [][]string
@@ -49,7 +49,7 @@ func TestBuildEntryArray_Error(t *testing.T) {
 	}
 }
 
-func TestReadRecords_Sucess(t *testing.T) {
+func TestReadRecords_Success(t *testing.T) {
 	in := `status,request_time
 200,0.019
 200,0.023
@@ -65,7 +65,7 @@ func TestReadRecords_Sucess(t *testing.T) {
 	}
 }
 
-func TestToEntry_Sucess(t *testing.T) {
+func TestToEntry_Success(t *testing.T) {
 	var testData = []struct {
 		desc string
 		row  []string
