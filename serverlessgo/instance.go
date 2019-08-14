@@ -42,7 +42,7 @@ func (i *instance) receive(r *request) {
 		panic(fmt.Sprintf("Instances may not enqueue requests."))
 	}
 	i.req = r
-	i.req.hops = append(i.req.hops, i.id)
+	i.req.updateHops(i.id)
 	i.cond.Set(true)
 }
 
@@ -80,8 +80,8 @@ func (i *instance) Run() {
 			break
 		}
 		status, responseTime := i.next()
-		i.req.status = status
-		i.req.responseTime += responseTime
+		i.req.updateStatus(status)
+		i.req.updateResponseTime(responseTime)
 		i.busyTime += responseTime
 
 		godes.Advance(responseTime)
