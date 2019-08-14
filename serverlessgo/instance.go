@@ -61,14 +61,14 @@ func (i *instance) scaleDown() {
 	}
 }
 
-func (i *instance) next() (float64, int) {
+func (i *instance) next() (int, float64) {
 	e := i.entries[i.index]
 	i.index = (i.index + 1) % len(i.entries)
 	if !i.isWarm() && len(i.entries) != 1 {
 		i.entries = i.entries[1:] // remove first entry
 		i.warmed = true
 	}
-	return e.duration, e.status
+	return e.status, e.duration
 }
 
 func (i *instance) Run() {
@@ -78,7 +78,7 @@ func (i *instance) Run() {
 			i.cond.Set(false)
 			break
 		}
-		responseTime, status := i.next()
+		status, responseTime := i.next()
 		i.req.status = status
 		i.req.responseTime += responseTime
 		i.busyTime += responseTime
