@@ -67,6 +67,7 @@ func (i *instance) next() (int, float64) {
 	if !i.isWarm() && len(i.entries) != 1 {
 		i.entries = i.entries[1:] // remove first entry
 		i.warmed = true
+		i.index = 0
 	}
 	return e.status, e.duration
 }
