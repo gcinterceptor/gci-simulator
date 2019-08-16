@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReceive_Hops(t *testing.T) {
+func TestReceive(t *testing.T) {
 	var testData = []struct {
 		desc     string
 		instance *instance
@@ -21,10 +21,20 @@ func TestReceive_Hops(t *testing.T) {
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
+			flagBeforeWanted, flagBeforeGot := false, d.instance.isWorking()
 			d.instance.receive(d.request)
-			got := d.instance.req.hops
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
+			flagBeforeWanted, flagBeforeGot = true, d.instance.isWorking()
+
+			got := struct{
+				hops []int 
+				flagBefore, flagAfter bool
+			}{d.instance.req.hops, flagBeforeGot, flagBeforeGot}
+			want := struct{
+				hops []int
+				flagBefore, flagAfter bool
+			}{d.want, flagBeforeWanted, flagBeforeWanted}
+			if !reflect.DeepEqual(want, got) {
+				t.Fatalf("Want: %v, got: %v", want, got)
 			}
 		})
 	}
