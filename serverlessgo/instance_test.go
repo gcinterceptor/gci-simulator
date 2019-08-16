@@ -10,12 +10,13 @@ import (
 )
 
 func TestReceive(t *testing.T) {
-	var testData = []struct {
+	type TestData struct {
 		desc     string
 		instance *Instance
 		req      *Request
 		want     []int
-	}{
+	}
+	var testData = []TestData{
 		{"UpdateEmptyHop", &Instance{id: 1, cond: godes.NewBooleanControl()}, &Request{hops: []int{}}, []int{1}},
 		{"UpdateNotEmptyHop", &Instance{id: 2, cond: godes.NewBooleanControl()}, &Request{hops: []int{0, 1}}, []int{0, 1, 2}},
 	}
@@ -41,37 +42,38 @@ func TestReceive(t *testing.T) {
 }
 
 func TestReceive_Panic(t *testing.T) {
-	i := &Instance{id: 1, cond: godes.NewBooleanControl()}
-	i.cond.Set(true)
+	i := &Instance{cond: godes.NewBooleanControl()}
+	i.receive(&Request{})
 	assert.Panics(t, func() { i.receive(&Request{}) }, "Already working instance did not panic receiving the request")
 }
 
 func TestInstanceTerminate(t *testing.T) {
-	type triad struct {
-		isTerminated, isWorking, terminatedTime interface{}
+	type Want struct {
+		isTerminated, instance bool
+		terminateTime          float64
 	}
-	type data struct {
+	type TestData struct {
 		desc     string
 		instance *Instance
 		advance  float64
-		want     *triad
+		want     *Want
 	}
-	var testData = []data{
+	var testData = []TestData{
 		{"NoAdvance", &Instance{
 			Runner:      &godes.Runner{},
 			createdTime: 0.0,
 			cond:        godes.NewBooleanControl(),
-		}, 0.0, &triad{true, false, 0.0}},
+		}, 0.0, &Want{true, false, 0.0}},
 		{"AdvanceStartedAtZero", &Instance{
 			Runner:      &godes.Runner{},
 			createdTime: 0.0,
 			cond:        godes.NewBooleanControl(),
-		}, 1.0, &triad{true, false, 1.0}},
+		}, 1.0, &Want{true, false, 1.0}},
 		{"AdvanceStartedAtFive", &Instance{
 			Runner:      &godes.Runner{},
 			createdTime: 1.0,
 			cond:        godes.NewBooleanControl(),
-		}, 1.5, &triad{true, false, 2.5}},
+		}, 1.5, &Want{true, false, 2.5}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -88,7 +90,7 @@ func TestInstanceTerminate(t *testing.T) {
 			d.instance.scaleDown()
 			godes.WaitUntilDone()
 
-			got := &triad{d.instance.isTerminated(), d.instance.isWorking(), d.instance.terminateTime}
+			got := &Want{d.instance.isTerminated(), d.instance.isWorking(), d.instance.terminateTime}
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
@@ -97,38 +99,39 @@ func TestInstanceTerminate(t *testing.T) {
 }
 
 func TestScaleDown(t *testing.T) {
-	type triad struct {
-		isTerminated, isWorking, terminatedTime interface{}
+	type Want struct {
+		isTerminated, instance bool
+		terminateTime          float64
 	}
-	type data struct {
+	type TestData struct {
 		desc     string
 		instance *Instance
 		advance  float64
-		want     *triad
+		want     *Want
 	}
 	idleness, _ := time.ParseDuration("5m")
-	var testData = []data{
+	var testData = []TestData{
 		{"NoAdvance", &Instance{
 			Runner:           &godes.Runner{},
 			cond:             godes.NewBooleanControl(),
 			createdTime:      0.0,
 			lastWorked:       godes.GetSystemTime(),
 			idlenessDeadline: idleness,
-		}, 0.0, &triad{true, false, 300.0}},
+		}, 0.0, &Want{true, false, 300.0}},
 		{"AdvanceStartedAtZero", &Instance{
 			Runner:           &godes.Runner{},
 			cond:             godes.NewBooleanControl(),
 			createdTime:      0.0,
 			lastWorked:       godes.GetSystemTime(),
 			idlenessDeadline: idleness,
-		}, 1.0, &triad{true, false, 300.0}},
+		}, 1.0, &Want{true, false, 300.0}},
 		{"AdvanceStartedAtFive", &Instance{
 			Runner:           &godes.Runner{},
 			cond:             godes.NewBooleanControl(),
 			createdTime:      1.0,
 			lastWorked:       godes.GetSystemTime(),
 			idlenessDeadline: idleness,
-		}, 1.5, &triad{true, false, 300.0}},
+		}, 1.5, &Want{true, false, 300.0}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -145,7 +148,7 @@ func TestScaleDown(t *testing.T) {
 			d.instance.terminate()
 			godes.WaitUntilDone()
 
-			got := &triad{d.instance.isTerminated(), d.instance.isWorking(), d.instance.terminateTime}
+			got := &Want{d.instance.isTerminated(), d.instance.isWorking(), d.instance.terminateTime}
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
@@ -154,12 +157,12 @@ func TestScaleDown(t *testing.T) {
 }
 
 func TestNext(t *testing.T) {
-	type data struct {
+	type TestData struct {
 		desc     string
 		instance *Instance
 		want     []inputEntry
 	}
-	var testData = []data{
+	var testData = []TestData{
 		{"RemovingWithOneEntry", &Instance{entries: []inputEntry{{200, 0.2}}}, []inputEntry{{200, 0.2}}},
 		{"RemovingWithManyEntries", &Instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}}, []inputEntry{{200, 0.2}, {200, 0.1}}},
 	}
@@ -174,7 +177,7 @@ func TestNext(t *testing.T) {
 			}
 		})
 	}
-	d := data{
+	d := TestData{
 		"EntrySequenceSelection",
 		&Instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}},
 		[]inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}, {200, 0.2}, {200, 0.1}},
@@ -190,6 +193,59 @@ func TestNext(t *testing.T) {
 	})
 }
 
-func TestInstanceRun(t *testing.T) {
+type TestLoadBalancer struct{ reqsResponsed int }
 
+func (lb *TestLoadBalancer) response(r *Request) { lb.reqsResponsed++ }
+func TestInstanceRun(t *testing.T) {
+	type Want struct {
+		count int
+		reqs  []*Request
+	}
+	type TestData struct {
+		desc     string
+		instance *Instance
+		advance  float64
+		reqs     []*Request
+		want     *Want
+	}
+	var testData = []TestData{
+		{"OneEntry", &Instance{
+			Runner:  &godes.Runner{},
+			cond:    godes.NewBooleanControl(),
+			entries: []inputEntry{{200, 0.3}},
+			lb:      &TestLoadBalancer{},
+		}, 0.5, []*Request{{id: 1}, {id: 2}, {id: 3}},
+			&Want{3, []*Request{
+				{1, 200, 0.3, []int{0}},
+				{2, 200, 0.3, []int{0}},
+				{3, 200, 0.3, []int{0}}}}},
+		{"ManyEntries", &Instance{
+			Runner:  &godes.Runner{},
+			cond:    godes.NewBooleanControl(),
+			entries: []inputEntry{{200, 0.8}, {200, 0.1}, {200, 0.2}, {200, 0.3}},
+			lb:      &TestLoadBalancer{},
+		}, 0.9, []*Request{{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}, {id: 6}, {id: 7}, {id: 8}},
+			&Want{8, []*Request{
+				{1, 200, 0.8, []int{0}}, {2, 200, 0.1, []int{0}},
+				{3, 200, 0.2, []int{0}}, {4, 200, 0.3, []int{0}},
+				{5, 200, 0.1, []int{0}}, {6, 200, 0.2, []int{0}},
+				{7, 200, 0.3, []int{0}}, {8, 200, 0.1, []int{0}}}}},
+	}
+	for _, d := range testData {
+		t.Run(d.desc, func(t *testing.T) {
+			godes.Run()
+			godes.AddRunner(d.instance)
+			for _, r := range d.reqs {
+				godes.Advance(d.advance)
+				d.instance.receive(r)
+			}
+			godes.WaitUntilDone()
+			godes.Clear()
+
+			got := &Want{d.instance.lb.(*TestLoadBalancer).reqsResponsed, d.reqs}
+			if !reflect.DeepEqual(d.want, got) {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
+			}
+		})
+	}
 }
