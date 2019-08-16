@@ -9,13 +9,7 @@ import (
 )
 
 type ILoadBalancer interface {
-	foward(r *Request)
 	response(r *Request)
-	terminate()
-	Run()
-	getFinishedReqs() int
-	getTotalCost() float64
-	getTotalEfficiency() float64
 }
 
 type LoadBalancer struct {

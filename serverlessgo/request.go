@@ -2,8 +2,8 @@ package main
 
 type Request struct {
 	id           int64
-	responseTime float64
 	status       int
+	responseTime float64
 	hops         []int
 }
 

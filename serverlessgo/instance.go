@@ -7,20 +7,6 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type IInstance interface {
-	receive(r *Request)
-	terminate()
-	scaleDown()
-	Run()
-	isWorking() bool
-	isTerminated() bool
-	getUpTime() float64
-	getIdleTime() float64
-	getBusyTime() float64
-	getLastWorked() float64
-	getEfficiency() float64
-}
-
 type Instance struct {
 	*godes.Runner
 	id               int
