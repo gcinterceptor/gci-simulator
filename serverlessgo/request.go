@@ -1,29 +1,29 @@
 package main
 
-type request struct {
+type Request struct {
 	id           int64
 	responseTime float64
 	status       int
 	hops         []int
 }
 
-func newRequest(id int64) *request {
-	return &request{id: id}
+func newRequest(id int64) *Request {
+	return &Request{id: id}
 }
 
-func (r *request) updateHops(i int) {
+func (r *Request) updateHops(i int) {
 	r.hops = append(r.hops, i)
 }
 
-func (r *request) updateStatus(s int) {
+func (r *Request) updateStatus(s int) {
 	r.status = s
 }
 
-func (r *request) updateResponseTime(t float64) {
+func (r *Request) updateResponseTime(t float64) {
 	r.responseTime += t
 }
 
-func (r *request) hasBeenProcessed(id int) bool {
+func (r *Request) hasBeenProcessed(id int) bool {
 	for _, i := range r.hops {
 		if id == i {
 			return true

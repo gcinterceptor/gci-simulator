@@ -9,9 +9,10 @@ import (
 )
 
 type ILoadBalancer interface {
-	foward(r *request)
-	response(r *request)
+	foward(r *Request)
+	response(r *Request)
 	terminate()
+	Run()
 	getFinishedReqs() int
 	getTotalCost() float64
 	getTotalEfficiency() float64
@@ -44,12 +45,12 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, outp
 	}
 }
 
-func (lb *LoadBalancer) foward(r *request) {
+func (lb *LoadBalancer) foward(r *Request) {
 	lb.arrivalQueue.Place(r)
 	lb.arrivalCond.Set(true)
 }
 
-func (lb *LoadBalancer) response(r *request) {
+func (lb *LoadBalancer) response(r *Request) {
 	if r.status == 200 {
 		lb.output.record(fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000))
 		lb.finishedReqs++
@@ -74,7 +75,7 @@ func (lb *LoadBalancer) nextInstanceInputs() []inputEntry {
 	return input
 }
 
-func (lb *LoadBalancer) nextInstance(r *request) *Instance {
+func (lb *LoadBalancer) nextInstance(r *Request) *Instance {
 	var selected *Instance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
@@ -102,7 +103,7 @@ func (lb *LoadBalancer) Run() {
 	for {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
-			r := lb.arrivalQueue.Get().(*request)
+			r := lb.arrivalQueue.Get().(*Request)
 			lb.nextInstance(r).receive(r)
 		} else {
 			lb.arrivalCond.Set(false)

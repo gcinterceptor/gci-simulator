@@ -7,13 +7,27 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type instance struct {
+type IInstance interface {
+	receive(r *Request)
+	terminate()
+	scaleDown()
+	Run()
+	isWorking() bool
+	isTerminated() bool
+	getUpTime() float64
+	getIdleTime() float64
+	getBusyTime() float64
+	getLastWorked() float64
+	getEfficiency() float64
+}
+
+type Instance struct {
 	*godes.Runner
 	id               int
-	lb               *loadBalancer
+	lb               ILoadBalancer
 	terminated       bool
 	cond             *godes.BooleanControl
-	req              *request
+	req              *Request
 	createdTime      float64
 	terminateTime    float64
 	lastWorked       float64
@@ -24,8 +38,8 @@ type instance struct {
 	warmed           bool
 }
 
-func newInstance(id int, lb *loadBalancer, idlenessDeadline time.Duration, input []inputEntry) *instance {
-	return &instance{
+func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, input []inputEntry) *Instance {
+	return &Instance{
 		Runner:           &godes.Runner{},
 		lb:               lb,
 		id:               id,
@@ -37,16 +51,16 @@ func newInstance(id int, lb *loadBalancer, idlenessDeadline time.Duration, input
 	}
 }
 
-func (i *instance) receive(r *request) {
+func (i *Instance) receive(r *Request) {
 	if i.isWorking() == true {
-		panic(fmt.Sprintf("Instances may not enqueue requests."))
+		panic(fmt.Sprintf("Instances may not enqueue Requests."))
 	}
 	i.req = r
 	i.req.updateHops(i.id)
 	i.cond.Set(true)
 }
 
-func (i *instance) terminate() {
+func (i *Instance) terminate() {
 	if !i.terminated {
 		i.terminateTime = godes.GetSystemTime()
 		i.terminated = true
@@ -54,14 +68,14 @@ func (i *instance) terminate() {
 	}
 }
 
-func (i *instance) scaleDown() {
+func (i *Instance) scaleDown() {
 	if !i.terminated {
 		i.terminate()
 		i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
 	}
 }
 
-func (i *instance) next() (int, float64) {
+func (i *Instance) next() (int, float64) {
 	e := i.entries[i.index]
 	i.index = (i.index + 1) % len(i.entries)
 	if !i.isWarm() {
@@ -74,7 +88,7 @@ func (i *instance) next() (int, float64) {
 	return e.status, e.duration
 }
 
-func (i *instance) Run() {
+func (i *Instance) Run() {
 	for {
 		i.cond.Wait(true)
 		if i.isTerminated() {
@@ -94,34 +108,34 @@ func (i *instance) Run() {
 	}
 }
 
-func (i *instance) isWorking() bool {
+func (i *Instance) isWorking() bool {
 	return i.cond.GetState() == true
 }
 
-func (i *instance) isTerminated() bool {
+func (i *Instance) isTerminated() bool {
 	return i.terminated
 }
 
-func (i *instance) isWarm() bool {
+func (i *Instance) isWarm() bool {
 	return i.warmed
 }
 
-func (i *instance) getUpTime() float64 {
+func (i *Instance) getUpTime() float64 {
 	return i.terminateTime - i.createdTime
 }
 
-func (i *instance) getIdleTime() float64 {
+func (i *Instance) getIdleTime() float64 {
 	return i.getUpTime() - i.getBusyTime()
 }
 
-func (i *instance) getBusyTime() float64 {
+func (i *Instance) getBusyTime() float64 {
 	return i.busyTime
 }
 
-func (i *instance) getLastWorked() float64 {
+func (i *Instance) getLastWorked() float64 {
 	return i.lastWorked
 }
 
-func (i *instance) getEfficiency() float64 {
+func (i *Instance) getEfficiency() float64 {
 	return i.getBusyTime() / i.getUpTime()
 }

@@ -13,16 +13,16 @@ func TestReceive(t *testing.T) {
 	var testData = []struct {
 		desc     string
 		instance *Instance
-		request  *request
+		req      *Request
 		want     []int
 	}{
-		{"UpdateEmptyHop", &Instance{id: 1, cond: godes.NewBooleanControl()}, &request{hops: []int{}}, []int{1}},
-		{"UpdateNotEmptyHop", &Instance{id: 2, cond: godes.NewBooleanControl()}, &request{hops: []int{0, 1}}, []int{0, 1, 2}},
+		{"UpdateEmptyHop", &Instance{id: 1, cond: godes.NewBooleanControl()}, &Request{hops: []int{}}, []int{1}},
+		{"UpdateNotEmptyHop", &Instance{id: 2, cond: godes.NewBooleanControl()}, &Request{hops: []int{0, 1}}, []int{0, 1, 2}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
 			flagBeforeWanted, flagBeforeGot := false, d.instance.isWorking()
-			d.instance.receive(d.request)
+			d.instance.receive(d.req)
 			flagBeforeWanted, flagBeforeGot = true, d.instance.isWorking()
 
 			want := struct {
@@ -43,7 +43,7 @@ func TestReceive(t *testing.T) {
 func TestReceive_Panic(t *testing.T) {
 	i := &Instance{id: 1, cond: godes.NewBooleanControl()}
 	i.cond.Set(true)
-	assert.Panics(t, func() { i.receive(&request{}) }, "Already working instance did not panic receiving the request")
+	assert.Panics(t, func() { i.receive(&Request{}) }, "Already working instance did not panic receiving the request")
 }
 
 func TestInstanceTerminate(t *testing.T) {
