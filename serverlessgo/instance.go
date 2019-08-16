@@ -64,10 +64,12 @@ func (i *instance) scaleDown() {
 func (i *instance) next() (int, float64) {
 	e := i.entries[i.index]
 	i.index = (i.index + 1) % len(i.entries)
-	if !i.isWarm() && len(i.entries) != 1 {
-		i.entries = i.entries[1:] // remove first entry
+	if !i.isWarm() {
 		i.warmed = true
-		i.index = 0
+		if len(i.entries) > 1 {
+			i.entries = i.entries[1:] // remove first entry
+			i.index = 0
+		}
 	}
 	return e.status, e.duration
 }
