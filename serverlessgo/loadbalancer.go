@@ -8,12 +8,21 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type loadBalancer struct {
+type ILoadBalancer interface {
+	foward(r *request)
+	response(r *request)
+	terminate()
+	getFinishedReqs() int
+	getTotalCost() float64
+	getTotalEfficiency() float64
+}
+
+type LoadBalancer struct {
 	*godes.Runner
 	isTerminated       bool
 	arrivalQueue       *godes.FIFOQueue
 	arrivalCond        *godes.BooleanControl
-	instances          []*instance
+	instances          []*Instance
 	idlenessDeadline   time.Duration
 	inputs             [][]inputEntry
 	index              int
@@ -22,12 +31,12 @@ type loadBalancer struct {
 	optimizedScheduler bool
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter, optimizedScheduler bool) *loadBalancer {
-	return &loadBalancer{
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter, optimizedScheduler bool) *LoadBalancer {
+	return &LoadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
 		arrivalCond:        godes.NewBooleanControl(),
-		instances:          make([]*instance, 0),
+		instances:          make([]*Instance, 0),
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		output:             output,
@@ -35,12 +44,12 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, outp
 	}
 }
 
-func (lb *loadBalancer) foward(r *request) {
+func (lb *LoadBalancer) foward(r *request) {
 	lb.arrivalQueue.Place(r)
 	lb.arrivalCond.Set(true)
 }
 
-func (lb *loadBalancer) response(r *request) {
+func (lb *LoadBalancer) response(r *request) {
 	if r.status == 200 {
 		lb.output.record(fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000))
 		lb.finishedReqs++
@@ -49,7 +58,7 @@ func (lb *loadBalancer) response(r *request) {
 	}
 }
 
-func (lb *loadBalancer) terminate() {
+func (lb *LoadBalancer) terminate() {
 	if !lb.isTerminated {
 		for _, i := range lb.instances {
 			i.terminate()
@@ -59,14 +68,14 @@ func (lb *loadBalancer) terminate() {
 	}
 }
 
-func (lb *loadBalancer) nextInstanceInputs() []inputEntry {
+func (lb *LoadBalancer) nextInstanceInputs() []inputEntry {
 	input := lb.inputs[lb.index]
 	lb.index = (lb.index + 1) % len(lb.inputs)
 	return input
 }
 
-func (lb *loadBalancer) nextInstance(r *request) *instance {
-	var selected *instance
+func (lb *LoadBalancer) nextInstance(r *request) *Instance {
+	var selected *Instance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for i := 0; i < len(lb.instances); i++ {
@@ -84,12 +93,12 @@ func (lb *loadBalancer) nextInstance(r *request) *instance {
 		selected = newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
 		godes.AddRunner(selected)
 		// inserts the instance ahead of the array
-		lb.instances = append([]*instance{selected}, lb.instances...)
+		lb.instances = append([]*Instance{selected}, lb.instances...)
 	}
 	return selected
 }
 
-func (lb *loadBalancer) Run() {
+func (lb *LoadBalancer) Run() {
 	for {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
@@ -105,7 +114,7 @@ func (lb *loadBalancer) Run() {
 	}
 }
 
-func (lb *loadBalancer) tryScaleDown() {
+func (lb *LoadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
 		if godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
 			i.scaleDown()
@@ -113,11 +122,11 @@ func (lb *loadBalancer) tryScaleDown() {
 	}
 }
 
-func (lb *loadBalancer) getFinishedReqs() int {
+func (lb *LoadBalancer) getFinishedReqs() int {
 	return lb.finishedReqs
 }
 
-func (lb *loadBalancer) getTotalCost() float64 {
+func (lb *LoadBalancer) getTotalCost() float64 {
 	var totalCost float64
 	for _, i := range lb.instances {
 		totalCost += i.getUpTime()
@@ -125,7 +134,7 @@ func (lb *loadBalancer) getTotalCost() float64 {
 	return totalCost
 }
 
-func (lb *loadBalancer) getTotalEfficiency() float64 {
+func (lb *LoadBalancer) getTotalEfficiency() float64 {
 	var totalEfficiency float64
 	for _, i := range lb.instances {
 		totalEfficiency += i.getEfficiency()
