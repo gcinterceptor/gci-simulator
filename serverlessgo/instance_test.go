@@ -46,7 +46,7 @@ func TestReceive_Panic(t *testing.T) {
 	assert.Panics(t, func() { i.receive(&request{}) }, "Already working instance did not panic receiving the request")
 }
 
-func TestTerminate(t *testing.T) {
+func TestInstanceTerminate(t *testing.T) {
 	type triad struct {
 		isTerminated, isWorking, terminatedTime interface{}
 	}
@@ -189,3 +189,5 @@ func TestNext(t *testing.T) {
 		}
 	})
 }
+
+func TestInstanceRun(t *testing.T) {}
