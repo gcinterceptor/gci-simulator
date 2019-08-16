@@ -12,12 +12,12 @@ import (
 func TestReceive(t *testing.T) {
 	var testData = []struct {
 		desc     string
-		instance *instance
+		instance *Instance
 		request  *request
 		want     []int
 	}{
-		{"UpdateEmptyHop", &instance{id: 1, cond: godes.NewBooleanControl()}, &request{hops: []int{}}, []int{1}},
-		{"UpdateNotEmptyHop", &instance{id: 2, cond: godes.NewBooleanControl()}, &request{hops: []int{0, 1}}, []int{0, 1, 2}},
+		{"UpdateEmptyHop", &Instance{id: 1, cond: godes.NewBooleanControl()}, &request{hops: []int{}}, []int{1}},
+		{"UpdateNotEmptyHop", &Instance{id: 2, cond: godes.NewBooleanControl()}, &request{hops: []int{0, 1}}, []int{0, 1, 2}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -25,14 +25,14 @@ func TestReceive(t *testing.T) {
 			d.instance.receive(d.request)
 			flagBeforeWanted, flagBeforeGot = true, d.instance.isWorking()
 
-			got := struct{
-				hops []int 
-				flagBefore, flagAfter bool
-			}{d.instance.req.hops, flagBeforeGot, flagBeforeGot}
-			want := struct{
-				hops []int
+			want := struct {
+				hops                  []int
 				flagBefore, flagAfter bool
 			}{d.want, flagBeforeWanted, flagBeforeWanted}
+			got := struct {
+				hops                  []int
+				flagBefore, flagAfter bool
+			}{d.instance.req.hops, flagBeforeGot, flagBeforeGot}
 			if !reflect.DeepEqual(want, got) {
 				t.Fatalf("Want: %v, got: %v", want, got)
 			}
@@ -41,7 +41,7 @@ func TestReceive(t *testing.T) {
 }
 
 func TestReceive_Panic(t *testing.T) {
-	i := &instance{id: 1, cond: godes.NewBooleanControl()}
+	i := &Instance{id: 1, cond: godes.NewBooleanControl()}
 	i.cond.Set(true)
 	assert.Panics(t, func() { i.receive(&request{}) }, "Already working instance did not panic receiving the request")
 }
@@ -52,22 +52,22 @@ func TestInstanceTerminate(t *testing.T) {
 	}
 	type data struct {
 		desc     string
-		instance *instance
+		instance *Instance
 		advance  float64
 		want     *triad
 	}
 	var testData = []data{
-		{"NoAdvance", &instance{
+		{"NoAdvance", &Instance{
 			Runner:      &godes.Runner{},
 			createdTime: 0.0,
 			cond:        godes.NewBooleanControl(),
 		}, 0.0, &triad{true, false, 0.0}},
-		{"AdvanceStartedAtZero", &instance{
+		{"AdvanceStartedAtZero", &Instance{
 			Runner:      &godes.Runner{},
 			createdTime: 0.0,
 			cond:        godes.NewBooleanControl(),
 		}, 1.0, &triad{true, false, 1.0}},
-		{"AdvanceStartedAtFive", &instance{
+		{"AdvanceStartedAtFive", &Instance{
 			Runner:      &godes.Runner{},
 			createdTime: 1.0,
 			cond:        godes.NewBooleanControl(),
@@ -102,27 +102,27 @@ func TestScaleDown(t *testing.T) {
 	}
 	type data struct {
 		desc     string
-		instance *instance
+		instance *Instance
 		advance  float64
 		want     *triad
 	}
 	idleness, _ := time.ParseDuration("5m")
 	var testData = []data{
-		{"NoAdvance", &instance{
+		{"NoAdvance", &Instance{
 			Runner:           &godes.Runner{},
 			cond:             godes.NewBooleanControl(),
 			createdTime:      0.0,
 			lastWorked:       godes.GetSystemTime(),
 			idlenessDeadline: idleness,
 		}, 0.0, &triad{true, false, 300.0}},
-		{"AdvanceStartedAtZero", &instance{
+		{"AdvanceStartedAtZero", &Instance{
 			Runner:           &godes.Runner{},
 			cond:             godes.NewBooleanControl(),
 			createdTime:      0.0,
 			lastWorked:       godes.GetSystemTime(),
 			idlenessDeadline: idleness,
 		}, 1.0, &triad{true, false, 300.0}},
-		{"AdvanceStartedAtFive", &instance{
+		{"AdvanceStartedAtFive", &Instance{
 			Runner:           &godes.Runner{},
 			cond:             godes.NewBooleanControl(),
 			createdTime:      1.0,
@@ -156,12 +156,12 @@ func TestScaleDown(t *testing.T) {
 func TestNext(t *testing.T) {
 	type data struct {
 		desc     string
-		instance *instance
+		instance *Instance
 		want     []inputEntry
 	}
 	var testData = []data{
-		{"RemovingWithOneEntry", &instance{entries: []inputEntry{{200, 0.2}}}, []inputEntry{{200, 0.2}}},
-		{"RemovingWithManyEntries", &instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}}, []inputEntry{{200, 0.2}, {200, 0.1}}},
+		{"RemovingWithOneEntry", &Instance{entries: []inputEntry{{200, 0.2}}}, []inputEntry{{200, 0.2}}},
+		{"RemovingWithManyEntries", &Instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}}, []inputEntry{{200, 0.2}, {200, 0.1}}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -176,7 +176,7 @@ func TestNext(t *testing.T) {
 	}
 	d := data{
 		"EntrySequenceSelection",
-		&instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}},
+		&Instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}},
 		[]inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}, {200, 0.2}, {200, 0.1}},
 	}
 	t.Run(d.desc, func(t *testing.T) {
@@ -190,4 +190,6 @@ func TestNext(t *testing.T) {
 	})
 }
 
-func TestInstanceRun(t *testing.T) {}
+func TestInstanceRun(t *testing.T) {
+
+}
