@@ -92,7 +92,56 @@ func TestResponse(t *testing.T) {
 	}
 }
 
-func TestLBTerminate(t *testing.T) {}
+func TestLBTerminate(t *testing.T) {
+	type TestData struct {
+		desc    string
+		lb      *LoadBalancer
+		advance float64
+		want    bool
+	}
+	var testData = []TestData{
+		{"NoInstance", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			instances:   make([]IInstance, 0),
+		}, 0.1, true},
+		{"OneInstance", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			instances:   []IInstance{&Instance{id: 0, cond: godes.NewBooleanControl()}},
+		}, 0.1, true},
+		{"ManyInstances", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			instances: []IInstance{
+				&Instance{id: 1, cond: godes.NewBooleanControl()},
+				&Instance{id: 2, cond: godes.NewBooleanControl()},
+				&Instance{id: 3, cond: godes.NewBooleanControl()},
+			},
+		}, 0.1, true},
+	}
+	checkFunc := func(want, got bool) {
+		if !reflect.DeepEqual(want, got) {
+			t.Fatalf("Want: %v, got: %v", want, got)
+		}
+	}
+	for _, d := range testData {
+		t.Run(d.desc, func(t *testing.T) {
+			godes.AddRunner(d.lb)
+			godes.Run()
+			defer godes.Clear()
+
+			d.lb.terminate()
+			var got bool
+			for _, i := range d.lb.instances {
+				got = i.isTerminated()
+				checkFunc(d.want, got)
+			}
+			got = d.lb.isTerminated
+			checkFunc(d.want, got)
+		})
+	}
+}
 
 func TestNextInstanceInputs(t *testing.T) {
 	type TestData struct {
@@ -121,7 +170,106 @@ func TestNextInstanceInputs(t *testing.T) {
 	}
 }
 
-func TestNextInstance(t *testing.T) {}
+func TestNextInstance_NoHopedRequest(t *testing.T) {
+	type Want struct{ firstID, secondID, thirdID int }
+	type TestData struct {
+		desc string
+		lb   *LoadBalancer
+		want *Want
+	}
+	var testData = []TestData{
+		{"NoInstances", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			inputs:      [][]inputEntry{{{200, 0.5}}},
+			instances:   make([]IInstance, 0),
+		}, &Want{0, 0, 1}},
+		{"OneInstance", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			inputs:      [][]inputEntry{{{200, 0.5}}},
+			instances:   []IInstance{&Instance{id: 4, cond: godes.NewBooleanControl()}},
+		}, &Want{4, 4, 1}},
+		{"ManyAvailableInstances", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			inputs:      [][]inputEntry{{{200, 0.5}}},
+			instances: []IInstance{
+				&Instance{id: 5, cond: godes.NewBooleanControl()},
+				&Instance{id: 6, cond: godes.NewBooleanControl()},
+				&Instance{id: 7, cond: godes.NewBooleanControl()},
+			},
+		}, &Want{5, 5, 6}},
+		{"ManyTerminatedInstances", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			inputs:      [][]inputEntry{{{200, 0.5}}},
+			instances: []IInstance{
+				&Instance{id: 0, terminated: true, cond: godes.NewBooleanControl()},
+				&Instance{id: 1, terminated: true, cond: godes.NewBooleanControl()},
+				&Instance{id: 2, terminated: false, cond: godes.NewBooleanControl()},
+				&Instance{id: 3, terminated: true, cond: godes.NewBooleanControl()},
+			},
+		}, &Want{2, 2, 4}},
+	}
+	for _, d := range testData {
+		t.Run(d.desc, func(t *testing.T) {
+			req := &Request{}
+			first := d.lb.nextInstance(req)
+			second := d.lb.nextInstance(req)
+			first.receive(req)
+
+			third := d.lb.nextInstance(req)
+			got := &Want{first.getId(), second.getId(), third.getId()}
+			if !reflect.DeepEqual(d.want, got) {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
+			}
+		})
+	}
+}
+
+func TestNextInstance_HopedRequest(t *testing.T) {
+	type Want struct{ firstID, secondID, thirdID int }
+	type TestData struct {
+		desc string
+		lb   *LoadBalancer
+		req  *Request
+		want *Want
+	}
+	var testData = []TestData{
+		{"OneInstance", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			inputs:      [][]inputEntry{{{200, 0.5}}},
+			instances:   []IInstance{&Instance{id: 0, cond: godes.NewBooleanControl()}},
+		}, &Request{hops: []int{0}}, &Want{1, 1, 2}},
+		{"ManyInstances", &LoadBalancer{
+			Runner:      &godes.Runner{},
+			arrivalCond: godes.NewBooleanControl(),
+			inputs:      [][]inputEntry{{{200, 0.5}}},
+			instances: []IInstance{
+				&Instance{id: 0, cond: godes.NewBooleanControl()},
+				&Instance{id: 1, cond: godes.NewBooleanControl()},
+				&Instance{id: 2, cond: godes.NewBooleanControl()},
+				&Instance{id: 3, cond: godes.NewBooleanControl()},
+				&Instance{id: 4, cond: godes.NewBooleanControl()},
+			},
+		}, &Request{hops: []int{0, 1, 3, 4}}, &Want{2, 2, 5}},
+	}
+	for _, d := range testData {
+		t.Run(d.desc, func(t *testing.T) {
+			first := d.lb.nextInstance(d.req)
+			second := d.lb.nextInstance(d.req)
+			first.receive(d.req)
+
+			third := d.lb.nextInstance(d.req)
+			got := &Want{first.getId(), second.getId(), third.getId()}
+			if !reflect.DeepEqual(d.want, got) {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
+			}
+		})
+	}
+}
 
 func TestTryScaleDown(t *testing.T) {}
 
