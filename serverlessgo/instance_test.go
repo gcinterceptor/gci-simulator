@@ -125,7 +125,7 @@ func TestScaleDown(t *testing.T) {
 			lastWorked:       godes.GetSystemTime(),
 			idlenessDeadline: idleness,
 		}, 1.0, &Want{true, false, 300.0}},
-		{"AdvanceStartedAtFive", &Instance{
+		{"AdvanceStarteAfterZero", &Instance{
 			Runner:           &godes.Runner{},
 			cond:             godes.NewBooleanControl(),
 			createdTime:      1.0,
