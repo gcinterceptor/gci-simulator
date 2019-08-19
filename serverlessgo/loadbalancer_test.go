@@ -48,7 +48,7 @@ type TestOutputWriter struct {}
 func (t TestOutputWriter) record(s string) error { return nil }
 func TestResponse(t *testing.T) {
 	type Want struct {
-		responsed    int
+		responsed   int
 		reforwarded int
 	}
 	type TestData struct {
@@ -94,7 +94,32 @@ func TestResponse(t *testing.T) {
 
 func TestLBTerminate(t *testing.T) {}
 
-func TestNextInstanceInputs(t *testing.T) {}
+func TestNextInstanceInputs(t *testing.T) {
+	type TestData struct {
+		desc      string
+		lb        *LoadBalancer
+		nextCalls int
+		want      [][]inputEntry
+	}
+	var testData = []TestData{
+		{"OneInputEntry", &LoadBalancer{
+			inputs: [][]inputEntry{{{200, 0.5}}},
+		}, 2, [][]inputEntry{{{200, 0.5}}, {{200, 0.5}}}},
+		{"ManyInputEntry", &LoadBalancer{
+			inputs: [][]inputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}},
+		}, 5, [][]inputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}, {{200, 0.5}, {503, 0.5}}, {}}},
+	}
+	for _, d := range testData {
+		t.Run(d.desc, func(t *testing.T) {
+			for i:= 0; i < d.nextCalls; i++ {
+				got := d.lb.nextInstanceInputs()
+				if !reflect.DeepEqual(d.want[i], got) {
+					t.Fatalf("Want: %v, got: %v", d.want[i], got)
+				}
+			}
+		})
+	}
+}
 
 func TestNextInstance(t *testing.T) {}
 
