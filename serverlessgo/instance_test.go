@@ -69,7 +69,7 @@ func TestInstanceTerminate(t *testing.T) {
 			createdTime: 0.0,
 			cond:        godes.NewBooleanControl(),
 		}, 1.0, &Want{true, false, 1.0}},
-		{"AdvanceStartedAtFive", &Instance{
+		{"AdvanceStartedAfterZero", &Instance{
 			Runner:      &godes.Runner{},
 			createdTime: 1.0,
 			cond:        godes.NewBooleanControl(),
