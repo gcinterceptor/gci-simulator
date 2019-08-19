@@ -5,6 +5,10 @@ import (
 	"os"
 )
 
+type IOutputWriter interface {
+	record(s string) error
+}
+
 type outputWriter struct {
 	f *os.File
 }

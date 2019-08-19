@@ -17,21 +17,21 @@ type LoadBalancer struct {
 	isTerminated       bool
 	arrivalQueue       *godes.FIFOQueue
 	arrivalCond        *godes.BooleanControl
-	instances          []*Instance
+	instances          []IInstance
 	idlenessDeadline   time.Duration
 	inputs             [][]inputEntry
 	index              int
-	output             *outputWriter
+	output             IOutputWriter
 	finishedReqs       int
 	optimizedScheduler bool
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output *outputWriter, optimizedScheduler bool) *LoadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output IOutputWriter, optimizedScheduler bool) *LoadBalancer {
 	return &LoadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
 		arrivalCond:        godes.NewBooleanControl(),
-		instances:          make([]*Instance, 0),
+		instances:          make([]IInstance, 0),
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		output:             output,
@@ -69,13 +69,16 @@ func (lb *LoadBalancer) nextInstanceInputs() []inputEntry {
 	return input
 }
 
-func (lb *LoadBalancer) nextInstance(r *Request) *Instance {
-	var selected *Instance
+func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
+	fmt.Println("ANTES")
+	var selected IInstance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
+	
+	fmt.Println("DEPOIS")
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
-		if !instance.isWorking() && !instance.isTerminated() && !r.hasBeenProcessed(instance.id) {
+		if !instance.isWorking() && !instance.isTerminated() && !r.hasBeenProcessed(instance.getId()) {
 			selected = instance
 			break
 		}
@@ -85,10 +88,11 @@ func (lb *LoadBalancer) nextInstance(r *Request) *Instance {
 		if lb.optimizedScheduler && r.status != 503 {
 			nextInstanceInput = nextInstanceInput[1:]
 		}
-		selected = newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
-		godes.AddRunner(selected)
+		newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
+		selected = newInstance
+		godes.AddRunner(newInstance)
 		// inserts the instance ahead of the array
-		lb.instances = append([]*Instance{selected}, lb.instances...)
+		lb.instances = append([]IInstance{selected}, lb.instances...)
 	}
 	return selected
 }
