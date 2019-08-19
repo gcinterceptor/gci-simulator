@@ -273,4 +273,6 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 
 func TestTryScaleDown(t *testing.T) {}
 
-func TestLBRun(t *testing.T) {}
+func TestLBRun_RequestSending(t *testing.T) {}
+
+func TestLBRun_ScalingDown(t *testing.T) {}
