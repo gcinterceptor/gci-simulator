@@ -7,18 +7,6 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type IInstance interface {
-	receive(r *Request)
-	terminate()
-	scaleDown()
-	isWorking()     bool
-	isTerminated()  bool
-	getId()         int
-	getLastWorked() float64
-	getUpTime()     float64
-	getEfficiency() float64
-}
-
 type Instance struct {
 	*godes.Runner
 	id               int
@@ -116,10 +104,6 @@ func (i *Instance) isTerminated() bool {
 
 func (i *Instance) isWarm() bool {
 	return i.warmed
-}
-
-func (i *Instance) getId() int {
-	return i.id
 }
 
 func (i *Instance) getUpTime() float64 {
