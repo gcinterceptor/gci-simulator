@@ -11,11 +11,11 @@ type IInstance interface {
 	receive(r *Request)
 	terminate()
 	scaleDown()
-	isWorking()     bool
-	isTerminated()  bool
-	getId()         int
+	isWorking() bool
+	isTerminated() bool
+	getId() int
 	getLastWorked() float64
-	getUpTime()     float64
+	getUpTime() float64
 	getEfficiency() float64
 }
 

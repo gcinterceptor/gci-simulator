@@ -14,10 +14,10 @@ func TestFoward(t *testing.T) {
 		arrivalCondAfter  bool
 	}
 	type TestData struct {
-		desc    string
-		lb      *LoadBalancer
-		reqs     []*Request
-		want    *Want
+		desc string
+		lb   *LoadBalancer
+		reqs []*Request
+		want *Want
 	}
 	var testData = []TestData{
 		{"OneRequest", &LoadBalancer{
@@ -43,7 +43,7 @@ func TestFoward(t *testing.T) {
 	}
 }
 
-type TestOutputWriter struct {}
+type TestOutputWriter struct{}
 
 func (t TestOutputWriter) record(s string) error { return nil }
 func TestResponse(t *testing.T) {
@@ -52,30 +52,30 @@ func TestResponse(t *testing.T) {
 		reforwarded int
 	}
 	type TestData struct {
-		desc    string
-		lb      *LoadBalancer
-		reqs     []*Request
-		want    *Want
+		desc string
+		lb   *LoadBalancer
+		reqs []*Request
+		want *Want
 	}
 	var testData = []TestData{
 		{"OneRequestReforwared", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			inputs: [][]inputEntry{{{200, 0.5}}},
 			output: TestOutputWriter{},
 		}, []*Request{{status: 503}}, &Want{0, 1}},
 		{"OneRequestResponsed", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			inputs: [][]inputEntry{{{200, 0.5}}},
 			output: TestOutputWriter{},
 		}, []*Request{{status: 200}}, &Want{1, 0}},
 		{"ManyRequestsReforwared", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			inputs: [][]inputEntry{{{200, 0.5}}},
 			output: TestOutputWriter{},
 		}, []*Request{{status: 503}, {status: 503}, {status: 503}}, &Want{0, 3}},
 		{"ManyRequestResponsed", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			inputs: [][]inputEntry{{{200, 0.5}}},
 			output: TestOutputWriter{},
 		}, []*Request{{status: 200}, {status: 200}, {status: 200}}, &Want{3, 0}},
 		{"ManyRequestMixed", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			inputs: [][]inputEntry{{{200, 0.5}}},
 			output: TestOutputWriter{},
 		}, []*Request{{status: 200}, {status: 503}, {status: 503}, {status: 200}, {status: 200}}, &Want{3, 2}},
 	}
@@ -111,7 +111,7 @@ func TestNextInstanceInputs(t *testing.T) {
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
-			for i:= 0; i < d.nextCalls; i++ {
+			for i := 0; i < d.nextCalls; i++ {
 				got := d.lb.nextInstanceInputs()
 				if !reflect.DeepEqual(d.want[i], got) {
 					t.Fatalf("Want: %v, got: %v", d.want[i], got)
