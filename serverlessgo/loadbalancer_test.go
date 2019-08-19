@@ -43,11 +43,9 @@ func TestFoward(t *testing.T) {
 	}
 }
 
-type TestOutputWriter struct {
-	count int
-}
+type TestOutputWriter struct {}
 
-func (t TestOutputWriter) record(s string) error { t.count++; return nil}
+func (t TestOutputWriter) record(s string) error { return nil }
 func TestResponse(t *testing.T) {
 	type Want struct {
 		responsed    int
@@ -60,15 +58,33 @@ func TestResponse(t *testing.T) {
 		want    *Want
 	}
 	var testData = []TestData{
-		{"OneRequestReforwared", &LoadBalancer{output: &TestOutputWriter{}}, []*Request{{status: 503}}, &Want{0, 1}},
-		{"OneRequestResponsed", &LoadBalancer{output: &TestOutputWriter{}}, []*Request{{status: 200}}, &Want{1, 0}},
+		{"OneRequestReforwared", &LoadBalancer{
+			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			output: TestOutputWriter{},
+		}, []*Request{{status: 503}}, &Want{0, 1}},
+		{"OneRequestResponsed", &LoadBalancer{
+			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			output: TestOutputWriter{},
+		}, []*Request{{status: 200}}, &Want{1, 0}},
+		{"ManyRequestsReforwared", &LoadBalancer{
+			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			output: TestOutputWriter{},
+		}, []*Request{{status: 503}, {status: 503}, {status: 503}}, &Want{0, 3}},
+		{"ManyRequestResponsed", &LoadBalancer{
+			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			output: TestOutputWriter{},
+		}, []*Request{{status: 200}, {status: 200}, {status: 200}}, &Want{3, 0}},
+		{"ManyRequestMixed", &LoadBalancer{
+			inputs: [][]inputEntry{{{200, 0.5}}}, 
+			output: TestOutputWriter{},
+		}, []*Request{{status: 200}, {status: 503}, {status: 503}, {status: 200}, {status: 200}}, &Want{3, 2}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
 			for _, r := range d.reqs {
 				d.lb.response(r)
 			}
-			got := &Want{d.lb.output.(TestOutputWriter).count, len(d.lb.instances)}
+			got := &Want{d.lb.finishedReqs, len(d.lb.instances)}
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}

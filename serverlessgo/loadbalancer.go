@@ -70,12 +70,9 @@ func (lb *LoadBalancer) nextInstanceInputs() []inputEntry {
 }
 
 func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
-	fmt.Println("ANTES")
 	var selected IInstance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
-	
-	fmt.Println("DEPOIS")
 	for i := 0; i < len(lb.instances); i++ {
 		instance := lb.instances[i]
 		if !instance.isWorking() && !instance.isTerminated() && !r.hasBeenProcessed(instance.getId()) {
