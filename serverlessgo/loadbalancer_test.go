@@ -3,6 +3,7 @@ package main
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/agoussia/godes"
 )
@@ -46,6 +47,7 @@ func TestFoward(t *testing.T) {
 type TestOutputWriter struct{}
 
 func (t TestOutputWriter) record(s string) error { return nil }
+
 func TestResponse(t *testing.T) {
 	type Want struct {
 		responsed   int
@@ -271,7 +273,62 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 	}
 }
 
-func TestTryScaleDown(t *testing.T) {}
+type TestInstance struct {
+	id         int
+	terminated bool
+	lastWorked float64
+}
+
+func (t *TestInstance) receive(r *Request)     {}
+func (t *TestInstance) terminate()             { t.terminated = true }
+func (t *TestInstance) scaleDown()             { t.terminated = true }
+func (t *TestInstance) isWorking() bool        { return false }
+func (t *TestInstance) isTerminated() bool     { return t.terminated }
+func (t *TestInstance) getId() int             { return t.id }
+func (t *TestInstance) getLastWorked() float64 { return t.lastWorked }
+func (t *TestInstance) getUpTime() float64     { return 0 }
+func (t *TestInstance) getEfficiency() float64 { return 0 }
+
+func TestTryScaleDown(t *testing.T) {
+	idleness, _ := time.ParseDuration("5s")
+	type TestData struct {
+		desc string
+		lb   *LoadBalancer
+		want []bool
+	}
+	var testData = []TestData{
+		{"NoInstances", &LoadBalancer{
+			idlenessDeadline: idleness,
+			instances:        make([]IInstance, 0),
+		}, make([]bool, 0)},
+		{"OneInstance", &LoadBalancer{
+			idlenessDeadline: idleness,
+			instances:        []IInstance{&TestInstance{id: 0, terminated: false, lastWorked: -5.0}},
+		}, []bool{true}},
+		{"ManyInstances", &LoadBalancer{
+			idlenessDeadline: idleness,
+			instances: []IInstance{
+				&TestInstance{id: 0, terminated: false, lastWorked: -5.0},
+				&TestInstance{id: 1, terminated: false, lastWorked: 0.0},
+				&TestInstance{id: 2, terminated: false, lastWorked: -5.0},
+				&TestInstance{id: 3, terminated: false, lastWorked: -1.0},
+				&TestInstance{id: 4, terminated: false, lastWorked: -8.0},
+			},
+		}, []bool{true, false, true, false, true}},
+	}
+	for _, d := range testData {
+		t.Run(d.desc, func(t *testing.T) {
+			d.lb.tryScaleDown()
+			got := make([]bool, 0)
+			for _, i := range d.lb.instances {
+				got = append(got, i.isTerminated())
+			}
+			if !reflect.DeepEqual(d.want, got) {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
+			}
+		})
+	}
+}
 
 func TestLBRun_RequestSending(t *testing.T) {}
 
