@@ -96,31 +96,27 @@ func TestResponse(t *testing.T) {
 
 func TestLBTerminate(t *testing.T) {
 	type TestData struct {
-		desc    string
-		lb      *LoadBalancer
-		advance float64
-		want    bool
+		desc string
+		lb   *LoadBalancer
+		want bool
 	}
 	var testData = []TestData{
 		{"NoInstance", &LoadBalancer{
-			Runner:      &godes.Runner{},
 			arrivalCond: godes.NewBooleanControl(),
 			instances:   make([]IInstance, 0),
-		}, 0.1, true},
+		}, true},
 		{"OneInstance", &LoadBalancer{
-			Runner:      &godes.Runner{},
 			arrivalCond: godes.NewBooleanControl(),
 			instances:   []IInstance{&Instance{id: 0, cond: godes.NewBooleanControl()}},
-		}, 0.1, true},
+		}, true},
 		{"ManyInstances", &LoadBalancer{
-			Runner:      &godes.Runner{},
 			arrivalCond: godes.NewBooleanControl(),
 			instances: []IInstance{
 				&Instance{id: 1, cond: godes.NewBooleanControl()},
 				&Instance{id: 2, cond: godes.NewBooleanControl()},
 				&Instance{id: 3, cond: godes.NewBooleanControl()},
 			},
-		}, 0.1, true},
+		}, true},
 	}
 	checkFunc := func(want, got bool) {
 		if !reflect.DeepEqual(want, got) {
@@ -129,10 +125,6 @@ func TestLBTerminate(t *testing.T) {
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
-			godes.AddRunner(d.lb)
-			godes.Run()
-			defer godes.Clear()
-
 			d.lb.terminate()
 			var got bool
 			for _, i := range d.lb.instances {
@@ -329,7 +321,3 @@ func TestTryScaleDown(t *testing.T) {
 		})
 	}
 }
-
-func TestLBRun_RequestSending(t *testing.T) {}
-
-func TestLBRun_ScalingDown(t *testing.T) {}
