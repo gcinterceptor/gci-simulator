@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/agoussia/godes"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestReceive(t *testing.T) {
@@ -39,12 +38,6 @@ func TestReceive(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestReceive_Panic(t *testing.T) {
-	i := &Instance{cond: godes.NewBooleanControl()}
-	i.receive(&Request{})
-	assert.Panics(t, func() { i.receive(&Request{}) }, "Already working instance did not panic receiving the request")
 }
 
 func TestInstanceTerminate(t *testing.T) {

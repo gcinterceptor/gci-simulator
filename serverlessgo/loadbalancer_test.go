@@ -21,6 +21,10 @@ func TestFoward(t *testing.T) {
 		want *Want
 	}
 	var testData = []TestData{
+		{"NoRequests", &LoadBalancer{
+			arrivalQueue: godes.NewFIFOQueue("arrival"),
+			arrivalCond:  godes.NewBooleanControl(),
+		}, []*Request{}, &Want{0, false, false}},
 		{"OneRequest", &LoadBalancer{
 			arrivalQueue: godes.NewFIFOQueue("arrival"),
 			arrivalCond:  godes.NewBooleanControl(),
@@ -46,7 +50,7 @@ func TestFoward(t *testing.T) {
 
 type TestOutputWriter struct{}
 
-func (t TestOutputWriter) record(s string) error { return nil }
+func (t TestOutputWriter) record(r *Request) error { return nil }
 
 func TestResponse(t *testing.T) {
 	type Want struct {
@@ -315,60 +319,6 @@ func TestTryScaleDown(t *testing.T) {
 			for _, i := range d.lb.instances {
 				got = append(got, i.isTerminated())
 			}
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
-			}
-		})
-	}
-}
-
-func TestLBRun(t *testing.T) {
-	type TestData struct {
-		desc string
-		lb   *LoadBalancer
-		reqs []*Request
-		want int
-	}
-	idleness, _ := time.ParseDuration("1s")
-	var testData = []TestData{
-		{"NoInstance", &LoadBalancer{
-			arrivalQueue:     godes.NewFIFOQueue("arrival"),
-			arrivalCond:      godes.NewBooleanControl(),
-			idlenessDeadline: idleness,
-			inputs:           [][]inputEntry{{{200, 0.1}}},
-			instances:        make([]IInstance, 0),
-		}, []*Request{{id: 0}, {id: 1}, {id: 2}}, 0},
-		{"OneInstance", &LoadBalancer{
-			arrivalQueue:     godes.NewFIFOQueue("arrival"),
-			arrivalCond:      godes.NewBooleanControl(),
-			idlenessDeadline: idleness,
-			inputs:           [][]inputEntry{{{200, 0.1}}},
-			instances:        []IInstance{&TestInstance{id: 0}},
-		}, []*Request{{id: 0}, {id: 1}, {id: 2}, {id: 3}}, 0},
-		{"ManyInstances", &LoadBalancer{
-			arrivalQueue:     godes.NewFIFOQueue("arrival"),
-			arrivalCond:      godes.NewBooleanControl(),
-			idlenessDeadline: idleness,
-			inputs:           [][]inputEntry{{{200, 0.1}}},
-			instances: []IInstance{
-				&TestInstance{id: 0},
-				&TestInstance{id: 1},
-				&TestInstance{id: 2},
-				&TestInstance{id: 3},
-				&TestInstance{id: 4},
-			},
-		}, []*Request{{id: 0}, {id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}, {id: 6}}, 0},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			for _, r := range d.reqs {
-				d.lb.foward(r)
-			}
-			go d.lb.Run()
-			d.lb.terminate()
-			d.lb.arrivalCond.Wait(false)
-
-			got := d.lb.arrivalQueue.Len()
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
