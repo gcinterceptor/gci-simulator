@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"time"
 
@@ -46,7 +45,7 @@ func (lb *LoadBalancer) foward(r *Request) {
 
 func (lb *LoadBalancer) response(r *Request) {
 	if r.status == 200 {
-		lb.output.record(fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000))
+		lb.output.record(r)
 		lb.finishedReqs++
 	} else {
 		lb.nextInstance(r).receive(r)

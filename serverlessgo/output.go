@@ -6,7 +6,7 @@ import (
 )
 
 type IOutputWriter interface {
-	record(s string) error
+	record(r *Request) error
 }
 
 type outputWriter struct {
@@ -25,7 +25,8 @@ func newOutputWriter(path, header string) (*outputWriter, error) {
 	return &outputWriter{f: f}, nil
 }
 
-func (o *outputWriter) record(s string) error {
+func (o *outputWriter) record(r *Request) error {
+	s := fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
 	_, err := o.f.WriteString(s)
 	if err != nil {
 		return fmt.Errorf("Error trying to write s (%s) in file (%v+): %q", s, o.f, err)

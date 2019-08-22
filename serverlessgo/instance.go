@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/agoussia/godes"
@@ -50,9 +49,6 @@ func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, input
 }
 
 func (i *Instance) receive(r *Request) {
-	if i.isWorking() == true {
-		panic(fmt.Sprintf("Instances may not enqueue Requests."))
-	}
 	i.req = r
 	i.req.updateHops(i.id)
 	i.cond.Set(true)
