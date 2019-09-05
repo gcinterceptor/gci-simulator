@@ -9,6 +9,25 @@ import (
 )
 
 func TestReceive(t *testing.T) {
+	instance := &Instance{id: 2, cond: godes.NewBooleanControl()}
+
+	workingBefore := instance.isWorking()
+	if workingBefore {
+		t.Fatalf("Want: %v, got: %v", workingBefore, !workingBefore)
+	}
+	req := &Request{hops: []int{0, 1}}
+	instance.receive(req)
+
+	workingAfter := instance.isWorking()
+	if !workingAfter {
+		t.Fatalf("Want: %v, got: %v", !workingAfter, workingAfter)
+	}
+
+	wHops := []int{0, 1, 2}
+	if !reflect.DeepEqual(wHops, req.hops) {
+		t.Fatalf("Want: %v, got: %v", wHops, req.hops)
+	}
+
 	type TestData struct {
 		desc     string
 		instance *Instance
