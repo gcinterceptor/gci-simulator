@@ -7,25 +7,20 @@ import (
 
 func TestHasBeenProcessed(t *testing.T) {
 	var testData = []struct {
-		desc      string
-		req       *Request
-		instances []int
-		want      []bool
+		desc    string
+		req     *Request
+		instace int
+		want    bool
 	}{
-		{"EmptyHop", &Request{}, []int{1}, []bool{false}},
-		{"OneHopTrue", &Request{hops: []int{1}}, []int{1}, []bool{true}},
-		{"OneHopFalse", &Request{hops: []int{1}}, []int{2}, []bool{false}},
-		{"ManyHopsTrue", &Request{hops: []int{1, 2, 3}}, []int{1, 2, 3}, []bool{true, true, true}},
-		{"ManyHopsFalse", &Request{hops: []int{1, 2, 3}}, []int{5, 6, 7}, []bool{false, false, false}},
-		{"ManyHopsMixed", &Request{hops: []int{1, 2}}, []int{1, 3, 2, 4}, []bool{true, false, true, false}},
+		{"EmptyHop", &Request{}, 0, false},
+		{"OneHopTrue", &Request{hops: []int{1}}, 1, true},
+		{"OneHopFalse", &Request{hops: []int{1}}, 2, false},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
-			for i, w := range d.want {
-				got := d.req.hasBeenProcessed(d.instances[i])
-				if !reflect.DeepEqual(w, got) {
-					t.Fatalf("Want: %v, got: %v", w, got)
-				}
+			got := d.req.hasBeenProcessed(d.instace)
+			if d.want != got {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
 	}
@@ -68,7 +63,7 @@ func TestUpdateStatus(t *testing.T) {
 		t.Run(d.desc, func(t *testing.T) {
 			d.req.updateStatus(d.value)
 			got := d.req.status
-			if !reflect.DeepEqual(d.want, got) {
+			if d.want != got {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
@@ -90,7 +85,7 @@ func TestUpdateResponseTime(t *testing.T) {
 		t.Run(d.desc, func(t *testing.T) {
 			d.req.updateResponseTime(d.value)
 			got := d.req.responseTime
-			if !reflect.DeepEqual(d.want, got) {
+			if d.want != got {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
