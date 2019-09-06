@@ -27,36 +27,6 @@ func TestReceive(t *testing.T) {
 	if !reflect.DeepEqual(wHops, req.hops) {
 		t.Fatalf("Want: %v, got: %v", wHops, req.hops)
 	}
-
-	type TestData struct {
-		desc     string
-		instance *Instance
-		req      *Request
-		want     []int
-	}
-	var testData = []TestData{
-		{"UpdateEmptyHop", &Instance{id: 1, cond: godes.NewBooleanControl()}, &Request{hops: []int{}}, []int{1}},
-		{"UpdateNotEmptyHop", &Instance{id: 2, cond: godes.NewBooleanControl()}, &Request{hops: []int{0, 1}}, []int{0, 1, 2}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			flagBeforeWanted, flagBeforeGot := false, d.instance.isWorking()
-			d.instance.receive(d.req)
-			flagBeforeWanted, flagBeforeGot = true, d.instance.isWorking()
-
-			want := struct {
-				hops                  []int
-				flagBefore, flagAfter bool
-			}{d.want, flagBeforeWanted, flagBeforeWanted}
-			got := struct {
-				hops                  []int
-				flagBefore, flagAfter bool
-			}{d.instance.req.hops, flagBeforeGot, flagBeforeGot}
-			if !reflect.DeepEqual(want, got) {
-				t.Fatalf("Want: %v, got: %v", want, got)
-			}
-		})
-	}
 }
 
 func TestInstanceTerminate(t *testing.T) {
