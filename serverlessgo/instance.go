@@ -103,7 +103,7 @@ func (i *Instance) Run() {
 }
 
 func (i *Instance) isWorking() bool {
-	return i.cond.GetState() == true
+	return i.cond.GetState()
 }
 
 func (i *Instance) isTerminated() bool {
