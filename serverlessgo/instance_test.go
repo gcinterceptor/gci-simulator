@@ -55,60 +55,30 @@ func TestInstanceTerminate(t *testing.T) {
 }
 
 func TestScaleDown(t *testing.T) {
-	type Want struct {
-		isTerminated, instance bool
-		terminateTime          float64
-	}
-	type TestData struct {
-		desc     string
-		instance *Instance
-		advance  float64
-		want     *Want
-	}
 	idleness, _ := time.ParseDuration("5m")
-	var testData = []TestData{
-		{"NoAdvance", &Instance{
-			Runner:           &godes.Runner{},
-			cond:             godes.NewBooleanControl(),
-			createdTime:      0.0,
-			lastWorked:       godes.GetSystemTime(),
-			idlenessDeadline: idleness,
-		}, 0.0, &Want{true, false, 300.0}},
-		{"AdvanceStartedAtZero", &Instance{
-			Runner:           &godes.Runner{},
-			cond:             godes.NewBooleanControl(),
-			createdTime:      0.0,
-			lastWorked:       godes.GetSystemTime(),
-			idlenessDeadline: idleness,
-		}, 1.0, &Want{true, false, 300.0}},
-		{"AdvanceStarteAfterZero", &Instance{
-			Runner:           &godes.Runner{},
-			cond:             godes.NewBooleanControl(),
-			createdTime:      1.0,
-			lastWorked:       godes.GetSystemTime(),
-			idlenessDeadline: idleness,
-		}, 1.5, &Want{true, false, 300.0}},
+	instance := &Instance{
+		Runner:           &godes.Runner{},
+		createdTime:      0.0,
+		cond:             godes.NewBooleanControl(),
+		lastWorked:       godes.GetSystemTime(),
+		idlenessDeadline: idleness,
 	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			godes.Run()
-			defer godes.Clear()
+	type Want struct {
+		isTerminated  bool
+		terminateTime float64
+	}
+	got := &Want{isTerminated: instance.isTerminated()}
+	want := &Want{isTerminated: false}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("Before terminate - Want: %v, got: %v", want, got)
+	}
 
-			godes.Advance(d.instance.createdTime)
-			godes.AddRunner(d.instance)
-			godes.Advance(d.advance)
-			d.instance.scaleDown()
+	instance.scaleDown()
 
-			godes.Advance(d.advance)
-			d.instance.scaleDown()
-			d.instance.terminate()
-			godes.WaitUntilDone()
-
-			got := &Want{d.instance.isTerminated(), d.instance.isWorking(), d.instance.terminateTime}
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
-			}
-		})
+	got = &Want{isTerminated: instance.isTerminated(), terminateTime: instance.terminateTime}
+	want = &Want{isTerminated: true, terminateTime: 300.0}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("After terminate - Want: %v, got: %v", want, got)
 	}
 }
 
