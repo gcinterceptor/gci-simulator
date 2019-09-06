@@ -30,53 +30,27 @@ func TestReceive(t *testing.T) {
 }
 
 func TestInstanceTerminate(t *testing.T) {
+	instance := &Instance{
+		Runner:      &godes.Runner{},
+		createdTime: 0.0,
+		cond:        godes.NewBooleanControl(),
+	}
 	type Want struct {
-		isTerminated, instance bool
-		terminateTime          float64
+		isTerminated  bool
+		terminateTime float64
 	}
-	type TestData struct {
-		desc     string
-		instance *Instance
-		advance  float64
-		want     *Want
+	got := &Want{isTerminated: instance.isTerminated()}
+	want := &Want{isTerminated: false}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("Before terminate - Want: %v, got: %v", want, got)
 	}
-	var testData = []TestData{
-		{"NoAdvance", &Instance{
-			Runner:      &godes.Runner{},
-			createdTime: 0.0,
-			cond:        godes.NewBooleanControl(),
-		}, 0.0, &Want{true, false, 0.0}},
-		{"AdvanceStartedAtZero", &Instance{
-			Runner:      &godes.Runner{},
-			createdTime: 0.0,
-			cond:        godes.NewBooleanControl(),
-		}, 1.0, &Want{true, false, 1.0}},
-		{"AdvanceStartedAfterZero", &Instance{
-			Runner:      &godes.Runner{},
-			createdTime: 1.0,
-			cond:        godes.NewBooleanControl(),
-		}, 1.5, &Want{true, false, 2.5}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			godes.Run()
-			defer godes.Clear()
 
-			godes.Advance(d.instance.createdTime)
-			godes.AddRunner(d.instance)
-			godes.Advance(d.advance)
-			d.instance.terminate()
+	instance.terminate()
 
-			godes.Advance(d.advance)
-			d.instance.terminate()
-			d.instance.scaleDown()
-			godes.WaitUntilDone()
-
-			got := &Want{d.instance.isTerminated(), d.instance.isWorking(), d.instance.terminateTime}
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
-			}
-		})
+	got = &Want{isTerminated: instance.isTerminated(), terminateTime: instance.terminateTime}
+	want = &Want{isTerminated: true, terminateTime: 0.0}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("After terminate - Want: %v, got: %v", want, got)
 	}
 }
 
