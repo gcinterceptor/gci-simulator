@@ -25,7 +25,7 @@ type LoadBalancer struct {
 	optimizedScheduler bool
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output IOutputWriter, optimizedScheduler bool) *LoadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output IOutputWriter, optimized bool) *LoadBalancer {
 	return &LoadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
@@ -34,7 +34,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, outp
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		output:             output,
-		optimizedScheduler: optimizedScheduler,
+		optimizedScheduler: optimized,
 	}
 }
 
@@ -80,17 +80,26 @@ func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
 		}
 	}
 	if selected == nil {
-		nextInstanceInput := lb.nextInstanceInputs()
-		if lb.optimizedScheduler && r.status != 503 {
-			nextInstanceInput = nextInstanceInput[1:]
-		}
-		newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
-		selected = newInstance
-		godes.AddRunner(newInstance)
-		// inserts the instance ahead of the array
-		lb.instances = append([]IInstance{selected}, lb.instances...)
+		selected = lb.newInstance(r)
 	}
 	return selected
+}
+
+func (lb *LoadBalancer) newInstance(r *Request) IInstance {
+	var reproducer IInputReproducer
+	nextInstanceInput := lb.nextInstanceInputs()
+	if lb.optimizedScheduler && r.status != 503 {
+		reproducer = newWarmedInputReproducer(nextInstanceInput)
+
+	} else {
+		reproducer = newInputReproducer(nextInstanceInput)
+	}
+	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
+	godes.AddRunner(newInstance)
+	// inserts the instance ahead of the array
+	lb.instances = append([]IInstance{newInstance}, lb.instances...)
+	return newInstance
+
 }
 
 func (lb *LoadBalancer) Run() {

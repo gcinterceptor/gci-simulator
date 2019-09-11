@@ -7,6 +7,48 @@ import (
 	"strconv"
 )
 
+type IInputReproducer interface {
+	next() (int, float64)
+}
+
+type InputReproducer struct {
+	index   int
+	warmed  bool
+	entries []inputEntry
+}
+
+type WarmedInputReproducer struct {
+	index   int
+	entries []inputEntry
+}
+
+func newInputReproducer(input []inputEntry) IInputReproducer {
+	return &InputReproducer{entries: input}
+}
+
+func newWarmedInputReproducer(input []inputEntry) IInputReproducer {
+	return &WarmedInputReproducer{entries: input[1:]}
+}
+
+func (r *InputReproducer) next() (int, float64) {
+	e := r.entries[r.index]
+	r.index = (r.index + 1) % len(r.entries)
+	if !r.warmed {
+		r.warmed = true
+		if len(r.entries) > 1 {
+			r.entries = r.entries[1:] // remove first entry
+			r.index = 0
+		}
+	}
+	return e.status, e.duration
+}
+
+func (r *WarmedInputReproducer) next() (int, float64) {
+	e := r.entries[r.index]
+	r.index = (r.index + 1) % len(r.entries)
+	return e.status, e.duration
+}
+
 type inputEntry struct {
 	status   int
 	duration float64
