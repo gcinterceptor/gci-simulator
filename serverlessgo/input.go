@@ -27,7 +27,8 @@ func newInputReproducer(input []inputEntry) IInputReproducer {
 }
 
 func newWarmedInputReproducer(input []inputEntry) IInputReproducer {
-	return &WarmedInputReproducer{entries: input[1:]}
+	if len(input) > 1 {input = input[1:]}
+	return &WarmedInputReproducer{entries: input}
 }
 
 func (r *InputReproducer) next() (int, float64) {
