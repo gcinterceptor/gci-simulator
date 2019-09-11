@@ -82,43 +82,6 @@ func TestScaleDown(t *testing.T) {
 	}
 }
 
-func TestNext(t *testing.T) {
-	type TestData struct {
-		desc     string
-		instance *Instance
-		want     []inputEntry
-	}
-	var testData = []TestData{
-		{"RemovingWithOneEntry", &Instance{entries: []inputEntry{{200, 0.2}}}, []inputEntry{{200, 0.2}}},
-		{"RemovingWithManyEntries", &Instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}}, []inputEntry{{200, 0.2}, {200, 0.1}}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			for i := 0; i < 10; i++ {
-				d.instance.next()
-			}
-			got := d.instance.entries
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
-			}
-		})
-	}
-	d := TestData{
-		"EntrySequenceSelection",
-		&Instance{entries: []inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}}},
-		[]inputEntry{{200, 0.3}, {200, 0.2}, {200, 0.1}, {200, 0.2}, {200, 0.1}},
-	}
-	t.Run(d.desc, func(t *testing.T) {
-		for _, w := range d.want {
-			status, duration := d.instance.next()
-			got := inputEntry{status, duration}
-			if !reflect.DeepEqual(w, got) {
-				t.Fatalf("Want: %v, got: %v", w, got)
-			}
-		}
-	})
-}
-
 type TestLoadBalancer struct{ reqsResponsed int }
 
 func (lb *TestLoadBalancer) response(r *Request) { lb.reqsResponsed++ }
