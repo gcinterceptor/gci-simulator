@@ -13,35 +13,29 @@ type ILoadBalancer interface {
 
 type LoadBalancer struct {
 	*godes.Runner
-	isTerminated     bool
-	arrivalQueue     *godes.FIFOQueue
-	arrivalCond      *godes.BooleanControl
-	instances        []IInstance
-	idlenessDeadline time.Duration
-	inputs           [][]inputEntry
-	index            int
-	output           IOutputWriter
-	finishedReqs     int
-}
-
-type OptimizedSchedulerLoadBalancer struct {
-	*LoadBalancer
+	isTerminated       bool
+	arrivalQueue       *godes.FIFOQueue
+	arrivalCond        *godes.BooleanControl
+	instances          []IInstance
+	idlenessDeadline   time.Duration
+	inputs             [][]inputEntry
+	index              int
+	output             IOutputWriter
+	finishedReqs       int
+	optimizedScheduler bool
 }
 
 func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output IOutputWriter, optimized bool) *LoadBalancer {
-	lb := &LoadBalancer{
-		Runner:           &godes.Runner{},
-		arrivalQueue:     godes.NewFIFOQueue("arrival"),
-		arrivalCond:      godes.NewBooleanControl(),
-		instances:        make([]IInstance, 0),
-		idlenessDeadline: idlenessDeadline,
-		inputs:           inputs,
-		output:           output,
+	return &LoadBalancer{
+		Runner:             &godes.Runner{},
+		arrivalQueue:       godes.NewFIFOQueue("arrival"),
+		arrivalCond:        godes.NewBooleanControl(),
+		instances:          make([]IInstance, 0),
+		idlenessDeadline:   idlenessDeadline,
+		inputs:             inputs,
+		output:             output,
+		optimizedScheduler: optimized,
 	}
-	//if optimized {
-	//	return &GenericLoadBalancer{Runner: &godes.Runner{}, olb: &OptimizedSchedulerLoadBalancer{lb}}
-	//}
-	return lb
 }
 
 func (lb *LoadBalancer) foward(r *Request) {
@@ -92,26 +86,28 @@ func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
 }
 
 func (lb *LoadBalancer) newInstance(r *Request) IInstance {
-	nextInstanceInput := lb.nextInstanceInputs()
-	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
-	godes.AddRunner(newInstance)
-	// inserts the instance ahead of the array
-	lb.instances = append([]IInstance{newInstance}, lb.instances...)
-	return newInstance
-}
+	var newIInstance IInstance
+	if lb.optimizedScheduler {
+		nextInstanceInput := lb.nextInstanceInputs()
+		if r.status != 503 { // GCI receives cold start impacts even on the optimized scheduler
+			nextInstanceInput = nextInstanceInput[1:]
+		}
+		newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
+		godes.AddRunner(newInstance)
+		// inserts the instance ahead of the array
+		lb.instances = append([]IInstance{newInstance}, lb.instances...)
+		newIInstance = newInstance
 
-func (lb *OptimizedSchedulerLoadBalancer) newInstance(r *Request) IInstance {
-	var initiatedInstance IInstance
-	nextInstanceInput := lb.nextInstanceInputs()
-	if r.status != 503 { // GCI receives cold start impacts even on the optimized scheduler
-		nextInstanceInput = nextInstanceInput[1:]
+	} else {
+		nextInstanceInput := lb.nextInstanceInputs()
+		newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
+		godes.AddRunner(newInstance)
+		// inserts the instance ahead of the array
+		lb.instances = append([]IInstance{newInstance}, lb.instances...)
+		newIInstance = newInstance
 	}
-	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
-	initiatedInstance = newInstance
-	godes.AddRunner(newInstance)
-	// inserts the instance ahead of the array
-	lb.instances = append([]IInstance{initiatedInstance}, lb.instances...)
-	return initiatedInstance
+	return newIInstance
+
 }
 
 func (lb *LoadBalancer) Run() {
