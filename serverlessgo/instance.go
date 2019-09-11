@@ -32,7 +32,6 @@ type Instance struct {
 	idlenessDeadline time.Duration
 	reproducer       IInputReproducer
 	index            int
-	warmed           bool
 }
 
 func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, reproducer IInputReproducer) *Instance {
@@ -99,10 +98,6 @@ func (i *Instance) isWorking() bool {
 
 func (i *Instance) isTerminated() bool {
 	return i.terminated
-}
-
-func (i *Instance) isWarm() bool {
-	return i.warmed
 }
 
 func (i *Instance) getId() int {
