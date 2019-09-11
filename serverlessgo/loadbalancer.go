@@ -86,27 +86,19 @@ func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
 }
 
 func (lb *LoadBalancer) newInstance(r *Request) IInstance {
-	var newIInstance IInstance
-	if lb.optimizedScheduler {
-		nextInstanceInput := lb.nextInstanceInputs()
-		if r.status != 503 { // GCI receives cold start impacts even on the optimized scheduler
-			nextInstanceInput = nextInstanceInput[1:]
-		}
-		newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
-		godes.AddRunner(newInstance)
-		// inserts the instance ahead of the array
-		lb.instances = append([]IInstance{newInstance}, lb.instances...)
-		newIInstance = newInstance
+	var reproducer IInputReproducer
+	nextInstanceInput := lb.nextInstanceInputs()
+	if lb.optimizedScheduler && r.status != 503 {
+		reproducer = newWarmedInputReproducer(nextInstanceInput)
 
 	} else {
-		nextInstanceInput := lb.nextInstanceInputs()
-		newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, nextInstanceInput)
-		godes.AddRunner(newInstance)
-		// inserts the instance ahead of the array
-		lb.instances = append([]IInstance{newInstance}, lb.instances...)
-		newIInstance = newInstance
+		reproducer = newInputReproducer(nextInstanceInput)
 	}
-	return newIInstance
+	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
+	godes.AddRunner(newInstance)
+	// inserts the instance ahead of the array
+	lb.instances = append([]IInstance{newInstance}, lb.instances...)
+	return newInstance
 
 }
 
