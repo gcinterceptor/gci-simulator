@@ -39,11 +39,13 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, outp
 }
 
 func (lb *LoadBalancer) foward(r *Request) {
+	if r == nil { return }
 	lb.arrivalQueue.Place(r)
 	lb.arrivalCond.Set(true)
 }
 
 func (lb *LoadBalancer) response(r *Request) {
+	if r == nil { return }
 	if r.status == 200 {
 		lb.output.record(r)
 		lb.finishedReqs++
