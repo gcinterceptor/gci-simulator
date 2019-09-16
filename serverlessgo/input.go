@@ -34,6 +34,11 @@ func newWarmedInputReproducer(input []inputEntry) IInputReproducer {
 func (r *InputReproducer) next() (int, float64) {
 	e := r.entries[r.index]
 	r.index = (r.index + 1) % len(r.entries)
+	r.setWarm()
+	return e.status, e.duration
+}
+
+func (r *InputReproducer) setWarm() {
 	if !r.warmed {
 		r.warmed = true
 		if len(r.entries) > 1 {
@@ -41,7 +46,6 @@ func (r *InputReproducer) next() (int, float64) {
 			r.index = 0
 		}
 	}
-	return e.status, e.duration
 }
 
 func (r *WarmedInputReproducer) next() (int, float64) {
