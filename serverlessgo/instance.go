@@ -30,12 +30,11 @@ type Instance struct {
 	lastWorked       float64
 	busyTime         float64
 	idlenessDeadline time.Duration
-	entries          []inputEntry
+	reproducer       IInputReproducer
 	index            int
-	warmed           bool
 }
 
-func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, input []inputEntry) *Instance {
+func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, reproducer IInputReproducer) *Instance {
 	return &Instance{
 		Runner:           &godes.Runner{},
 		lb:               lb,
@@ -44,7 +43,7 @@ func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, input
 		createdTime:      godes.GetSystemTime(),
 		lastWorked:       godes.GetSystemTime(),
 		idlenessDeadline: idlenessDeadline,
-		entries:          input,
+		reproducer:          reproducer,
 	}
 }
 
@@ -70,16 +69,7 @@ func (i *Instance) scaleDown() {
 }
 
 func (i *Instance) next() (int, float64) {
-	e := i.entries[i.index]
-	i.index = (i.index + 1) % len(i.entries)
-	if !i.isWarm() {
-		i.warmed = true
-		if len(i.entries) > 1 {
-			i.entries = i.entries[1:] // remove first entry
-			i.index = 0
-		}
-	}
-	return e.status, e.duration
+	return i.reproducer.next()
 }
 
 func (i *Instance) Run() {
@@ -103,15 +93,11 @@ func (i *Instance) Run() {
 }
 
 func (i *Instance) isWorking() bool {
-	return i.cond.GetState() == true
+	return i.cond.GetState()
 }
 
 func (i *Instance) isTerminated() bool {
 	return i.terminated
-}
-
-func (i *Instance) isWarm() bool {
-	return i.warmed
 }
 
 func (i *Instance) getId() int {
