@@ -17,20 +17,30 @@ func TestFoward(t *testing.T) {
 		queueSize         int
 		arrivalCondBefore bool
 		arrivalCondAfter  bool
+		expectedError     bool
 	}
-	checkFunc := func(req *Request, want *Want) {
-		arrivalCondBefore := lb.arrivalCond.GetState()
-		lb.foward(req)
-		arrivalCondAfter := lb.arrivalCond.GetState()
-		queueSized := lb.arrivalQueue.Len()
-		got := &Want{queueSized, arrivalCondBefore, arrivalCondAfter}
-		if !reflect.DeepEqual(want, got) {
-			t.Fatalf("Want: %v, got: %v", want, got)
-		}
-	}
-	checkFunc(nil, &Want{0, false, false})
-	checkFunc(&Request{id: 0}, &Want{1, false, true})
-	checkFunc(&Request{id: 1}, &Want{2, true, true})
+	data := []struct{
+		desc string
+		req *Request
+		want *Want
+	 }{
+	   {"Nil request", nil, &Want{0, false, false, true}},
+	   {"First request", &Request{}, &Want{1, false, true, false}},
+	   {"Following request", &Request{}, &Want{2, true, true, false}},
+	 }
+	 for _, d := range data {
+		t.Run(d.desc, func(t *testing.T){
+			arrivalCondBefore := lb.arrivalCond.GetState()
+			err := lb.forward(d.req)
+			expectedError := err != nil
+			arrivalCondAfter := lb.arrivalCond.GetState()
+			queueSized := lb.arrivalQueue.Len()
+			got := &Want{queueSized, arrivalCondBefore, arrivalCondAfter, expectedError}
+			if !reflect.DeepEqual(d.want, got) {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
+			}
+		})
+	 }
 }
 
 type TestOutputWriter struct{}
@@ -43,20 +53,31 @@ func TestResponse(t *testing.T) {
 		output: TestOutputWriter{},
 	}
 	type Want struct {
-		responsed   int
-		reforwarded int
-	}	
-	checkFunc := func(req *Request, want *Want) {
-		lb.response(req)
-		got := &Want{lb.finishedReqs, len(lb.instances)}
-		if !reflect.DeepEqual(want, got) {
-			t.Fatalf("Want: %v, got: %v", want, got)
-		}
+		responsed     int
+		reforwarded   int
+		expectedError bool
 	}
-	checkFunc(nil, &Want{0, 0})
-	checkFunc(&Request{status: 200}, &Want{1, 0})
-	checkFunc(&Request{status: 503}, &Want{1, 1})
-	checkFunc(&Request{status: 200}, &Want{2, 1})
+	data := []struct{
+		desc string
+		req *Request
+		want *Want
+	 }{
+	   {"Nil request", nil, &Want{0, 0, true}},
+	   {"Success", &Request{status: 200}, &Want{1, 0, false}},
+	   {"Unavailable", &Request{status: 503}, &Want{1, 1, false}},
+	 }
+	 for _, d := range data {
+		t.Run(d.desc, func(t *testing.T){
+			err := lb.response(d.req)
+			expectedError := err != nil
+			responsed := lb.finishedReqs
+			reforwarded := len(lb.instances)
+			got := &Want{responsed, reforwarded, expectedError}
+			if !reflect.DeepEqual(d.want, got) {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
+			}
+		})
+	 }
 }
 
 func TestLBTerminate(t *testing.T) {
@@ -137,31 +158,30 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 		instances: []IInstance{
 			&Instance{id: 0, terminated: false, cond: godes.NewBooleanControl()},
 			&Instance{id: 1, terminated: false, cond: godes.NewBooleanControl()},
-			&Instance{id: 2, terminated: false, cond: godes.NewBooleanControl()},
+			&Instance{id: 2, terminated: true, cond: godes.NewBooleanControl()},
 			&Instance{id: 3, terminated: false, cond: godes.NewBooleanControl()},
-			&Instance{id: 4, terminated: true, cond: godes.NewBooleanControl()},
-			&Instance{id: 5, terminated: false, cond: godes.NewBooleanControl()},
 		},
 	}
-	checkFunc := func(req *Request, want int) {
-		nextInstance := lb.nextInstance(req)
-		nextInstance.receive(req)
-		got := nextInstance.getId()
-		if want != got {
-			t.Fatalf("Want: %v, got: %v", want, got)
-		}
-	}
-	req := &Request{hops: []int{0}}
-	want := 1
-	checkFunc(req, want)
-	want = 2
-	checkFunc(req, want)
-
-	req = &Request{hops: []int{0, 3}}
-	want = 5
-	checkFunc(req, want)
-	want = 6
-	checkFunc(req, want)
+	data := []struct{
+		desc string
+		req *Request
+		want int
+	 }{
+	   {"Free Instance", &Request{}, 0},
+	   {"Busy Instance", &Request{}, 1},
+	   {"Terminated Instance", &Request{hops: []int{0, 1}}, 3},
+	   {"New Instance Required", &Request{hops: []int{0, 1, 2, 3}}, 4},
+	 }
+	 for _, d := range data {
+		t.Run(d.desc, func(t *testing.T){
+			nextInstance := lb.nextInstance(d.req)
+			nextInstance.receive(d.req)
+			got := nextInstance.getId()
+			if d.want != got {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
+			}
+		})
+	 }
 }
 
 type TestInstance struct {
