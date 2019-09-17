@@ -82,8 +82,9 @@ func TestScaleDown(t *testing.T) {
 	}
 }
 
-type TestLoadBalancer struct{ req *Request }
+type TestLoadBalancer struct{req *Request}
 
+func (lb *TestLoadBalancer) foward(r *Request) {}
 func (lb *TestLoadBalancer) response(r *Request) { lb.req = r }
 func TestInstanceRun(t *testing.T) {
 	instance := &Instance{
