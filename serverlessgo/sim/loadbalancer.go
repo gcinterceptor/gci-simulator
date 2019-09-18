@@ -8,17 +8,17 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type ILoadBalancer interface {
+type iLoadBalancer interface {
 	forward(r *Request) error
 	response(r *Request) error
 }
 
-type LoadBalancer struct {
+type loadBalancer struct {
 	*godes.Runner
 	isTerminated       bool
 	arrivalQueue       *godes.FIFOQueue
 	arrivalCond        *godes.BooleanControl
-	instances          []IInstance
+	instances          []iinstance
 	idlenessDeadline   time.Duration
 	inputs             [][]InputEntry
 	index              int
@@ -27,12 +27,12 @@ type LoadBalancer struct {
 	optimizedScheduler bool
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool) *LoadBalancer {
-	return &LoadBalancer{
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool) *loadBalancer {
+	return &loadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
 		arrivalCond:        godes.NewBooleanControl(),
-		instances:          make([]IInstance, 0),
+		instances:          make([]iinstance, 0),
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		listener:           listener,
@@ -40,7 +40,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, list
 	}
 }
 
-func (lb *LoadBalancer) forward(r *Request) error {
+func (lb *loadBalancer) forward(r *Request) error {
 	if r == nil {
 		return errors.New("Error while calling the LB's forward method. Request cannot be nil.")
 	}
@@ -49,7 +49,7 @@ func (lb *LoadBalancer) forward(r *Request) error {
 	return nil
 }
 
-func (lb *LoadBalancer) response(r *Request) error {
+func (lb *loadBalancer) response(r *Request) error {
 	if r == nil {
 		return errors.New("Error while calling the LB's response method. Request cannot be nil.")
 	}
@@ -62,7 +62,7 @@ func (lb *LoadBalancer) response(r *Request) error {
 	return nil
 }
 
-func (lb *LoadBalancer) terminate() {
+func (lb *loadBalancer) terminate() {
 	if !lb.isTerminated {
 		for _, i := range lb.instances {
 			i.terminate()
@@ -72,14 +72,14 @@ func (lb *LoadBalancer) terminate() {
 	}
 }
 
-func (lb *LoadBalancer) nextInstanceInputs() []InputEntry {
+func (lb *loadBalancer) nextInstanceInputs() []InputEntry {
 	input := lb.inputs[lb.index]
 	lb.index = (lb.index + 1) % len(lb.inputs)
 	return input
 }
 
-func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
-	var selected IInstance
+func (lb *loadBalancer) nextInstance(r *Request) iinstance {
+	var selected iinstance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for i := 0; i < len(lb.instances); i++ {
@@ -95,7 +95,7 @@ func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
 	return selected
 }
 
-func (lb *LoadBalancer) newInstance(r *Request) IInstance {
+func (lb *loadBalancer) newInstance(r *Request) iinstance {
 	var reproducer IInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
 	if lb.optimizedScheduler && r.Status != 503 {
@@ -107,12 +107,12 @@ func (lb *LoadBalancer) newInstance(r *Request) IInstance {
 	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
 	godes.AddRunner(newInstance)
 	// inserts the instance ahead of the array
-	lb.instances = append([]IInstance{newInstance}, lb.instances...)
+	lb.instances = append([]iinstance{newInstance}, lb.instances...)
 	return newInstance
 
 }
 
-func (lb *LoadBalancer) Run() {
+func (lb *loadBalancer) Run() {
 	for {
 		lb.arrivalCond.Wait(true)
 		if lb.arrivalQueue.Len() > 0 {
@@ -128,7 +128,7 @@ func (lb *LoadBalancer) Run() {
 	}
 }
 
-func (lb *LoadBalancer) tryScaleDown() {
+func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
 		if godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
 			i.scaleDown()
@@ -136,11 +136,11 @@ func (lb *LoadBalancer) tryScaleDown() {
 	}
 }
 
-func (lb *LoadBalancer) getFinishedReqs() int {
+func (lb *loadBalancer) getFinishedReqs() int {
 	return lb.finishedReqs
 }
 
-func (lb *LoadBalancer) getTotalCost() float64 {
+func (lb *loadBalancer) getTotalCost() float64 {
 	var totalCost float64
 	for _, i := range lb.instances {
 		totalCost += i.getUpTime()
@@ -148,7 +148,7 @@ func (lb *LoadBalancer) getTotalCost() float64 {
 	return totalCost
 }
 
-func (lb *LoadBalancer) getTotalEfficiency() float64 {
+func (lb *loadBalancer) getTotalEfficiency() float64 {
 	var totalEfficiency float64
 	for _, i := range lb.instances {
 		totalEfficiency += i.getEfficiency()
