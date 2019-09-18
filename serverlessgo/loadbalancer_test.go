@@ -9,43 +9,38 @@ import (
 )
 
 func TestFoward(t *testing.T) {
+	lb := &LoadBalancer{
+		arrivalQueue: godes.NewFIFOQueue("arrival"),
+		arrivalCond:  godes.NewBooleanControl(),
+	}
 	type Want struct {
 		queueSize         int
 		arrivalCondBefore bool
 		arrivalCondAfter  bool
+		expectedError     bool
 	}
-	type TestData struct {
+	data := []struct{
 		desc string
-		lb   *LoadBalancer
-		reqs []*Request
+		req *Request
 		want *Want
-	}
-	var testData = []TestData{
-		{"NoRequests", &LoadBalancer{
-			arrivalQueue: godes.NewFIFOQueue("arrival"),
-			arrivalCond:  godes.NewBooleanControl(),
-		}, []*Request{}, &Want{0, false, false}},
-		{"OneRequest", &LoadBalancer{
-			arrivalQueue: godes.NewFIFOQueue("arrival"),
-			arrivalCond:  godes.NewBooleanControl(),
-		}, []*Request{{id: 0}}, &Want{1, false, true}},
-		{"ManyRequests", &LoadBalancer{
-			arrivalQueue: godes.NewFIFOQueue("arrival"),
-			arrivalCond:  godes.NewBooleanControl(),
-		}, []*Request{{id: 0}, {id: 1}, {id: 2}}, &Want{3, false, true}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			arrivalCondBefore := d.lb.arrivalCond.GetState()
-			for _, r := range d.reqs {
-				d.lb.foward(r)
-			}
-			got := &Want{d.lb.arrivalQueue.Len(), arrivalCondBefore, d.lb.arrivalCond.GetState()}
+	 }{
+	   {"Nil request", nil, &Want{0, false, false, true}},
+	   {"First request", &Request{}, &Want{1, false, true, false}},
+	   {"Following request", &Request{}, &Want{2, true, true, false}},
+	 }
+	 for _, d := range data {
+		t.Run(d.desc, func(t *testing.T){
+			arrivalCondBefore := lb.arrivalCond.GetState()
+			err := lb.forward(d.req)
+			expectedError := err != nil
+			arrivalCondAfter := lb.arrivalCond.GetState()
+			queueSized := lb.arrivalQueue.Len()
+			got := &Want{queueSized, arrivalCondBefore, arrivalCondAfter, expectedError}
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
-	}
+	 }
 }
 
 type TestOutputWriter struct{}
@@ -53,49 +48,36 @@ type TestOutputWriter struct{}
 func (t TestOutputWriter) record(r *Request) error { return nil }
 
 func TestResponse(t *testing.T) {
+	lb := &LoadBalancer{
+		inputs: [][]inputEntry{{{200, 0.5}}},
+		output: TestOutputWriter{},
+	}
 	type Want struct {
-		responsed   int
-		reforwarded int
+		responsed     int
+		reforwarded   int
+		expectedError bool
 	}
-	type TestData struct {
+	data := []struct{
 		desc string
-		lb   *LoadBalancer
-		reqs []*Request
+		req *Request
 		want *Want
-	}
-	var testData = []TestData{
-		{"OneRequestReforwared", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}},
-			output: TestOutputWriter{},
-		}, []*Request{{status: 503}}, &Want{0, 1}},
-		{"OneRequestResponsed", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}},
-			output: TestOutputWriter{},
-		}, []*Request{{status: 200}}, &Want{1, 0}},
-		{"ManyRequestsReforwared", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}},
-			output: TestOutputWriter{},
-		}, []*Request{{status: 503}, {status: 503}, {status: 503}}, &Want{0, 3}},
-		{"ManyRequestResponsed", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}},
-			output: TestOutputWriter{},
-		}, []*Request{{status: 200}, {status: 200}, {status: 200}}, &Want{3, 0}},
-		{"ManyRequestMixed", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}},
-			output: TestOutputWriter{},
-		}, []*Request{{status: 200}, {status: 503}, {status: 503}, {status: 200}, {status: 200}}, &Want{3, 2}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			for _, r := range d.reqs {
-				d.lb.response(r)
-			}
-			got := &Want{d.lb.finishedReqs, len(d.lb.instances)}
+	 }{
+	   {"Nil request", nil, &Want{0, 0, true}},
+	   {"Success", &Request{status: 200}, &Want{1, 0, false}},
+	   {"Unavailable", &Request{status: 503}, &Want{1, 1, false}},
+	 }
+	 for _, d := range data {
+		t.Run(d.desc, func(t *testing.T){
+			err := lb.response(d.req)
+			expectedError := err != nil
+			responsed := lb.finishedReqs
+			reforwarded := len(lb.instances)
+			got := &Want{responsed, reforwarded, expectedError}
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
-	}
+	 }
 }
 
 func TestLBTerminate(t *testing.T) {
@@ -168,122 +150,52 @@ func TestNextInstanceInputs(t *testing.T) {
 	}
 }
 
-func TestNextInstance_NoHopedRequest(t *testing.T) {
-	type Want struct{ firstID, secondID, thirdID int }
-	type TestData struct {
-		desc string
-		lb   *LoadBalancer
-		want *Want
-	}
-	var testData = []TestData{
-		{"NoInstances", &LoadBalancer{
-			Runner:      &godes.Runner{},
-			arrivalCond: godes.NewBooleanControl(),
-			inputs:      [][]inputEntry{{{200, 0.5}}},
-			instances:   make([]IInstance, 0),
-		}, &Want{0, 0, 1}},
-		{"OneInstance", &LoadBalancer{
-			Runner:      &godes.Runner{},
-			arrivalCond: godes.NewBooleanControl(),
-			inputs:      [][]inputEntry{{{200, 0.5}}},
-			instances:   []IInstance{&Instance{id: 4, cond: godes.NewBooleanControl()}},
-		}, &Want{4, 4, 1}},
-		{"ManyAvailableInstances", &LoadBalancer{
-			Runner:      &godes.Runner{},
-			arrivalCond: godes.NewBooleanControl(),
-			inputs:      [][]inputEntry{{{200, 0.5}}},
-			instances: []IInstance{
-				&Instance{id: 5, cond: godes.NewBooleanControl()},
-				&Instance{id: 6, cond: godes.NewBooleanControl()},
-				&Instance{id: 7, cond: godes.NewBooleanControl()},
-			},
-		}, &Want{5, 5, 6}},
-		{"ManyTerminatedInstances", &LoadBalancer{
-			Runner:      &godes.Runner{},
-			arrivalCond: godes.NewBooleanControl(),
-			inputs:      [][]inputEntry{{{200, 0.5}}},
-			instances: []IInstance{
-				&Instance{id: 0, terminated: true, cond: godes.NewBooleanControl()},
-				&Instance{id: 1, terminated: true, cond: godes.NewBooleanControl()},
-				&Instance{id: 2, terminated: false, cond: godes.NewBooleanControl()},
-				&Instance{id: 3, terminated: true, cond: godes.NewBooleanControl()},
-			},
-		}, &Want{2, 2, 4}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			req := &Request{}
-			first := d.lb.nextInstance(req)
-			second := d.lb.nextInstance(req)
-			first.receive(req)
-
-			third := d.lb.nextInstance(req)
-			got := &Want{first.getId(), second.getId(), third.getId()}
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
-			}
-		})
-	}
-}
-
 func TestNextInstance_HopedRequest(t *testing.T) {
-	type Want struct{ firstID, secondID, thirdID int }
-	type TestData struct {
+	lb := &LoadBalancer{
+		Runner:      &godes.Runner{},
+		arrivalCond: godes.NewBooleanControl(),
+		inputs:      [][]inputEntry{{{200, 0.5}}},
+		instances: []IInstance{
+			&Instance{id: 0, terminated: false, cond: godes.NewBooleanControl()},
+			&Instance{id: 1, terminated: false, cond: godes.NewBooleanControl()},
+			&Instance{id: 2, terminated: true, cond: godes.NewBooleanControl()},
+			&Instance{id: 3, terminated: false, cond: godes.NewBooleanControl()},
+		},
+	}
+	data := []struct{
 		desc string
-		lb   *LoadBalancer
-		req  *Request
-		want *Want
-	}
-	var testData = []TestData{
-		{"OneInstance", &LoadBalancer{
-			Runner:      &godes.Runner{},
-			arrivalCond: godes.NewBooleanControl(),
-			inputs:      [][]inputEntry{{{200, 0.5}}},
-			instances:   []IInstance{&Instance{id: 0, cond: godes.NewBooleanControl()}},
-		}, &Request{hops: []int{0}}, &Want{1, 1, 2}},
-		{"ManyInstances", &LoadBalancer{
-			Runner:      &godes.Runner{},
-			arrivalCond: godes.NewBooleanControl(),
-			inputs:      [][]inputEntry{{{200, 0.5}}},
-			instances: []IInstance{
-				&Instance{id: 0, cond: godes.NewBooleanControl()},
-				&Instance{id: 1, cond: godes.NewBooleanControl()},
-				&Instance{id: 2, cond: godes.NewBooleanControl()},
-				&Instance{id: 3, cond: godes.NewBooleanControl()},
-				&Instance{id: 4, cond: godes.NewBooleanControl()},
-			},
-		}, &Request{hops: []int{0, 1, 3, 4}}, &Want{2, 2, 5}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			first := d.lb.nextInstance(d.req)
-			second := d.lb.nextInstance(d.req)
-			first.receive(d.req)
-
-			third := d.lb.nextInstance(d.req)
-			got := &Want{first.getId(), second.getId(), third.getId()}
-			if !reflect.DeepEqual(d.want, got) {
+		req *Request
+		want int
+	 }{
+	   {"Free Instance", &Request{}, 0},
+	   {"Busy Instance", &Request{}, 1},
+	   {"Terminated Instance", &Request{hops: []int{0, 1}}, 3},
+	   {"New Instance Required", &Request{hops: []int{0, 1, 2, 3}}, 4},
+	 }
+	 for _, d := range data {
+		t.Run(d.desc, func(t *testing.T){
+			nextInstance := lb.nextInstance(d.req)
+			nextInstance.receive(d.req)
+			got := nextInstance.getId()
+			if d.want != got {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
-	}
+	 }
 }
 
 type TestInstance struct {
+	*Instance
 	id         int
 	terminated bool
 	lastWorked float64
 }
 
-func (t *TestInstance) receive(r *Request)     {}
 func (t *TestInstance) terminate()             { t.terminated = true }
 func (t *TestInstance) scaleDown()             { t.terminated = true }
-func (t *TestInstance) isWorking() bool        { return false }
 func (t *TestInstance) isTerminated() bool     { return t.terminated }
-func (t *TestInstance) getId() int             { return t.id }
 func (t *TestInstance) getLastWorked() float64 { return t.lastWorked }
-func (t *TestInstance) getUpTime() float64     { return 0 }
-func (t *TestInstance) getEfficiency() float64 { return 0 }
+func (t *TestInstance) getId() int             { return t.id }
 
 func TestTryScaleDown(t *testing.T) {
 	idleness, _ := time.ParseDuration("5s")

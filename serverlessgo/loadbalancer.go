@@ -3,12 +3,14 @@ package main
 import (
 	"sort"
 	"time"
+	"errors"
 
 	"github.com/agoussia/godes"
 )
 
 type ILoadBalancer interface {
-	response(r *Request)
+	forward(r *Request) error
+	response(r *Request) error
 }
 
 type LoadBalancer struct {
@@ -38,18 +40,26 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, outp
 	}
 }
 
-func (lb *LoadBalancer) foward(r *Request) {
+func (lb *LoadBalancer) forward(r *Request) error {
+	if r == nil {
+		return errors.New("Error while calling the LB's forward method. Request cannot be nil.")
+	}
 	lb.arrivalQueue.Place(r)
 	lb.arrivalCond.Set(true)
+	return nil
 }
 
-func (lb *LoadBalancer) response(r *Request) {
+func (lb *LoadBalancer) response(r *Request) error {
+	if r == nil {
+		return errors.New("Error while calling the LB's response method. Request cannot be nil.")
+	}
 	if r.status == 200 {
 		lb.output.record(r)
 		lb.finishedReqs++
 	} else {
 		lb.nextInstance(r).receive(r)
 	}
+	return nil
 }
 
 func (lb *LoadBalancer) terminate() {

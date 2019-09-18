@@ -66,7 +66,7 @@ func main() {
 		Src:    rand.NewSource(uint64(time.Now().Nanosecond())),
 	}
 	for godes.GetSystemTime() < duration.Seconds() {
-		lb.foward(newRequest(reqID))
+		lb.forward(newRequest(reqID))
 		interArrivalTime := poissonDist.Rand()
 		godes.Advance(interArrivalTime / 1000)
 		reqID++
