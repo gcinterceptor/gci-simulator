@@ -1,39 +1,39 @@
 package sim
 
-type IInputReproducer interface {
+type iInputReproducer interface {
 	next() (int, float64)
 }
 
-type InputReproducer struct {
+type inputReproducer struct {
 	index   int
 	warmed  bool
 	entries []InputEntry
 }
 
-type WarmedInputReproducer struct {
+type warmedinputReproducer struct {
 	index   int
 	entries []InputEntry
 }
 
-func newInputReproducer(input []InputEntry) IInputReproducer {
-	return &InputReproducer{entries: input}
+func newInputReproducer(input []InputEntry) iInputReproducer {
+	return &inputReproducer{entries: input}
 }
 
-func newWarmedInputReproducer(input []InputEntry) IInputReproducer {
+func newWarmedInputReproducer(input []InputEntry) iInputReproducer {
 	if len(input) > 1 {
 		input = input[1:]
 	}
-	return &WarmedInputReproducer{entries: input}
+	return &warmedinputReproducer{entries: input}
 }
 
-func (r *InputReproducer) next() (int, float64) {
+func (r *inputReproducer) next() (int, float64) {
 	e := r.entries[r.index]
 	r.index = (r.index + 1) % len(r.entries)
 	r.setWarm()
 	return e.Status, e.Duration
 }
 
-func (r *InputReproducer) setWarm() {
+func (r *inputReproducer) setWarm() {
 	if !r.warmed {
 		r.warmed = true
 		if len(r.entries) > 1 {
@@ -43,7 +43,7 @@ func (r *InputReproducer) setWarm() {
 	}
 }
 
-func (r *WarmedInputReproducer) next() (int, float64) {
+func (r *warmedinputReproducer) next() (int, float64) {
 	e := r.entries[r.index]
 	r.index = (r.index + 1) % len(r.entries)
 	return e.Status, e.Duration

@@ -8,7 +8,7 @@ import (
 func TestInputIReproducer(t *testing.T) {
 	var testData = []struct {
 		desc              string
-		reproduce         IInputReproducer
+		reproduce         iInputReproducer
 		numberOfNextCalls int
 		want              []InputEntry
 	}{

@@ -18,7 +18,7 @@ type loadBalancer struct {
 	isTerminated       bool
 	arrivalQueue       *godes.FIFOQueue
 	arrivalCond        *godes.BooleanControl
-	instances          []iinstance
+	instances          []iInstance
 	idlenessDeadline   time.Duration
 	inputs             [][]InputEntry
 	index              int
@@ -32,7 +32,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, list
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
 		arrivalCond:        godes.NewBooleanControl(),
-		instances:          make([]iinstance, 0),
+		instances:          make([]iInstance, 0),
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		listener:           listener,
@@ -78,8 +78,8 @@ func (lb *loadBalancer) nextInstanceInputs() []InputEntry {
 	return input
 }
 
-func (lb *loadBalancer) nextInstance(r *Request) iinstance {
-	var selected iinstance
+func (lb *loadBalancer) nextInstance(r *Request) iInstance {
+	var selected iInstance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for i := 0; i < len(lb.instances); i++ {
@@ -95,8 +95,8 @@ func (lb *loadBalancer) nextInstance(r *Request) iinstance {
 	return selected
 }
 
-func (lb *loadBalancer) newInstance(r *Request) iinstance {
-	var reproducer IInputReproducer
+func (lb *loadBalancer) newInstance(r *Request) iInstance {
+	var reproducer iInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
 	if lb.optimizedScheduler && r.Status != 503 {
 		reproducer = newWarmedInputReproducer(nextInstanceInput)
@@ -107,7 +107,7 @@ func (lb *loadBalancer) newInstance(r *Request) iinstance {
 	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
 	godes.AddRunner(newInstance)
 	// inserts the instance ahead of the array
-	lb.instances = append([]iinstance{newInstance}, lb.instances...)
+	lb.instances = append([]iInstance{newInstance}, lb.instances...)
 	return newInstance
 
 }

@@ -89,15 +89,15 @@ func TestLBTerminate(t *testing.T) {
 	var testData = []TestData{
 		{"NoInstance", &loadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
-			instances:   make([]iinstance, 0),
+			instances:   make([]iInstance, 0),
 		}, true},
 		{"OneInstance", &loadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
-			instances:   []iinstance{&instance{id: 0, cond: godes.NewBooleanControl()}},
+			instances:   []iInstance{&instance{id: 0, cond: godes.NewBooleanControl()}},
 		}, true},
 		{"ManyInstances", &loadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
-			instances: []iinstance{
+			instances: []iInstance{
 				&instance{id: 1, cond: godes.NewBooleanControl()},
 				&instance{id: 2, cond: godes.NewBooleanControl()},
 				&instance{id: 3, cond: godes.NewBooleanControl()},
@@ -155,7 +155,7 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 		Runner:      &godes.Runner{},
 		arrivalCond: godes.NewBooleanControl(),
 		inputs:      [][]InputEntry{{{200, 0.5}}},
-		instances: []iinstance{
+		instances: []iInstance{
 			&instance{id: 0, terminated: false, cond: godes.NewBooleanControl()},
 			&instance{id: 1, terminated: false, cond: godes.NewBooleanControl()},
 			&instance{id: 2, terminated: true, cond: godes.NewBooleanControl()},
@@ -207,15 +207,15 @@ func TestTryScaleDown(t *testing.T) {
 	var testData = []TestData{
 		{"NoInstances", &loadBalancer{
 			idlenessDeadline: idleness,
-			instances:        make([]iinstance, 0),
+			instances:        make([]iInstance, 0),
 		}, make([]bool, 0)},
 		{"OneInstance", &loadBalancer{
 			idlenessDeadline: idleness,
-			instances:        []iinstance{&TestInstance{id: 0, terminated: false, lastWorked: -5.0}},
+			instances:        []iInstance{&TestInstance{id: 0, terminated: false, lastWorked: -5.0}},
 		}, []bool{true}},
 		{"ManyInstances", &loadBalancer{
 			idlenessDeadline: idleness,
-			instances: []iinstance{
+			instances: []iInstance{
 				&TestInstance{id: 0, terminated: false, lastWorked: -5.0},
 				&TestInstance{id: 1, terminated: false, lastWorked: 0.0},
 				&TestInstance{id: 2, terminated: false, lastWorked: -5.0},

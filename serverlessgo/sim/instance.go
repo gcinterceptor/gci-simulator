@@ -6,7 +6,7 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type iinstance interface {
+type iInstance interface {
 	receive(r *Request)
 	terminate()
 	scaleDown()
@@ -30,11 +30,11 @@ type instance struct {
 	lastWorked       float64
 	busyTime         float64
 	idlenessDeadline time.Duration
-	reproducer       IInputReproducer
+	reproducer       iInputReproducer
 	index            int
 }
 
-func newInstance(id int, lb iLoadBalancer, idlenessDeadline time.Duration, reproducer IInputReproducer) *instance {
+func newInstance(id int, lb iLoadBalancer, idlenessDeadline time.Duration, reproducer iInputReproducer) *instance {
 	return &instance{
 		Runner:           &godes.Runner{},
 		lb:               lb,
