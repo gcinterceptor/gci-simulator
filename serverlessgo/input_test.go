@@ -4,68 +4,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/gcinterceptor/gci-simulator/serverless/sim"
 )
-
-const (
-	input_test = "test.csv"
-)
-
-func TestInputIReproducer(t *testing.T) {
-	var testData = []struct {
-		desc              string
-		reproduce         IInputReproducer
-		numberOfNextCalls int
-		want              []inputEntry
-	}{
-		{"OneEntry", newInputReproducer([]inputEntry{{200, 0.2}}), 3, []inputEntry{
-				{200, 0.2}, {200, 0.2}, {200, 0.2}},
-			},
-		{"ManyEntry", newInputReproducer([]inputEntry{{200, 0.8}, {200, 0.2}, {200, 0.3}}), 5, []inputEntry{
-			{200, 0.8}, {200, 0.2}, {200, 0.3}, {200, 0.2}, {200, 0.3}},
-		},
-		{"WarmedOneEntry", newWarmedInputReproducer([]inputEntry{{200, 0.2}}), 3, []inputEntry{
-				{200, 0.2}, {200, 0.2}, {200, 0.2}},
-			},
-		{"WarmedManyEntry", newWarmedInputReproducer([]inputEntry{{200, 0.8}, {200, 0.2}, {200, 0.3}}), 5, []inputEntry{
-			{200, 0.2}, {200, 0.3}, {200, 0.2}, {200, 0.3}, {200, 0.2}},
-		},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			var got []inputEntry
-			for i := 0; i < d.numberOfNextCalls; i++ {
-				status, duration := d.reproduce.next()
-				got = append(got, inputEntry{status, duration})
-			}
-
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
-			}
-		})
-	}
-}
-
-func TestBuildEntryArray_Success(t *testing.T) {
-	var testData = []struct {
-		desc string
-		row  [][]string
-		want []inputEntry
-	}{
-		{"OneEntry", [][]string{{"503", "0.250"}}, []inputEntry{{503, 0.250}}},
-		{"ManyEntries", [][]string{{"200", "0.019"}, {"503", "0.250"}}, []inputEntry{{200, 0.019}, {503, 0.250}}},
-	}
-	for _, d := range testData {
-		t.Run(d.desc, func(t *testing.T) {
-			got, err := buildEntryArray(d.row)
-			if err != nil {
-				t.Fatalf("Error while using toEntry function: %q", err)
-			}
-			if !reflect.DeepEqual(d.want, got) {
-				t.Fatalf("Want: %v, got: %v", d.want, got)
-			}
-		})
-	}
-}
 
 func TestBuildEntryArray_Error(t *testing.T) {
 	var testData = []struct {
@@ -104,10 +45,10 @@ func TestToEntry_Success(t *testing.T) {
 	var testData = []struct {
 		desc string
 		row  []string
-		want inputEntry
+		want sim.InputEntry
 	}{
-		{"Success", []string{"200", "0.019"}, inputEntry{200, 0.019}},
-		{"Error", []string{"503", "0.250"}, inputEntry{503, 0.250}},
+		{"Success", []string{"200", "0.019"}, sim.InputEntry{200, 0.019}},
+		{"Error", []string{"503", "0.250"}, sim.InputEntry{503, 0.250}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -136,6 +77,28 @@ func TestToEntry_Error(t *testing.T) {
 			_, err := toEntry(d.row)
 			if err == nil {
 				t.Fatal("Error expected")
+			}
+		})
+	}
+}
+
+func TestBuildEntryArray_Success(t *testing.T) {
+	var testData = []struct {
+		desc string
+		row  [][]string
+		want []sim.InputEntry
+	}{
+		{"OneEntry", [][]string{{"503", "0.250"}}, []sim.InputEntry{{503, 0.250}}},
+		{"ManyEntries", [][]string{{"200", "0.019"}, {"503", "0.250"}}, []sim.InputEntry{{200, 0.019}, {503, 0.250}}},
+	}
+	for _, d := range testData {
+		t.Run(d.desc, func(t *testing.T) {
+			got, err := buildEntryArray(d.row)
+			if err != nil {
+				t.Fatalf("Error while using toEntry function: %q", err)
+			}
+			if !reflect.DeepEqual(d.want, got) {
+				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
 	}

@@ -1,9 +1,9 @@
-package main
+package sim
 
 import (
+	"errors"
 	"sort"
 	"time"
-	"errors"
 
 	"github.com/agoussia/godes"
 )
@@ -20,14 +20,14 @@ type LoadBalancer struct {
 	arrivalCond        *godes.BooleanControl
 	instances          []IInstance
 	idlenessDeadline   time.Duration
-	inputs             [][]inputEntry
+	inputs             [][]InputEntry
 	index              int
-	output             IOutputWriter
+	listener           Listener
 	finishedReqs       int
 	optimizedScheduler bool
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, output IOutputWriter, optimized bool) *LoadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool) *LoadBalancer {
 	return &LoadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
@@ -35,7 +35,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]inputEntry, outp
 		instances:          make([]IInstance, 0),
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
-		output:             output,
+		listener:           listener,
 		optimizedScheduler: optimized,
 	}
 }
@@ -53,8 +53,8 @@ func (lb *LoadBalancer) response(r *Request) error {
 	if r == nil {
 		return errors.New("Error while calling the LB's response method. Request cannot be nil.")
 	}
-	if r.status == 200 {
-		lb.output.record(r)
+	if r.Status == 200 {
+		lb.listener.RequestFinished(r)
 		lb.finishedReqs++
 	} else {
 		lb.nextInstance(r).receive(r)
@@ -72,7 +72,7 @@ func (lb *LoadBalancer) terminate() {
 	}
 }
 
-func (lb *LoadBalancer) nextInstanceInputs() []inputEntry {
+func (lb *LoadBalancer) nextInstanceInputs() []InputEntry {
 	input := lb.inputs[lb.index]
 	lb.index = (lb.index + 1) % len(lb.inputs)
 	return input
@@ -98,7 +98,7 @@ func (lb *LoadBalancer) nextInstance(r *Request) IInstance {
 func (lb *LoadBalancer) newInstance(r *Request) IInstance {
 	var reproducer IInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
-	if lb.optimizedScheduler && r.status != 503 {
+	if lb.optimizedScheduler && r.Status != 503 {
 		reproducer = newWarmedInputReproducer(nextInstanceInput)
 
 	} else {

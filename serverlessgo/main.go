@@ -1,15 +1,17 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/agoussia/godes"
-	"golang.org/x/exp/rand"
-	"gonum.org/v1/gonum/stat/distuv"
+	"github.com/gcinterceptor/gci-simulator/serverless/sim"
 )
 
 var (
@@ -22,13 +24,13 @@ var (
 )
 
 func main() {
-	before := time.Now()
 	flag.Parse()
 
 	if len(*inputs) == 0 {
 		log.Fatalf("Must have at least one file input!")
 	}
-	var entries [][]inputEntry
+
+	var entries [][]sim.InputEntry
 	for _, p := range strings.Split(*inputs, ",") {
 		func() {
 			f, err := os.Open(p)
@@ -55,28 +57,49 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating LB's outputWriter: %q", err)
 	}
-	lb := newLoadBalancer(*idlenessDeadline, entries, outputWriter, *optimized)
 
-	godes.AddRunner(lb)
-	godes.Run()
+	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, outputWriter, *optimized)
+	printSimulationMetrics(float64(res.RequestCount)/(*duration).Seconds(), res.Cost, res.Efficiency, res.SimulationTime)
+}
 
-	reqID := int64(0)
-	poissonDist := &distuv.Poisson{
-		Lambda: *lambda,
-		Src:    rand.NewSource(uint64(time.Now().Nanosecond())),
+func buildEntryArray(records [][]string) ([]sim.InputEntry, error) {
+	if len(records) == 0 {
+		return nil, fmt.Errorf("Must have at least one file input!")
 	}
-	for godes.GetSystemTime() < duration.Seconds() {
-		lb.forward(newRequest(reqID))
-		interArrivalTime := poissonDist.Rand()
-		godes.Advance(interArrivalTime / 1000)
-		reqID++
+	var entries []sim.InputEntry
+	for _, row := range records {
+		entry, err := toEntry(row)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
 	}
-	lb.terminate()
-	godes.WaitUntilDone()
+	return entries, nil
+}
 
-	throughput := lb.getFinishedReqs()
-	totalCost := lb.getTotalCost()
-	totalEfficiency := lb.getTotalEfficiency()
-	simulationTime := time.Since(before).Nanoseconds() / 1000000000
-	printSimulationMetrics(throughput, totalCost, totalEfficiency, simulationTime)
+func readRecords(f io.Reader, p string) ([][]string, error) {
+	r := csv.NewReader(f)
+	r.Comma = ','
+
+	records, err := r.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing csv (%s): %q", p, err)
+	}
+	if len(records) <= 1 {
+		return nil, fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p)
+	}
+	return records[1:], nil
+}
+
+func toEntry(row []string) (sim.InputEntry, error) {
+	// Row format: status;request_time
+	status, err := strconv.Atoi(row[0])
+	if err != nil {
+		return sim.InputEntry{}, fmt.Errorf("Error parsing status in row (%v): %q", row, err)
+	}
+	duration, err := strconv.ParseFloat(row[1], 64)
+	if err != nil {
+		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+	}
+	return sim.InputEntry{status, duration}, nil
 }

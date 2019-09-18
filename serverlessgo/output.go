@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
-)
 
-type IOutputWriter interface {
-	record(r *Request) error
-}
+	"github.com/gcinterceptor/gci-simulator/serverless/sim"
+)
 
 type outputWriter struct {
 	f *os.File
@@ -25,21 +24,21 @@ func newOutputWriter(path, header string) (*outputWriter, error) {
 	return &outputWriter{f: f}, nil
 }
 
-func (o *outputWriter) record(r *Request) error {
-	s := fmt.Sprintf("%d,%d,%.1f\n", r.id, r.status, r.responseTime*1000)
+func (o *outputWriter) RequestFinished(r *sim.Request) {
+	s := fmt.Sprintf("%d,%d,%.1f\n", r.ID, r.Status, r.ResponseTime*1000)
 	_, err := o.f.WriteString(s)
 	if err != nil {
-		return fmt.Errorf("Error trying to write s (%s) in file (%v+): %q", s, o.f, err)
+		// Crash the simulation binary if we can not write output.
+		log.Fatalf("Error trying to write s (%s) in file (%v+): %q", s, o.f, err)
 	}
-	return nil
 }
 
 func (o *outputWriter) close() {
 	o.f.Close()
 }
 
-func printSimulationMetrics(throughput int, totalCost, totalEfficiency float64, simulationTime int64) {
-	fmt.Printf("Throughput: %d\n", throughput)
+func printSimulationMetrics(throughput float64, totalCost, totalEfficiency float64, simulationTime int64) {
+	fmt.Printf("Throughput: %f\n", throughput)
 	fmt.Printf("Total cost of instances: %.5f\n", totalCost)
 	fmt.Printf("Total efficiency of instances: %.10f\n", totalEfficiency)
 	fmt.Printf("time running the simulation: %d seconds\n", simulationTime)

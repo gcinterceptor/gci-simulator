@@ -1,4 +1,4 @@
-package main
+package sim
 
 import (
 	"reflect"
@@ -13,8 +13,8 @@ func TestHasBeenProcessed(t *testing.T) {
 		want    bool
 	}{
 		{"EmptyHop", &Request{}, 0, false},
-		{"OneHopTrue", &Request{hops: []int{1}}, 1, true},
-		{"OneHopFalse", &Request{hops: []int{1}}, 2, false},
+		{"OneHopTrue", &Request{Hops: []int{1}}, 1, true},
+		{"OneHopFalse", &Request{Hops: []int{1}}, 2, false},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -35,12 +35,12 @@ func TestUpdateHops(t *testing.T) {
 	}
 	var updateHop = []data{
 		{"UpdateEmptyHop", &Request{}, 1, []int{1}},
-		{"UpdateNotEmptyHop", &Request{hops: []int{0, 5}}, 2, []int{0, 5, 2}},
+		{"UpdateNotEmptyHop", &Request{Hops: []int{0, 5}}, 2, []int{0, 5, 2}},
 	}
 	for _, d := range updateHop {
 		t.Run(d.desc, func(t *testing.T) {
 			d.req.updateHops(d.value)
-			got := d.req.hops
+			got := d.req.Hops
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
@@ -57,12 +57,12 @@ func TestUpdateStatus(t *testing.T) {
 	}
 	var updateHop = []data{
 		{"DefaultStatus", &Request{}, 503, 503},
-		{"NotDefaultStatus", &Request{status: 503}, 200, 200},
+		{"NotDefaultStatus", &Request{Status: 503}, 200, 200},
 	}
 	for _, d := range updateHop {
 		t.Run(d.desc, func(t *testing.T) {
 			d.req.updateStatus(d.value)
-			got := d.req.status
+			got := d.req.Status
 			if d.want != got {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
@@ -79,12 +79,12 @@ func TestUpdateResponseTime(t *testing.T) {
 	}
 	var updateHop = []data{
 		{"DefaultResponse", &Request{}, 0.5, 0.5},
-		{"NotDefaultResponse", &Request{responseTime: 1.5}, 0.8, 2.3},
+		{"NotDefaultResponse", &Request{ResponseTime: 1.5}, 0.8, 2.3},
 	}
 	for _, d := range updateHop {
 		t.Run(d.desc, func(t *testing.T) {
 			d.req.updateResponseTime(d.value)
-			got := d.req.responseTime
+			got := d.req.ResponseTime
 			if d.want != got {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}

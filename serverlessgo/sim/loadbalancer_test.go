@@ -1,4 +1,4 @@
-package main
+package sim
 
 import (
 	"reflect"
@@ -19,17 +19,17 @@ func TestFoward(t *testing.T) {
 		arrivalCondAfter  bool
 		expectedError     bool
 	}
-	data := []struct{
+	data := []struct {
 		desc string
-		req *Request
+		req  *Request
 		want *Want
-	 }{
-	   {"Nil request", nil, &Want{0, false, false, true}},
-	   {"First request", &Request{}, &Want{1, false, true, false}},
-	   {"Following request", &Request{}, &Want{2, true, true, false}},
-	 }
-	 for _, d := range data {
-		t.Run(d.desc, func(t *testing.T){
+	}{
+		{"Nil request", nil, &Want{0, false, false, true}},
+		{"First request", &Request{}, &Want{1, false, true, false}},
+		{"Following request", &Request{}, &Want{2, true, true, false}},
+	}
+	for _, d := range data {
+		t.Run(d.desc, func(t *testing.T) {
 			arrivalCondBefore := lb.arrivalCond.GetState()
 			err := lb.forward(d.req)
 			expectedError := err != nil
@@ -40,34 +40,34 @@ func TestFoward(t *testing.T) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
-	 }
+	}
 }
 
-type TestOutputWriter struct{}
+type voidListener struct{}
 
-func (t TestOutputWriter) record(r *Request) error { return nil }
+func (t voidListener) RequestFinished(r *Request) {}
 
 func TestResponse(t *testing.T) {
 	lb := &LoadBalancer{
-		inputs: [][]inputEntry{{{200, 0.5}}},
-		output: TestOutputWriter{},
+		inputs:   [][]InputEntry{{{200, 0.5}}},
+		listener: voidListener{},
 	}
 	type Want struct {
 		responsed     int
 		reforwarded   int
 		expectedError bool
 	}
-	data := []struct{
+	data := []struct {
 		desc string
-		req *Request
+		req  *Request
 		want *Want
-	 }{
-	   {"Nil request", nil, &Want{0, 0, true}},
-	   {"Success", &Request{status: 200}, &Want{1, 0, false}},
-	   {"Unavailable", &Request{status: 503}, &Want{1, 1, false}},
-	 }
-	 for _, d := range data {
-		t.Run(d.desc, func(t *testing.T){
+	}{
+		{"Nil request", nil, &Want{0, 0, true}},
+		{"Success", &Request{Status: 200}, &Want{1, 0, false}},
+		{"Unavailable", &Request{Status: 503}, &Want{1, 1, false}},
+	}
+	for _, d := range data {
+		t.Run(d.desc, func(t *testing.T) {
 			err := lb.response(d.req)
 			expectedError := err != nil
 			responsed := lb.finishedReqs
@@ -77,7 +77,7 @@ func TestResponse(t *testing.T) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
-	 }
+	}
 }
 
 func TestLBTerminate(t *testing.T) {
@@ -93,14 +93,14 @@ func TestLBTerminate(t *testing.T) {
 		}, true},
 		{"OneInstance", &LoadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
-			instances:   []IInstance{&Instance{id: 0, cond: godes.NewBooleanControl()}},
+			instances:   []IInstance{&instance{id: 0, cond: godes.NewBooleanControl()}},
 		}, true},
 		{"ManyInstances", &LoadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
 			instances: []IInstance{
-				&Instance{id: 1, cond: godes.NewBooleanControl()},
-				&Instance{id: 2, cond: godes.NewBooleanControl()},
-				&Instance{id: 3, cond: godes.NewBooleanControl()},
+				&instance{id: 1, cond: godes.NewBooleanControl()},
+				&instance{id: 2, cond: godes.NewBooleanControl()},
+				&instance{id: 3, cond: godes.NewBooleanControl()},
 			},
 		}, true},
 	}
@@ -128,15 +128,15 @@ func TestNextInstanceInputs(t *testing.T) {
 		desc      string
 		lb        *LoadBalancer
 		nextCalls int
-		want      [][]inputEntry
+		want      [][]InputEntry
 	}
 	var testData = []TestData{
 		{"OneInputEntry", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}}},
-		}, 2, [][]inputEntry{{{200, 0.5}}, {{200, 0.5}}}},
+			inputs: [][]InputEntry{{{200, 0.5}}},
+		}, 2, [][]InputEntry{{{200, 0.5}}, {{200, 0.5}}}},
 		{"ManyInputEntry", &LoadBalancer{
-			inputs: [][]inputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}},
-		}, 5, [][]inputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}, {{200, 0.5}, {503, 0.5}}, {}}},
+			inputs: [][]InputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}},
+		}, 5, [][]InputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}, {{200, 0.5}, {503, 0.5}}, {}}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -154,26 +154,26 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 	lb := &LoadBalancer{
 		Runner:      &godes.Runner{},
 		arrivalCond: godes.NewBooleanControl(),
-		inputs:      [][]inputEntry{{{200, 0.5}}},
+		inputs:      [][]InputEntry{{{200, 0.5}}},
 		instances: []IInstance{
-			&Instance{id: 0, terminated: false, cond: godes.NewBooleanControl()},
-			&Instance{id: 1, terminated: false, cond: godes.NewBooleanControl()},
-			&Instance{id: 2, terminated: true, cond: godes.NewBooleanControl()},
-			&Instance{id: 3, terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: 0, terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: 1, terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: 2, terminated: true, cond: godes.NewBooleanControl()},
+			&instance{id: 3, terminated: false, cond: godes.NewBooleanControl()},
 		},
 	}
-	data := []struct{
+	data := []struct {
 		desc string
-		req *Request
+		req  *Request
 		want int
-	 }{
-	   {"Free Instance", &Request{}, 0},
-	   {"Busy Instance", &Request{}, 1},
-	   {"Terminated Instance", &Request{hops: []int{0, 1}}, 3},
-	   {"New Instance Required", &Request{hops: []int{0, 1, 2, 3}}, 4},
-	 }
-	 for _, d := range data {
-		t.Run(d.desc, func(t *testing.T){
+	}{
+		{"Free Instance", &Request{}, 0},
+		{"Busy Instance", &Request{}, 1},
+		{"Terminated Instance", &Request{Hops: []int{0, 1}}, 3},
+		{"New Instance Required", &Request{Hops: []int{0, 1, 2, 3}}, 4},
+	}
+	for _, d := range data {
+		t.Run(d.desc, func(t *testing.T) {
 			nextInstance := lb.nextInstance(d.req)
 			nextInstance.receive(d.req)
 			got := nextInstance.getId()
@@ -181,11 +181,11 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
-	 }
+	}
 }
 
 type TestInstance struct {
-	*Instance
+	*instance
 	id         int
 	terminated bool
 	lastWorked float64

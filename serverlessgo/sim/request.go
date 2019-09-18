@@ -1,30 +1,30 @@
-package main
+package sim
 
 type Request struct {
-	id           int64
-	status       int
-	responseTime float64
-	hops         []int
+	ID           int64
+	Status       int
+	ResponseTime float64
+	Hops         []int
 }
 
 func newRequest(id int64) *Request {
-	return &Request{id: id}
+	return &Request{ID: id}
 }
 
 func (r *Request) updateHops(i int) {
-	r.hops = append(r.hops, i)
+	r.Hops = append(r.Hops, i)
 }
 
 func (r *Request) updateStatus(s int) {
-	r.status = s
+	r.Status = s
 }
 
 func (r *Request) updateResponseTime(t float64) {
-	r.responseTime += t
+	r.ResponseTime += t
 }
 
 func (r *Request) hasBeenProcessed(id int) bool {
-	for _, i := range r.hops {
+	for _, i := range r.Hops {
 		if id == i {
 			return true
 		}

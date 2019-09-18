@@ -1,4 +1,4 @@
-package main
+package sim
 
 import (
 	"time"
@@ -18,7 +18,7 @@ type IInstance interface {
 	getEfficiency() float64
 }
 
-type Instance struct {
+type instance struct {
 	*godes.Runner
 	id               int
 	lb               ILoadBalancer
@@ -34,8 +34,8 @@ type Instance struct {
 	index            int
 }
 
-func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, reproducer IInputReproducer) *Instance {
-	return &Instance{
+func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, reproducer IInputReproducer) *instance {
+	return &instance{
 		Runner:           &godes.Runner{},
 		lb:               lb,
 		id:               id,
@@ -43,17 +43,17 @@ func newInstance(id int, lb ILoadBalancer, idlenessDeadline time.Duration, repro
 		createdTime:      godes.GetSystemTime(),
 		lastWorked:       godes.GetSystemTime(),
 		idlenessDeadline: idlenessDeadline,
-		reproducer:          reproducer,
+		reproducer:       reproducer,
 	}
 }
 
-func (i *Instance) receive(r *Request) {
+func (i *instance) receive(r *Request) {
 	i.req = r
 	i.req.updateHops(i.id)
 	i.cond.Set(true)
 }
 
-func (i *Instance) terminate() {
+func (i *instance) terminate() {
 	if !i.terminated {
 		i.terminateTime = godes.GetSystemTime()
 		i.terminated = true
@@ -61,18 +61,18 @@ func (i *Instance) terminate() {
 	}
 }
 
-func (i *Instance) scaleDown() {
+func (i *instance) scaleDown() {
 	if !i.terminated {
 		i.terminate()
 		i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
 	}
 }
 
-func (i *Instance) next() (int, float64) {
+func (i *instance) next() (int, float64) {
 	return i.reproducer.next()
 }
 
-func (i *Instance) Run() {
+func (i *instance) Run() {
 	for {
 		i.cond.Wait(true)
 		if i.isTerminated() {
@@ -92,34 +92,34 @@ func (i *Instance) Run() {
 	}
 }
 
-func (i *Instance) isWorking() bool {
+func (i *instance) isWorking() bool {
 	return i.cond.GetState()
 }
 
-func (i *Instance) isTerminated() bool {
+func (i *instance) isTerminated() bool {
 	return i.terminated
 }
 
-func (i *Instance) getId() int {
+func (i *instance) getId() int {
 	return i.id
 }
 
-func (i *Instance) getUpTime() float64 {
+func (i *instance) getUpTime() float64 {
 	return i.terminateTime - i.createdTime
 }
 
-func (i *Instance) getIdleTime() float64 {
+func (i *instance) getIdleTime() float64 {
 	return i.getUpTime() - i.getBusyTime()
 }
 
-func (i *Instance) getBusyTime() float64 {
+func (i *instance) getBusyTime() float64 {
 	return i.busyTime
 }
 
-func (i *Instance) getLastWorked() float64 {
+func (i *instance) getLastWorked() float64 {
 	return i.lastWorked
 }
 
-func (i *Instance) getEfficiency() float64 {
+func (i *instance) getEfficiency() float64 {
 	return i.getBusyTime() / i.getUpTime()
 }
