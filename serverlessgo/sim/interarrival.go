@@ -26,3 +26,15 @@ func NewPoissonInterArrival(lambda float64) InterArrival {
 			Src:    rand.NewSource(uint64(time.Now().Nanosecond())),
 		}}
 }
+
+type constantInterArrival struct {
+	value float64
+}
+
+func (cia *constantInterArrival) next() float64 {
+	return cia.value
+}
+
+func NewConstantInterArrival(value float64) InterArrival {
+	return &constantInterArrival{value: value}
+}
