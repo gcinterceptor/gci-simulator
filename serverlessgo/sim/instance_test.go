@@ -29,7 +29,7 @@ func TestReceive(t *testing.T) {
 	}
 }
 
-func TestinstanceTerminate(t *testing.T) {
+func TestInstanceTerminate(t *testing.T) {
 	instance := &instance{
 		Runner:      &godes.Runner{},
 		createdTime: 0.0,
@@ -86,7 +86,7 @@ type TestLoadBalancer struct{ req *Request }
 
 func (lb *TestLoadBalancer) forward(r *Request) error  { return nil }
 func (lb *TestLoadBalancer) response(r *Request) error { lb.req = r; return nil }
-func TestinstanceRun(t *testing.T) {
+func TestInstanceRun(t *testing.T) {
 	instance := &instance{
 		Runner:     &godes.Runner{},
 		cond:       godes.NewBooleanControl(),
