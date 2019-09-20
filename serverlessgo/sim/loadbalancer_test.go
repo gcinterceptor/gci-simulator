@@ -253,7 +253,7 @@ func TestTryScaleDownWorkingInstance(t *testing.T) {
 		got = append(got, i.isTerminated())
 	}
 	want := false
-	if !reflect.DeepEqual(want, got[0]) {
+	if want != got[0] {
 		t.Fatalf("Want: %v, got: %v", want, got)
 	}
 }
