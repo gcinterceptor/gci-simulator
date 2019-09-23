@@ -8,6 +8,7 @@ import (
 
 // TODO(david): Document the fields of this struct.
 type results struct {
+	Instances      []iInstance
 	Cost           float64
 	Efficiency     float64
 	RequestCount   int64
@@ -32,6 +33,7 @@ func Run(duration, idlenessDeadline time.Duration, ia InterArrival, entries [][]
 	godes.WaitUntilDone()
 
 	return results{
+		Instances:      lb.instances,
 		Cost:           lb.getTotalCost(),
 		Efficiency:     lb.getTotalEfficiency(),
 		RequestCount:   reqID,

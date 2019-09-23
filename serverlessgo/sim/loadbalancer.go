@@ -82,10 +82,9 @@ func (lb *loadBalancer) nextInstance(r *Request) iInstance {
 	var selected iInstance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
-	for i := 0; i < len(lb.instances); i++ {
-		instance := lb.instances[i]
-		if !instance.isWorking() && !instance.isTerminated() && !r.hasBeenProcessed(instance.getId()) {
-			selected = instance
+	for _, i := range lb.instances {
+		if !i.isWorking() && !i.isTerminated() && !r.hasBeenProcessed(i.getId()) {
+			selected = i
 			break
 		}
 	}
@@ -115,6 +114,7 @@ func (lb *loadBalancer) newInstance(r *Request) iInstance {
 func (lb *loadBalancer) Run() {
 	for {
 		lb.arrivalCond.Wait(true)
+		lb.tryScaleDown()
 		if lb.arrivalQueue.Len() > 0 {
 			r := lb.arrivalQueue.Get().(*Request)
 			lb.nextInstance(r).receive(r)
@@ -124,14 +124,13 @@ func (lb *loadBalancer) Run() {
 				break
 			}
 		}
-		lb.tryScaleDown()
 	}
 }
 
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
-		if godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
-			i.scaleDown()
+		if !i.isWorking() && godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
+			i.terminate()
 		}
 	}
 }

@@ -196,6 +196,7 @@ func (t *TestInstance) scaleDown()             { t.terminated = true }
 func (t *TestInstance) isTerminated() bool     { return t.terminated }
 func (t *TestInstance) getLastWorked() float64 { return t.lastWorked }
 func (t *TestInstance) getId() int             { return t.id }
+func (t *TestInstance) isWorking() bool        { return false }
 
 func TestTryScaleDown(t *testing.T) {
 	idleness, _ := time.ParseDuration("5s")
@@ -235,5 +236,24 @@ func TestTryScaleDown(t *testing.T) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}
 		})
+	}
+}
+
+func TestTryScaleDownWorkingInstance(t *testing.T) {
+	idleness, _ := time.ParseDuration("5s")
+	instance := &instance{id: 0, cond: godes.NewBooleanControl(), terminated: false, lastWorked: -5.0}
+	lb := &loadBalancer{
+		idlenessDeadline: idleness,
+		instances:        []iInstance{instance},
+	}
+	instance.cond.Set(true)
+	lb.tryScaleDown()
+	got := make([]bool, 0)
+	for _, i := range lb.instances {
+		got = append(got, i.isTerminated())
+	}
+	want := false
+	if want != got[0] {
+		t.Fatalf("Want: %v, got: %v", want, got)
 	}
 }
