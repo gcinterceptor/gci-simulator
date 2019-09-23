@@ -14,8 +14,8 @@ type iInstance interface {
 	isTerminated() bool
 	getId() int
 	getLastWorked() float64
-	GetUpTime() float64
-	GetEfficiency() float64
+	getUpTime() float64
+	getEfficiency() float64
 }
 
 type instance struct {
@@ -108,12 +108,12 @@ func (i *instance) getId() int {
 	return i.id
 }
 
-func (i *instance) GetUpTime() float64 {
+func (i *instance) getUpTime() float64 {
 	return i.terminateTime - i.createdTime
 }
 
 func (i *instance) getIdleTime() float64 {
-	return i.GetUpTime() - i.getBusyTime()
+	return i.getUpTime() - i.getBusyTime()
 }
 
 func (i *instance) getBusyTime() float64 {
@@ -124,6 +124,6 @@ func (i *instance) getLastWorked() float64 {
 	return i.lastWorked
 }
 
-func (i *instance) GetEfficiency() float64 {
-	return i.getBusyTime() / i.GetUpTime()
+func (i *instance) getEfficiency() float64 {
+	return i.getBusyTime() / i.getUpTime()
 }

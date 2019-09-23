@@ -142,7 +142,7 @@ func (lb *loadBalancer) getFinishedReqs() int {
 func (lb *loadBalancer) getTotalCost() float64 {
 	var totalCost float64
 	for _, i := range lb.instances {
-		totalCost += i.GetUpTime()
+		totalCost += i.getUpTime()
 	}
 	return totalCost
 }
@@ -150,7 +150,7 @@ func (lb *loadBalancer) getTotalCost() float64 {
 func (lb *loadBalancer) getTotalEfficiency() float64 {
 	var totalEfficiency float64
 	for _, i := range lb.instances {
-		totalEfficiency += i.GetEfficiency()
+		totalEfficiency += i.getEfficiency()
 	}
 	return totalEfficiency / float64(len(lb.instances))
 }
