@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"reflect"
 	"time"
 
@@ -49,6 +50,12 @@ func main() {
 		if !reflect.DeepEqual(expectedRequests[i], got) {
 			log.Fatalf("request output - want:%+v got:%+v", expectedRequests[i], got)
 		}
+	}
+	if math.Abs(1000*res.Cost-126.3) > 0.5 { // 36.1 + 17 + 26.2 + 30 + 17 = 126.3
+		log.Fatalf("instances cost - want:%+v got:%+v", 126.3, 1000*res.Cost)
+	}
+	if math.Abs(res.Efficiency-0.61866396416) > 0.001 { // (23.1/36.1 + 11/17 + 10.2/26.2 + 23.1/30 + 11/17) / 5 = 0.61866396416
+		log.Fatalf("instances efficiency - want:%+v got:%+v", 0.61866396416, res.Efficiency)
 	}
 	fmt.Println("OK")
 }
