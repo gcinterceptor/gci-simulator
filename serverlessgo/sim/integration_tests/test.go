@@ -16,8 +16,6 @@ func (rs *collectorListener) RequestFinished(req *sim.Request) {
 	*rs = append(*rs, *req)
 }
 
-// TODO(david): Improve integration tests
-// - read from a file the simulation input/output.
 func main() {
 	duration := 80 * time.Millisecond
 	idlenessDeadline := 6 * time.Millisecond
@@ -29,12 +27,11 @@ func main() {
 	optimized := false
 	var collector collectorListener
 	res := sim.Run(duration, idlenessDeadline, sim.NewConstantInterArrival(0.01), input, &collector, optimized)
-	
-	instancesWant, instancesGot := 5, len(res.Instances)
-	if !reflect.DeepEqual(instancesWant, instancesGot) {
-		log.Fatalf("number of instances - want:%+v got:%+v", instancesWant, instancesGot)
+
+	if len(res.Instances) != 5 {
+		log.Fatalf("number of instances - want:5 got:%+v", len(res.Instances))
 	}
-	requestsWant := []sim.Request{
+	expectedRequests := []sim.Request{
 		{ID: 0, Status: 200, ResponseTime: 0.015, Hops: []int{0}},
 		{ID: 1, Status: 200, ResponseTime: 0.011, Hops: []int{1}},
 		{ID: 2, Status: 200, ResponseTime: 0.008, Hops: []int{0}},
@@ -44,13 +41,13 @@ func main() {
 		{ID: 6, Status: 200, ResponseTime: 0.011, Hops: []int{4}},
 		{ID: 7, Status: 200, ResponseTime: 0.008, Hops: []int{3}},
 	}
-	requestGot := collector
-	if len(requestsWant) != len(requestGot) {
-		log.Fatalf("number of requests - want:%+v got:%+v", len(requestsWant), len(requestGot))
+	simulatedRequests := collector
+	if len(expectedRequests) != len(simulatedRequests) {
+		log.Fatalf("number of requests - want:%+v got:%+v", len(expectedRequests), len(simulatedRequests))
 	}
-	for i, got := range requestGot {
-		if !reflect.DeepEqual(requestsWant[i], got) {
-			log.Fatalf("request output - want:%+v got:%+v", requestsWant[i], got)
+	for i, got := range simulatedRequests {
+		if !reflect.DeepEqual(expectedRequests[i], got) {
+			log.Fatalf("request output - want:%+v got:%+v", expectedRequests[i], got)
 		}
 	}
 	fmt.Println("OK")
