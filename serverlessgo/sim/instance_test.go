@@ -54,7 +54,7 @@ func TestInstanceTerminate(t *testing.T) {
 	}
 }
 
-func TestScaleDown(t *testing.T) {
+func TestTerminateOnScaleDown(t *testing.T) {
 	idleness, _ := time.ParseDuration("5m")
 	instance := &instance{
 		Runner:           &godes.Runner{},
@@ -73,10 +73,15 @@ func TestScaleDown(t *testing.T) {
 		t.Fatalf("Before terminate - Want: %v, got: %v", want, got)
 	}
 
-	instance.scaleDown()
+	godes.AddRunner(instance)
+	godes.Run()
+	godes.Advance(3 * idleness.Seconds())
+	instance.terminate()
+	godes.WaitUntilDone()
+	godes.Clear()
 
 	got = &Want{isTerminated: instance.isTerminated(), terminateTime: instance.terminateTime}
-	want = &Want{isTerminated: true, terminateTime: 300.0}
+	want = &Want{isTerminated: true, terminateTime: idleness.Seconds()}
 	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("After terminate - Want: %v, got: %v", want, got)
 	}

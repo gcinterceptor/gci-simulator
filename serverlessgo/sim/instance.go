@@ -9,7 +9,6 @@ import (
 type iInstance interface {
 	receive(r *Request)
 	terminate()
-	scaleDown()
 	isWorking() bool
 	isTerminated() bool
 	getId() int
@@ -62,13 +61,6 @@ func (i *instance) terminate() {
 		}
 		i.terminated = true
 		i.cond.Set(true)
-	}
-}
-
-func (i *instance) scaleDown() {
-	if !i.terminated {
-		i.terminate()
-		i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
 	}
 }
 

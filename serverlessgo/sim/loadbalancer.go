@@ -130,7 +130,7 @@ func (lb *loadBalancer) Run() {
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
 		if !i.isWorking() && godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
-			i.scaleDown()
+			i.terminate()
 		}
 	}
 }
