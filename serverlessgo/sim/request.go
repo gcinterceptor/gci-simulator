@@ -3,12 +3,13 @@ package sim
 type Request struct {
 	ID           int64
 	Status       int
+	CreatedTime  float64
 	ResponseTime float64
 	Hops         []int
 }
 
-func newRequest(id int64) *Request {
-	return &Request{ID: id}
+func newRequest(id int64, createdTime float64) *Request {
+	return &Request{ID: id, CreatedTime: createdTime}
 }
 
 func (r *Request) updateHops(i int) {

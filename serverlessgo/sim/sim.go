@@ -25,7 +25,7 @@ func Run(duration, idlenessDeadline time.Duration, ia InterArrival, entries [][]
 	godes.AddRunner(lb)
 	godes.Run()
 	for godes.GetSystemTime() < duration.Seconds() {
-		lb.forward(newRequest(reqID))
+		lb.forward(newRequest(reqID, godes.GetSystemTime()))
 		godes.Advance(ia.next())
 		reqID++
 	}
