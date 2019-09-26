@@ -176,7 +176,7 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 		t.Run(d.desc, func(t *testing.T) {
 			nextInstance := lb.nextInstance(d.req)
 			nextInstance.receive(d.req)
-			got := nextInstance.getId()
+			got := nextInstance.GetId()
 			if d.want != got {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
 			}

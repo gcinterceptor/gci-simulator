@@ -11,10 +11,11 @@ type iInstance interface {
 	terminate()
 	isWorking() bool
 	isTerminated() bool
-	getId() int
 	getLastWorked() float64
-	getUpTime() float64
-	getEfficiency() float64
+	GetId() int
+	GetUpTime() float64
+	GetEfficiency() float64
+	GetCreatedTime() float64
 }
 
 type instance struct {
@@ -96,16 +97,16 @@ func (i *instance) isTerminated() bool {
 	return i.terminated
 }
 
-func (i *instance) getId() int {
+func (i *instance) GetId() int {
 	return i.id
 }
 
-func (i *instance) getUpTime() float64 {
+func (i *instance) GetUpTime() float64 {
 	return i.terminateTime - i.createdTime
 }
 
 func (i *instance) getIdleTime() float64 {
-	return i.getUpTime() - i.getBusyTime()
+	return i.GetUpTime() - i.getBusyTime()
 }
 
 func (i *instance) getBusyTime() float64 {
@@ -116,6 +117,10 @@ func (i *instance) getLastWorked() float64 {
 	return i.lastWorked
 }
 
-func (i *instance) getEfficiency() float64 {
-	return i.getBusyTime() / i.getUpTime()
+func (i *instance) GetEfficiency() float64 {
+	return i.getBusyTime() / i.GetUpTime()
+}
+
+func (i *instance) GetCreatedTime() float64 {
+	return i.createdTime
 }

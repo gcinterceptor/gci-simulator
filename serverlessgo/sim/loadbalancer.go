@@ -83,7 +83,7 @@ func (lb *loadBalancer) nextInstance(r *Request) iInstance {
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for _, i := range lb.instances {
-		if !i.isWorking() && !i.isTerminated() && !r.hasBeenProcessed(i.getId()) {
+		if !i.isWorking() && !i.isTerminated() && !r.hasBeenProcessed(i.GetId()) {
 			selected = i
 			break
 		}
@@ -142,7 +142,7 @@ func (lb *loadBalancer) getFinishedReqs() int {
 func (lb *loadBalancer) getTotalCost() float64 {
 	var totalCost float64
 	for _, i := range lb.instances {
-		totalCost += i.getUpTime()
+		totalCost += i.GetUpTime()
 	}
 	return totalCost
 }
@@ -150,7 +150,7 @@ func (lb *loadBalancer) getTotalCost() float64 {
 func (lb *loadBalancer) getTotalEfficiency() float64 {
 	var totalEfficiency float64
 	for _, i := range lb.instances {
-		totalEfficiency += i.getEfficiency()
+		totalEfficiency += i.GetEfficiency()
 	}
 	return totalEfficiency / float64(len(lb.instances))
 }
