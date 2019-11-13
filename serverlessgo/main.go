@@ -97,18 +97,18 @@ func toEntry(row []string) (sim.InputEntry, error) {
 	if err != nil {
 		return sim.InputEntry{}, fmt.Errorf("Error parsing status in row (%v): %q", row, err)
 	}
-	duration, err := strconv.ParseFloat(row[2], 64)
+	responseTime, err := strconv.ParseFloat(row[2], 64)
 	if err != nil {
-		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+		return sim.InputEntry{}, fmt.Errorf("Error parsing response_time in row (%v): %q", row, err)
 	}
 	body := row[3]
 	tsbefore, err := strconv.ParseFloat(row[4], 64)
 	if err != nil {
-		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+		return sim.InputEntry{}, fmt.Errorf("Error parsing tsbefore in row (%v): %q", row, err)
 	}
 	tsafter, err := strconv.ParseFloat(row[5], 64)
 	if err != nil {
-		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+		return sim.InputEntry{}, fmt.Errorf("Error parsing tsafter in row (%v): %q", row, err)
 	}
-	return sim.InputEntry{status, duration, body, tsbefore, tsafter}, nil
+	return sim.InputEntry{status, responseTime, body, tsbefore, tsafter}, nil
 }

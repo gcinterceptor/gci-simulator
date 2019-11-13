@@ -37,8 +37,8 @@ func TestInputIReproducer(t *testing.T) {
 		t.Run(d.desc, func(t *testing.T) {
 			var got []InputEntry
 			for i := 0; i < d.numberOfNextCalls; i++ {
-				status, duration, body, tsbefore, tsafter := d.reproduce.next()
-				got = append(got, InputEntry{status, duration, body, tsbefore, tsafter})
+				status, responseTime, body, tsBefore, tsAfter := d.reproduce.next()
+				got = append(got, InputEntry{status, responseTime, body, tsBefore, tsAfter})
 			}
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
