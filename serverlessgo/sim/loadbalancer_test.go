@@ -49,7 +49,7 @@ func (t voidListener) RequestFinished(r *Request) {}
 
 func TestResponse(t *testing.T) {
 	lb := &loadBalancer{
-		inputs:   [][]InputEntry{{{200, 0.5}}},
+		inputs:   [][]InputEntry{{{200, 0.5, "body", 0, 0.5}}},
 		listener: voidListener{},
 	}
 	type Want struct {
@@ -132,11 +132,14 @@ func TestNextInstanceInputs(t *testing.T) {
 	}
 	var testData = []TestData{
 		{"OneInputEntry", &loadBalancer{
-			inputs: [][]InputEntry{{{200, 0.5}}},
-		}, 2, [][]InputEntry{{{200, 0.5}}, {{200, 0.5}}}},
+			inputs: [][]InputEntry{{{200, 0.5, "body", 0, 0.5}}},
+		}, 2, [][]InputEntry{{{200, 0.5, "body", 0, 0.5}}, {{200, 0.5, "body", 0, 0.5}}}},
 		{"ManyInputEntry", &loadBalancer{
-			inputs: [][]InputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}},
-		}, 5, [][]InputEntry{{{200, 0.5}, {503, 0.5}}, {}, {{200, 0.5}}, {{200, 0.5}, {503, 0.5}}, {}}},
+			inputs: [][]InputEntry{
+				{{200, 0.5, "body", 0, 0.5}, {503, 0.5, "body", 0, 0.5}}, {}, {{200, 0.5, "body", 0, 0.5}}}}, 5,
+			[][]InputEntry{
+				{{200, 0.5, "body", 0, 0.5}, {503, 0.5, "body", 0, 0.5}}, {}, {{200, 0.5, "body", 0, 0.5}},
+				{{200, 0.5, "body", 0, 0.5}, {503, 0.5, "body", 0, 0.5}}, {}}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -154,7 +157,7 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 	lb := &loadBalancer{
 		Runner:      &godes.Runner{},
 		arrivalCond: godes.NewBooleanControl(),
-		inputs:      [][]InputEntry{{{200, 0.5}}},
+		inputs:      [][]InputEntry{{{200, 0.5, "body", 0, 0.5}}},
 		instances: []iInstance{
 			&instance{id: 0, terminated: false, cond: godes.NewBooleanControl()},
 			&instance{id: 1, terminated: false, cond: godes.NewBooleanControl()},

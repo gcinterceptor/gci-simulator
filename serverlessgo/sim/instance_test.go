@@ -93,10 +93,11 @@ func (lb *TestLoadBalancer) forward(r *Request) error  { return nil }
 func (lb *TestLoadBalancer) response(r *Request) error { lb.req = r; return nil }
 func TestInstanceRun(t *testing.T) {
 	instance := &instance{
-		Runner:     &godes.Runner{},
-		cond:       godes.NewBooleanControl(),
-		reproducer: newInputReproducer([]InputEntry{{200, 0.8}, {200, 0.1}, {200, 0.2}}),
-		lb:         &TestLoadBalancer{},
+		Runner: &godes.Runner{},
+		cond:   godes.NewBooleanControl(),
+		reproducer: newInputReproducer(
+			[]InputEntry{{200, 0.8, "body", 0, 0.8}, {200, 0.1, "body", 0, 0.1}, {200, 0.2, "body", 0, 0.2}}),
+		lb: &TestLoadBalancer{},
 	}
 
 	godes.Run()
