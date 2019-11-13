@@ -77,7 +77,7 @@ func (i *instance) next() (int, float64, string, float64, float64) {
 
 func (i *instance) nextShed() (int, float64) {
 	status := 503
-	ResponseTime := i.shedRT[i.shedRTIndex]
+	ResponseTime := i.shedRT[i.shedRTIndex] / 1000000000
 	i.shedRTIndex = (i.shedRTIndex + 1) % len(i.shedRT)
 	return status, ResponseTime
 }

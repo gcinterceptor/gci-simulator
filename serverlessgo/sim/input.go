@@ -16,13 +16,12 @@ type warmedinputReproducer struct {
 }
 
 func newInputReproducer(input []InputEntry) iInputReproducer {
+	input = append([]InputEntry{input[0]}, input[500:]...) // remove warmup, but leave the coldstart entry
 	return &inputReproducer{entries: input}
 }
 
 func newWarmedInputReproducer(input []InputEntry) iInputReproducer {
-	if len(input) > 1 {
-		input = input[1:]
-	}
+	input = input[500:] // remove warmup
 	return &warmedinputReproducer{entries: input}
 }
 
