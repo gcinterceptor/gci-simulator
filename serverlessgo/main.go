@@ -92,14 +92,23 @@ func readRecords(f io.Reader, p string) ([][]string, error) {
 }
 
 func toEntry(row []string) (sim.InputEntry, error) {
-	// Row format: status;request_time
-	status, err := strconv.Atoi(row[0])
+	// Row format: id,status,response_time,body,tsbefore,tsafter
+	status, err := strconv.Atoi(row[1])
 	if err != nil {
 		return sim.InputEntry{}, fmt.Errorf("Error parsing status in row (%v): %q", row, err)
 	}
-	duration, err := strconv.ParseFloat(row[1], 64)
+	duration, err := strconv.ParseFloat(row[2], 64)
 	if err != nil {
 		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
 	}
-	return sim.InputEntry{status, duration}, nil
+	body := row[3]
+	tsbefore, err := strconv.ParseFloat(row[4], 64)
+	if err != nil {
+		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+	}
+	tsafter, err := strconv.ParseFloat(row[5], 64)
+	if err != nil {
+		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+	}
+	return sim.InputEntry{status, duration, body, tsbefore, tsafter}, nil
 }

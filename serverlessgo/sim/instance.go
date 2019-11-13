@@ -11,6 +11,7 @@ type iInstance interface {
 	terminate()
 	isWorking() bool
 	isTerminated() bool
+	isAvailable() bool
 	getLastWorked() float64
 	GetId() int
 	GetUpTime() float64
@@ -32,6 +33,7 @@ type instance struct {
 	idlenessDeadline time.Duration
 	reproducer       iInputReproducer
 	index            int
+	unavailable      bool
 }
 
 func newInstance(id int, lb iLoadBalancer, idlenessDeadline time.Duration, reproducer iInputReproducer) *instance {
@@ -54,7 +56,7 @@ func (i *instance) receive(r *Request) {
 }
 
 func (i *instance) terminate() {
-	if !i.terminated {
+	if !i.isTerminated() {
 		if i.getLastWorked()+i.idlenessDeadline.Seconds() > godes.GetSystemTime() {
 			i.terminateTime = godes.GetSystemTime()
 		} else {
@@ -65,7 +67,7 @@ func (i *instance) terminate() {
 	}
 }
 
-func (i *instance) next() (int, float64) {
+func (i *instance) next() (int, float64, string, float64, float64) {
 	return i.reproducer.next()
 }
 
@@ -76,7 +78,7 @@ func (i *instance) Run() {
 			i.cond.Set(false)
 			break
 		}
-		status, responseTime := i.next()
+		status, responseTime, _, _, _ := i.next()
 		i.req.updateStatus(status)
 		i.req.updateResponseTime(responseTime)
 		i.busyTime += responseTime
@@ -95,6 +97,10 @@ func (i *instance) isWorking() bool {
 
 func (i *instance) isTerminated() bool {
 	return i.terminated
+}
+
+func (i *instance) isAvailable() bool {
+	return !i.unavailable
 }
 
 func (i *instance) GetId() int {
