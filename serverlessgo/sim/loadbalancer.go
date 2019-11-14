@@ -81,9 +81,9 @@ func (lb *loadBalancer) nextInstanceInputs() []InputEntry {
 func (lb *loadBalancer) nextInstance(r *Request) IInstance {
 	var selected IInstance
 	// sorting instances to have the most recently used ones ahead on the array
-	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
+	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].GetLastWorked() > lb.instances[j].GetLastWorked() })
 	for _, i := range lb.instances {
-		if !i.isWorking() && !i.isTerminated() && !r.hasBeenProcessed(i.GetId()) {
+		if !i.IsWorking() && !i.IsTerminated() && !r.hasBeenProcessed(i.GetId()) {
 			selected = i
 			break
 		}
@@ -129,7 +129,7 @@ func (lb *loadBalancer) Run() {
 
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
-		if !i.isWorking() && godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
+		if !i.IsWorking() && godes.GetSystemTime()-i.GetLastWorked() >= lb.idlenessDeadline.Seconds() {
 			i.terminate()
 		}
 	}

@@ -114,7 +114,7 @@ func TestLBTerminate(t *testing.T) {
 			d.lb.terminate()
 			var got bool
 			for _, i := range d.lb.instances {
-				got = i.isTerminated()
+				got = i.IsTerminated()
 				checkFunc(d.want, got)
 			}
 			got = d.lb.isTerminated
@@ -233,7 +233,7 @@ func TestTryScaleDown(t *testing.T) {
 			d.lb.tryScaleDown()
 			got := make([]bool, 0)
 			for _, i := range d.lb.instances {
-				got = append(got, i.isTerminated())
+				got = append(got, i.IsTerminated())
 			}
 			if !reflect.DeepEqual(d.want, got) {
 				t.Fatalf("Want: %v, got: %v", d.want, got)
@@ -253,7 +253,7 @@ func TestTryScaleDownWorkingInstance(t *testing.T) {
 	lb.tryScaleDown()
 	got := make([]bool, 0)
 	for _, i := range lb.instances {
-		got = append(got, i.isTerminated())
+		got = append(got, i.IsTerminated())
 	}
 	want := false
 	if want != got[0] {

@@ -11,12 +11,14 @@ import (
 type IInstance interface {
 	receive(r *Request)
 	terminate()
-	isWorking() bool
-	isTerminated() bool
-	isAvailable() bool
-	getLastWorked() float64
+	IsWorking() bool
+	IsTerminated() bool
+	IsAvailable() bool
+	GetLastWorked() float64
 	GetId() int
+	GetBusyTime() float64
 	GetUpTime() float64
+	GetIdleTime() float64
 	GetEfficiency() float64
 	GetCreatedTime() float64
 }
@@ -60,11 +62,11 @@ func (i *instance) receive(r *Request) {
 }
 
 func (i *instance) terminate() {
-	if !i.isTerminated() {
-		if i.getLastWorked()+i.idlenessDeadline.Seconds() > godes.GetSystemTime() {
+	if !i.IsTerminated() {
+		if i.GetLastWorked()+i.idlenessDeadline.Seconds() > godes.GetSystemTime() {
 			i.terminateTime = godes.GetSystemTime()
 		} else {
-			i.terminateTime = i.getLastWorked() + i.idlenessDeadline.Seconds()
+			i.terminateTime = i.GetLastWorked() + i.idlenessDeadline.Seconds()
 		}
 		i.terminated = true
 		i.cond.Set(true)
@@ -85,13 +87,13 @@ func (i *instance) nextShed() (int, float64) {
 func (i *instance) Run() {
 	for {
 		i.cond.Wait(true)
-		if i.isTerminated() {
+		if i.IsTerminated() {
 			i.cond.Set(false)
 			break
 		}
 		var status int
 		var responseTime float64
-		if i.isAvailable() {
+		if i.IsAvailable() {
 			var body string
 			var tsbefore, tsafter float64
 			status, responseTime, body, tsbefore, tsafter = i.next()
@@ -122,15 +124,15 @@ func (i *instance) Run() {
 	}
 }
 
-func (i *instance) isWorking() bool {
+func (i *instance) IsWorking() bool {
 	return i.cond.GetState()
 }
 
-func (i *instance) isTerminated() bool {
+func (i *instance) IsTerminated() bool {
 	return i.terminated
 }
 
-func (i *instance) isAvailable() bool {
+func (i *instance) IsAvailable() bool {
 	return godes.GetSystemTime() >= i.tsAvailableAt
 }
 
@@ -142,20 +144,20 @@ func (i *instance) GetUpTime() float64 {
 	return i.terminateTime - i.createdTime
 }
 
-func (i *instance) getIdleTime() float64 {
-	return i.GetUpTime() - i.getBusyTime()
+func (i *instance) GetIdleTime() float64 {
+	return i.GetUpTime() - i.GetBusyTime()
 }
 
-func (i *instance) getBusyTime() float64 {
+func (i *instance) GetBusyTime() float64 {
 	return i.busyTime
 }
 
-func (i *instance) getLastWorked() float64 {
+func (i *instance) GetLastWorked() float64 {
 	return i.lastWorked
 }
 
 func (i *instance) GetEfficiency() float64 {
-	return i.getBusyTime() / i.GetUpTime()
+	return i.GetBusyTime() / i.GetUpTime()
 }
 
 func (i *instance) GetCreatedTime() float64 {
