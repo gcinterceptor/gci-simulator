@@ -73,15 +73,40 @@ func (i *instance) terminate() {
 	}
 }
 
-func (i *instance) next() (int, float64, string, float64, float64) {
-	return i.reproducer.next()
-}
-
 func (i *instance) nextShed() (int, float64) {
 	status := 503
 	ResponseTime := i.shedRT[i.shedRTIndex] / 1000000000
 	i.shedRTIndex = (i.shedRTIndex + 1) % len(i.shedRT)
 	return status, ResponseTime
+}
+
+func (i *instance) dealWithTruncatedInput(body string, responseTime, tsafter, tsbefore float64) {
+	unavailableTime := tsafter - tsbefore
+	i.tsAvailableAt = godes.GetSystemTime() + unavailableTime
+	i.shedRT = append(i.shedRT, responseTime)
+	rts := strings.Split(body, ":")
+	for j := 1; j < len(rts); j++ {
+		rtFloat64, err := strconv.ParseFloat(rts[j], 64)
+		if err == nil {
+			i.shedRT = append(i.shedRT, rtFloat64)
+		}
+	}
+}
+
+func (i *instance) next() (int, float64) {
+	var status int
+	var responseTime float64
+	if i.IsAvailable() {
+		var body string
+		var tsbefore, tsafter float64
+		status, responseTime, body, tsbefore, tsafter = i.reproducer.next()
+		if status == 503 {
+			i.dealWithTruncatedInput(body, responseTime, tsbefore, tsafter)
+		}
+	} else {
+		status, responseTime = i.nextShed()
+	}
+	return status, responseTime
 }
 
 func (i *instance) Run() {
@@ -91,27 +116,7 @@ func (i *instance) Run() {
 			i.cond.Set(false)
 			break
 		}
-		var status int
-		var responseTime float64
-		if i.IsAvailable() {
-			var body string
-			var tsbefore, tsafter float64
-			status, responseTime, body, tsbefore, tsafter = i.next()
-			if status == 503 {
-				unavailableTime := tsafter - tsbefore
-				i.tsAvailableAt = godes.GetSystemTime() + unavailableTime
-				i.shedRT = append(i.shedRT, responseTime)
-				rts := strings.Split(body, ":")
-				for j := 1; j < len(rts); j++ {
-					rtFloat64, err := strconv.ParseFloat(rts[j], 64)
-					if err == nil {
-						i.shedRT = append(i.shedRT, rtFloat64)
-					}
-				}
-			}
-		} else {
-			status, responseTime = i.nextShed()
-		}
+		status, responseTime := i.next()
 		i.req.updateStatus(status)
 		i.req.updateResponseTime(responseTime)
 		i.busyTime += responseTime
