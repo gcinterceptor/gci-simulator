@@ -18,25 +18,27 @@ type loadBalancer struct {
 	isTerminated       bool
 	arrivalQueue       *godes.FIFOQueue
 	arrivalCond        *godes.BooleanControl
-	instances          []iInstance
+	instances          []IInstance
 	idlenessDeadline   time.Duration
 	inputs             [][]InputEntry
 	index              int
 	listener           Listener
 	finishedReqs       int
 	optimizedScheduler bool
+	warmUp             int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool) *loadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool, warmUp int) *loadBalancer {
 	return &loadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
 		arrivalCond:        godes.NewBooleanControl(),
-		instances:          make([]iInstance, 0),
+		instances:          make([]IInstance, 0),
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		listener:           listener,
 		optimizedScheduler: optimized,
+		warmUp:             warmUp,
 	}
 }
 
@@ -78,12 +80,12 @@ func (lb *loadBalancer) nextInstanceInputs() []InputEntry {
 	return input
 }
 
-func (lb *loadBalancer) nextInstance(r *Request) iInstance {
-	var selected iInstance
+func (lb *loadBalancer) nextInstance(r *Request) IInstance {
+	var selected IInstance
 	// sorting instances to have the most recently used ones ahead on the array
-	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
+	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].GetLastWorked() > lb.instances[j].GetLastWorked() })
 	for _, i := range lb.instances {
-		if !i.isWorking() && !i.isTerminated() && !r.hasBeenProcessed(i.GetId()) {
+		if !i.IsWorking() && !i.IsTerminated() && !r.hasBeenProcessed(i.GetId()) {
 			selected = i
 			break
 		}
@@ -94,19 +96,19 @@ func (lb *loadBalancer) nextInstance(r *Request) iInstance {
 	return selected
 }
 
-func (lb *loadBalancer) newInstance(r *Request) iInstance {
+func (lb *loadBalancer) newInstance(r *Request) IInstance {
 	var reproducer iInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
 	if lb.optimizedScheduler && r.Status != 503 {
-		reproducer = newWarmedInputReproducer(nextInstanceInput)
+		reproducer = newWarmedInputReproducer(nextInstanceInput, lb.warmUp)
 
 	} else {
-		reproducer = newInputReproducer(nextInstanceInput)
+		reproducer = newInputReproducer(nextInstanceInput, lb.warmUp)
 	}
 	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
 	godes.AddRunner(newInstance)
 	// inserts the instance ahead of the array
-	lb.instances = append([]iInstance{newInstance}, lb.instances...)
+	lb.instances = append([]IInstance{newInstance}, lb.instances...)
 	return newInstance
 
 }
@@ -129,7 +131,7 @@ func (lb *loadBalancer) Run() {
 
 func (lb *loadBalancer) tryScaleDown() {
 	for _, i := range lb.instances {
-		if !i.isWorking() && godes.GetSystemTime()-i.getLastWorked() >= lb.idlenessDeadline.Seconds() {
+		if !i.IsWorking() && godes.GetSystemTime()-i.GetLastWorked() >= lb.idlenessDeadline.Seconds() {
 			i.terminate()
 		}
 	}

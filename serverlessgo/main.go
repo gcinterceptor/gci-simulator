@@ -17,10 +17,12 @@ import (
 var (
 	idlenessDeadline = flag.Duration("idleness", 300*time.Second, "The idleness deadline is the time that an instance may be idle until be terminated.")
 	duration         = flag.Duration("duration", 36000*time.Second, "Duration of the simulation.") // default value is 10 hours
-	lambda           = flag.Float64("lambda", 140.0, "The lambda of the Poisson distribution used on workload.")
+	lambda           = flag.Float64("lambda", 150.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "default.csv", "Comma-separated file paths (one per instance)")
-	output           = flag.String("output", "output.csv", "file paths to output without extension")
+	outputPath       = flag.String("output", "./output/", "file path to output results")
+	filename         = flag.String("filename", "default-filename", "file name of output results")
 	optimized        = flag.Bool("optimized", false, "Define if the simulation must use the optimized scheduler")
+	warmUp           = flag.Int("warmup", 500, "The Warm Up value to remove , default value is 500")
 )
 
 func main() {
@@ -51,15 +53,28 @@ func main() {
 		}()
 	}
 
-	header := "id,status,response_time\n"
-	outputWriter, err := newOutputWriter(*output, header)
-	defer outputWriter.close()
+	outputPathAndFileName := *outputPath + *filename
+	outputReqsFilePath := outputPathAndFileName + "-reqs.csv"
+	header := "id,status,created_time,response_time,hops\n"
+	reqsOutputWriter, err := newOutputWriter(outputReqsFilePath, header)
+	defer reqsOutputWriter.close()
 	if err != nil {
-		log.Fatalf("Error creating LB's outputWriter: %q", err)
+		log.Fatalf("Error creating LB's reqsOutputWriter: %q", err)
 	}
 
-	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, outputWriter, *optimized)
-	printSimulationMetrics(float64(res.RequestCount)/(*duration).Seconds(), res.Cost, res.Efficiency, res.SimulationTime)
+	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *optimized, *warmUp)
+	
+	outputMetricsFilePath := outputPathAndFileName + "-metrics.log"
+	err = saveSimulationMetrics(outputMetricsFilePath, res)
+	if err != nil {
+		log.Fatalf("Error when save metrics. Error: %q", err)
+	}
+
+	outputInstancesFilePath := outputPathAndFileName + "-instances.csv"
+	err = saveSimulationInstances(outputInstancesFilePath, res.Instances)
+	if err != nil {
+		log.Fatalf("Error when save metrics. Error: %q", err)
+	}
 }
 
 func buildEntryArray(records [][]string) ([]sim.InputEntry, error) {
@@ -92,14 +107,23 @@ func readRecords(f io.Reader, p string) ([][]string, error) {
 }
 
 func toEntry(row []string) (sim.InputEntry, error) {
-	// Row format: status;request_time
-	status, err := strconv.Atoi(row[0])
+	// Row format: id,status,response_time,body,tsbefore,tsafter
+	status, err := strconv.Atoi(row[1])
 	if err != nil {
 		return sim.InputEntry{}, fmt.Errorf("Error parsing status in row (%v): %q", row, err)
 	}
-	duration, err := strconv.ParseFloat(row[1], 64)
+	responseTime, err := strconv.ParseFloat(row[2], 64)
 	if err != nil {
-		return sim.InputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
+		return sim.InputEntry{}, fmt.Errorf("Error parsing response_time in row (%v): %q", row, err)
 	}
-	return sim.InputEntry{status, duration}, nil
+	body := row[3]
+	tsbefore, err := strconv.ParseFloat(row[4], 64)
+	if err != nil {
+		return sim.InputEntry{}, fmt.Errorf("Error parsing tsbefore in row (%v): %q", row, err)
+	}
+	tsafter, err := strconv.ParseFloat(row[5], 64)
+	if err != nil {
+		return sim.InputEntry{}, fmt.Errorf("Error parsing tsafter in row (%v): %q", row, err)
+	}
+	return sim.InputEntry{Status: status, ResponseTime: responseTime, Body: body, TsBefore: tsbefore, TsAfter: tsafter}, nil
 }

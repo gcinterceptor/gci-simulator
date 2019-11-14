@@ -47,8 +47,18 @@ func TestToEntry_Success(t *testing.T) {
 		row  []string
 		want sim.InputEntry
 	}{
-		{"Success", []string{"200", "0.019"}, sim.InputEntry{200, 0.019}},
-		{"Error", []string{"503", "0.250"}, sim.InputEntry{503, 0.250}},
+		
+		{
+			desc: "Success",
+			// Row format: id,status,response_time,body,tsbefore,tsafter
+			row: []string{"1", "200", "0.019", "body", "0", "0.019"},
+			want: sim.InputEntry{200, 0.019, "body", 0, 0.019},
+		},
+		{
+			desc: "Error",
+			row: []string{"2", "503", "0.250", "body", "0", "0.250"},
+			want: sim.InputEntry{503, 0.250, "body", 0, 0.250},
+		},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -88,8 +98,10 @@ func TestBuildEntryArray_Success(t *testing.T) {
 		row  [][]string
 		want []sim.InputEntry
 	}{
-		{"OneEntry", [][]string{{"503", "0.250"}}, []sim.InputEntry{{503, 0.250}}},
-		{"ManyEntries", [][]string{{"200", "0.019"}, {"503", "0.250"}}, []sim.InputEntry{{200, 0.019}, {503, 0.250}}},
+		{"OneEntry", [][]string{{"1", "503", "0.250", "body", "0", "0.250"}},
+			[]sim.InputEntry{{503, 0.250, "body", 0, 0.250}}},
+		{"ManyEntries", [][]string{{"2", "200", "0.019", "body", "0", "0.019"}, {"3", "503", "0.250", "body", "0", "0.250"}},
+			[]sim.InputEntry{{200, 0.019, "body", 0, 0.019}, {503, 0.250, "body", 0, 0.250}}},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
