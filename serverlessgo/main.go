@@ -52,8 +52,11 @@ func main() {
 			entries = append(entries, e)
 		}()
 	}
-
-	outputPathAndFileName := *outputPath + *filename
+	opname := "-opscheduler"
+	if !*optimized {
+		opname := "-normscheduler"	
+	}
+	outputPathAndFileName := *outputPath + *filename + opname
 	outputReqsFilePath := outputPathAndFileName + "-reqs.csv"
 	header := "id,status,created_time,response_time,hops\n"
 	reqsOutputWriter, err := newOutputWriter(outputReqsFilePath, header)
