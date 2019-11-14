@@ -61,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating LB's reqsOutputWriter: %q", err)
 	}
-
+	fmt.Println("RUNNING THE SIMULATION")
 	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *optimized, *warmUp)
 	
 	outputMetricsFilePath := outputPathAndFileName + "-metrics.log"
@@ -75,6 +75,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error when save metrics. Error: %q", err)
 	}
+	fmt.Println("SIMULATION FINISHED")
 }
 
 func buildEntryArray(records [][]string) ([]sim.InputEntry, error) {
