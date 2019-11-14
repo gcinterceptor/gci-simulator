@@ -125,8 +125,5 @@ func toEntry(row []string) (sim.InputEntry, error) {
 	if err != nil {
 		return sim.InputEntry{}, fmt.Errorf("Error parsing tsafter in row (%v): %q", row, err)
 	}
-	responseTime = responseTime / 1000000000
-	tsbefore = responseTime / 1000000000
-	tsafter = responseTime / 1000000000
-	return sim.InputEntry{status, responseTime, body, tsbefore, tsafter}, nil
+	return sim.InputEntry{Status: status, ResponseTime: responseTime, Body: body, TsBefore: tsbefore, TsAfter: tsafter}, nil
 }
