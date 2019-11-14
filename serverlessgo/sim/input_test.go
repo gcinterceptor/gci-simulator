@@ -13,21 +13,23 @@ func TestInputIReproducer(t *testing.T) {
 		want              []InputEntry
 	}{
 		{"OneEntry", newInputReproducer(
-			[]InputEntry{{200, 0.2, "body", 0, 0.2}}), 3,
+			[]InputEntry{{200, 0.2, "body", 0, 0.2}}, 0), 3,
 			[]InputEntry{{200, 0.2, "body", 0, 0.2}, {200, 0.2, "body", 0, 0.2}, {200, 0.2, "body", 0, 0.2}},
 		},
 		{"ManyEntry", newInputReproducer(
-			[]InputEntry{{200, 0.8, "body", 0, 0.8}, {200, 0.2, "body", 0, 0.2}, {200, 0.3, "body", 0, 0.3}}), 5,
+			[]InputEntry{
+				{200, 0.8, "body", 0, 0.8}, {200, 0.2, "body", 0, 0.2}, {200, 0.3, "body", 0, 0.3}}, 0), 5,
 			[]InputEntry{
 				{200, 0.8, "body", 0, 0.8}, {200, 0.2, "body", 0, 0.2}, {200, 0.3, "body", 0, 0.3},
 				{200, 0.2, "body", 0, 0.2}, {200, 0.3, "body", 0, 0.3}},
 		},
 		{"WarmedOneEntry", newWarmedInputReproducer(
-			[]InputEntry{{200, 0.2, "body", 0, 0.2}}), 3,
+			[]InputEntry{{200, 0.2, "body", 0, 0.2}}, 0), 3,
 			[]InputEntry{{200, 0.2, "body", 0, 0.2}, {200, 0.2, "body", 0, 0.2}, {200, 0.2, "body", 0, 0.2}},
 		},
 		{"WarmedManyEntry", newWarmedInputReproducer(
-			[]InputEntry{{200, 0.8, "body", 0, 0.8}, {200, 0.2, "body", 0, 0.2}, {200, 0.3, "body", 0, 0.3}}), 5,
+			[]InputEntry{
+				{200, 0.8, "body", 0, 0.8}, {200, 0.2, "body", 0, 0.2}, {200, 0.3, "body", 0, 0.3}}, 0), 5,
 			[]InputEntry{
 				{200, 0.2, "body", 0, 0.2}, {200, 0.3, "body", 0, 0.3}, {200, 0.2, "body", 0, 0.2},
 				{200, 0.3, "body", 0, 0.3}, {200, 0.2, "body", 0, 0.2}},

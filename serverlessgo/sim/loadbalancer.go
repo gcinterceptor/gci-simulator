@@ -25,9 +25,10 @@ type loadBalancer struct {
 	listener           Listener
 	finishedReqs       int
 	optimizedScheduler bool
+	warmUp             int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool) *loadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool, warmUp int) *loadBalancer {
 	return &loadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
@@ -37,6 +38,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, list
 		inputs:             inputs,
 		listener:           listener,
 		optimizedScheduler: optimized,
+		warmUp:             warmUp,
 	}
 }
 
@@ -98,10 +100,10 @@ func (lb *loadBalancer) newInstance(r *Request) IInstance {
 	var reproducer iInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
 	if lb.optimizedScheduler && r.Status != 503 {
-		reproducer = newWarmedInputReproducer(nextInstanceInput)
+		reproducer = newWarmedInputReproducer(nextInstanceInput, lb.warmUp)
 
 	} else {
-		reproducer = newInputReproducer(nextInstanceInput)
+		reproducer = newInputReproducer(nextInstanceInput, lb.warmUp)
 	}
 	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
 	godes.AddRunner(newInstance)

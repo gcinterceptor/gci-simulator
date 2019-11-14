@@ -22,6 +22,7 @@ var (
 	outputPath       = flag.String("output", "./output/", "file path to output results")
 	filename         = flag.String("filename", "output.csv", "file name of output results")
 	optimized        = flag.Bool("optimized", false, "Define if the simulation must use the optimized scheduler")
+	warmUp           = flag.Int("warmup", 500, "The Warm Up value to remove , default value is 500")
 )
 
 func main() {
@@ -61,7 +62,7 @@ func main() {
 		log.Fatalf("Error creating LB's reqsOutputWriter: %q", err)
 	}
 
-	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *optimized)
+	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *optimized, *warmUp)
 	
 	outputMetricsFilePath := outputPathAndFileName + "-metrics.csv"
 	err = saveSimulationMetrics(outputMetricsFilePath, res)
