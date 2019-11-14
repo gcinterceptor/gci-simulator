@@ -22,13 +22,14 @@ func main() {
 	duration := 80 * time.Millisecond
 	idlenessDeadline := 6 * time.Millisecond
 	input := [][]sim.InputEntry{
-		{{200, 0.015}, {200, 0.008}, {503, 0.0001}},
-		{{200, 0.011}},
-		{{200, 0.005}, {200, 0.005}, {503, 0.0002}},
+		{{200, 0.015, "body", 0, 0.015}, {200, 0.008, "body", 0, 0.008}, {503, 0.0001, "body", 0, 0.0001}},
+		{{200, 0.011, "body", 0, 0.011}},
+		{{200, 0.005, "body", 0, 0.005}, {200, 0.005, "body", 0, 0.005}, {503, 0.0002, "body", 0, 0.0002}},
 	}
 	optimized := false
 	var simulatedRequests collectorListener
-	res := sim.Run(duration, idlenessDeadline, sim.NewConstantInterArrival(0.01), input, &simulatedRequests, optimized)
+	warmup := 0
+	res := sim.Run(duration, idlenessDeadline, sim.NewConstantInterArrival(0.01), input, &simulatedRequests, optimized, warmup)
 
 	if len(res.Instances) != 5 {
 		log.Fatalf("number of instances - want:5 got:%+v", len(res.Instances))
