@@ -20,7 +20,7 @@ var (
 	lambda           = flag.Float64("lambda", 150.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "default.csv", "Comma-separated file paths (one per instance)")
 	outputPath       = flag.String("output", "./output/", "file path to output results")
-	filename         = flag.String("filename", "output.csv", "file name of output results")
+	filename         = flag.String("filename", "default-filename", "file name of output results")
 	optimized        = flag.Bool("optimized", false, "Define if the simulation must use the optimized scheduler")
 	warmUp           = flag.Int("warmup", 500, "The Warm Up value to remove , default value is 500")
 )
