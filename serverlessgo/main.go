@@ -54,7 +54,7 @@ func main() {
 	}
 	opname := "-opscheduler"
 	if !*optimized {
-		opname := "-normscheduler"	
+		opname = "-normscheduler"	
 	}
 	outputPathAndFileName := *outputPath + *filename + opname
 	outputReqsFilePath := outputPathAndFileName + "-reqs.csv"
