@@ -64,7 +64,7 @@ func main() {
 
 	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *optimized, *warmUp)
 	
-	outputMetricsFilePath := outputPathAndFileName + "-metrics.csv"
+	outputMetricsFilePath := outputPathAndFileName + "-metrics.log"
 	err = saveSimulationMetrics(outputMetricsFilePath, res)
 	if err != nil {
 		log.Fatalf("Error when save metrics. Error: %q", err)
