@@ -8,7 +8,7 @@ import (
 	"github.com/agoussia/godes"
 )
 
-type iInstance interface {
+type IInstance interface {
 	receive(r *Request)
 	terminate()
 	isWorking() bool

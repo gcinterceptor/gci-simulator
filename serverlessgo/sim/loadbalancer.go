@@ -18,7 +18,7 @@ type loadBalancer struct {
 	isTerminated       bool
 	arrivalQueue       *godes.FIFOQueue
 	arrivalCond        *godes.BooleanControl
-	instances          []iInstance
+	instances          []IInstance
 	idlenessDeadline   time.Duration
 	inputs             [][]InputEntry
 	index              int
@@ -32,7 +32,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, list
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
 		arrivalCond:        godes.NewBooleanControl(),
-		instances:          make([]iInstance, 0),
+		instances:          make([]IInstance, 0),
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		listener:           listener,
@@ -78,8 +78,8 @@ func (lb *loadBalancer) nextInstanceInputs() []InputEntry {
 	return input
 }
 
-func (lb *loadBalancer) nextInstance(r *Request) iInstance {
-	var selected iInstance
+func (lb *loadBalancer) nextInstance(r *Request) IInstance {
+	var selected IInstance
 	// sorting instances to have the most recently used ones ahead on the array
 	sort.SliceStable(lb.instances, func(i, j int) bool { return lb.instances[i].getLastWorked() > lb.instances[j].getLastWorked() })
 	for _, i := range lb.instances {
@@ -94,7 +94,7 @@ func (lb *loadBalancer) nextInstance(r *Request) iInstance {
 	return selected
 }
 
-func (lb *loadBalancer) newInstance(r *Request) iInstance {
+func (lb *loadBalancer) newInstance(r *Request) IInstance {
 	var reproducer iInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
 	if lb.optimizedScheduler && r.Status != 503 {
@@ -106,7 +106,7 @@ func (lb *loadBalancer) newInstance(r *Request) iInstance {
 	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
 	godes.AddRunner(newInstance)
 	// inserts the instance ahead of the array
-	lb.instances = append([]iInstance{newInstance}, lb.instances...)
+	lb.instances = append([]IInstance{newInstance}, lb.instances...)
 	return newInstance
 
 }

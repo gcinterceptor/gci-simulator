@@ -7,8 +7,8 @@ import (
 )
 
 // TODO(david): Document the fields of this struct.
-type results struct {
-	Instances      []iInstance
+type Results struct {
+	Instances      []IInstance
 	Cost           float64
 	Efficiency     float64
 	RequestCount   int64
@@ -17,7 +17,7 @@ type results struct {
 
 // Run executes a simulation.
 // TODO(david): document each parameters.
-func Run(duration, idlenessDeadline time.Duration, ia InterArrival, entries [][]InputEntry, listener Listener, optimized bool) results {
+func Run(duration, idlenessDeadline time.Duration, ia InterArrival, entries [][]InputEntry, listener Listener, optimized bool) Results {
 	before := time.Now()
 	lb := newLoadBalancer(idlenessDeadline, entries, listener, optimized)
 	reqID := int64(0)
@@ -32,7 +32,7 @@ func Run(duration, idlenessDeadline time.Duration, ia InterArrival, entries [][]
 	lb.terminate()
 	godes.WaitUntilDone()
 
-	return results{
+	return Results{
 		Instances:      lb.instances,
 		Cost:           lb.getTotalCost(),
 		Efficiency:     lb.getTotalEfficiency(),
