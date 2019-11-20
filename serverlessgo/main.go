@@ -58,7 +58,7 @@ func main() {
 	}
 	outputPathAndFileName := *outputPath + *filename + opname
 	outputReqsFilePath := outputPathAndFileName + "-reqs.csv"
-	header := "id,status,created_time,response_time,hops\n"
+	header := "id,status,created_time,response_time,hops,responses\n"
 	reqsOutputWriter, err := newOutputWriter(outputReqsFilePath, header)
 	defer reqsOutputWriter.close()
 	if err != nil {
