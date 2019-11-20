@@ -5,15 +5,15 @@ type Request struct {
 	Status       int
 	CreatedTime  float64
 	ResponseTime float64
-	Hops         []int
+	Hops         []string
 }
 
 func newRequest(id int64, createdTime float64) *Request {
 	return &Request{ID: id, CreatedTime: createdTime}
 }
 
-func (r *Request) updateHops(i int) {
-	r.Hops = append(r.Hops, i)
+func (r *Request) updateHops(id string) {
+	r.Hops = append(r.Hops, id)
 }
 
 func (r *Request) updateStatus(s int) {
@@ -24,7 +24,7 @@ func (r *Request) updateResponseTime(t float64) {
 	r.ResponseTime += t
 }
 
-func (r *Request) hasBeenProcessed(id int) bool {
+func (r *Request) hasBeenProcessed(id string) bool {
 	for _, i := range r.Hops {
 		if id == i {
 			return true

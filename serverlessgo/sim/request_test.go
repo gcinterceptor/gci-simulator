@@ -9,12 +9,12 @@ func TestHasBeenProcessed(t *testing.T) {
 	var testData = []struct {
 		desc    string
 		req     *Request
-		instace int
+		instace string
 		want    bool
 	}{
-		{"EmptyHop", &Request{}, 0, false},
-		{"OneHopTrue", &Request{Hops: []int{1}}, 1, true},
-		{"OneHopFalse", &Request{Hops: []int{1}}, 2, false},
+		{"EmptyHop", &Request{}, "0", false},
+		{"OneHopTrue", &Request{Hops: []string{"1"}}, "1", true},
+		{"OneHopFalse", &Request{Hops: []string{"1"}}, "2", false},
 	}
 	for _, d := range testData {
 		t.Run(d.desc, func(t *testing.T) {
@@ -30,12 +30,12 @@ func TestUpdateHops(t *testing.T) {
 	type data struct {
 		desc  string
 		req   *Request
-		value int
-		want  []int
+		value string
+		want  []string
 	}
 	var updateHop = []data{
-		{"UpdateEmptyHop", &Request{}, 1, []int{1}},
-		{"UpdateNotEmptyHop", &Request{Hops: []int{0, 5}}, 2, []int{0, 5, 2}},
+		{"UpdateEmptyHop", &Request{}, "1", []string{"1"}},
+		{"UpdateNotEmptyHop", &Request{Hops: []string{"0", "5"}}, "2", []string{"0", "5", "2"}},
 	}
 	for _, d := range updateHop {
 		t.Run(d.desc, func(t *testing.T) {

@@ -54,7 +54,7 @@ func main() {
 	}
 	opname := "-opscheduler"
 	if !*optimized {
-		opname = "-normscheduler"	
+		opname = "-normscheduler"
 	}
 	outputPathAndFileName := *outputPath + *filename + opname
 	outputReqsFilePath := outputPathAndFileName + "-reqs.csv"
@@ -66,19 +66,26 @@ func main() {
 	}
 	fmt.Println("RUNNING THE SIMULATION")
 	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *optimized, *warmUp)
-	
-	outputMetricsFilePath := outputPathAndFileName + "-metrics.log"
-	err = saveSimulationMetrics(outputMetricsFilePath, res)
-	if err != nil {
-		log.Fatalf("Error when save metrics. Error: %q", err)
-	}
 
-	outputInstancesFilePath := outputPathAndFileName + "-instances.csv"
-	err = saveSimulationInstances(outputInstancesFilePath, res.Instances)
+	err = saveSimulatedData(res, outputPathAndFileName)
 	if err != nil {
 		log.Fatalf("Error when save metrics. Error: %q", err)
 	}
 	fmt.Println("SIMULATION FINISHED")
+}
+
+func saveSimulatedData(res sim.Results, outputPathAndFileName string) error {
+	outputMetricsFilePath := outputPathAndFileName + "-metrics.log"
+	err := saveSimulationMetrics(outputMetricsFilePath, res)
+	if err != nil {
+		return err
+	}
+	outputInstancesFilePath := outputPathAndFileName + "-instances.csv"
+	err = saveSimulationInstances(outputInstancesFilePath, res.Instances)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func buildEntryArray(records [][]string) ([]sim.InputEntry, error) {

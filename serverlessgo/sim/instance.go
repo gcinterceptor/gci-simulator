@@ -15,7 +15,7 @@ type IInstance interface {
 	IsTerminated() bool
 	IsAvailable() bool
 	GetLastWorked() float64
-	GetId() int
+	GetId() string
 	GetBusyTime() float64
 	GetUpTime() float64
 	GetIdleTime() float64
@@ -25,7 +25,7 @@ type IInstance interface {
 
 type instance struct {
 	*godes.Runner
-	id               int
+	id               string
 	lb               iLoadBalancer
 	terminated       bool
 	cond             *godes.BooleanControl
@@ -42,7 +42,7 @@ type instance struct {
 	shedRTIndex      int
 }
 
-func newInstance(id int, lb iLoadBalancer, idlenessDeadline time.Duration, reproducer iInputReproducer) *instance {
+func newInstance(id string, lb iLoadBalancer, idlenessDeadline time.Duration, reproducer iInputReproducer) *instance {
 	return &instance{
 		Runner:           &godes.Runner{},
 		lb:               lb,
@@ -141,7 +141,7 @@ func (i *instance) IsAvailable() bool {
 	return godes.GetSystemTime() >= i.tsAvailableAt
 }
 
-func (i *instance) GetId() int {
+func (i *instance) GetId() string {
 	return i.id
 }
 

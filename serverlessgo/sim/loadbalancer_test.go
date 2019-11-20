@@ -12,7 +12,7 @@ func TestFoward(t *testing.T) {
 	lb := &loadBalancer{
 		arrivalQueue: godes.NewFIFOQueue("arrival"),
 		arrivalCond:  godes.NewBooleanControl(),
-		warmUp: 0,
+		warmUp:       0,
 	}
 	type Want struct {
 		queueSize         int
@@ -52,7 +52,7 @@ func TestResponse(t *testing.T) {
 	lb := &loadBalancer{
 		inputs:   [][]InputEntry{{{200, 0.5, "body", 0, 0.5}}},
 		listener: voidListener{},
-		warmUp: 0,
+		warmUp:   0,
 	}
 	type Want struct {
 		responsed     int
@@ -92,20 +92,20 @@ func TestLBTerminate(t *testing.T) {
 		{"NoInstance", &loadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
 			instances:   make([]IInstance, 0),
-			warmUp: 0,
+			warmUp:      0,
 		}, true},
 		{"OneInstance", &loadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
-			instances:   []IInstance{&instance{id: 0, cond: godes.NewBooleanControl()}},
-			warmUp: 0,
+			instances:   []IInstance{&instance{id: "0", cond: godes.NewBooleanControl()}},
+			warmUp:      0,
 		}, true},
 		{"ManyInstances", &loadBalancer{
 			arrivalCond: godes.NewBooleanControl(),
-			warmUp: 0,
+			warmUp:      0,
 			instances: []IInstance{
-				&instance{id: 1, cond: godes.NewBooleanControl()},
-				&instance{id: 2, cond: godes.NewBooleanControl()},
-				&instance{id: 3, cond: godes.NewBooleanControl()},
+				&instance{id: "1", cond: godes.NewBooleanControl()},
+				&instance{id: "2", cond: godes.NewBooleanControl()},
+				&instance{id: "3", cond: godes.NewBooleanControl()},
 			},
 		}, true},
 	}
@@ -162,26 +162,26 @@ func TestNextInstanceInputs(t *testing.T) {
 
 func TestNextInstance_HopedRequest(t *testing.T) {
 	lb := &loadBalancer{
-		warmUp: 0,
+		warmUp:      0,
 		Runner:      &godes.Runner{},
 		arrivalCond: godes.NewBooleanControl(),
 		inputs:      [][]InputEntry{{{200, 0.5, "body", 0, 0.5}}},
 		instances: []IInstance{
-			&instance{id: 0, terminated: false, cond: godes.NewBooleanControl()},
-			&instance{id: 1, terminated: false, cond: godes.NewBooleanControl()},
-			&instance{id: 2, terminated: true, cond: godes.NewBooleanControl()},
-			&instance{id: 3, terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: "0", terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: "1", terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: "2", terminated: true, cond: godes.NewBooleanControl()},
+			&instance{id: "3", terminated: false, cond: godes.NewBooleanControl()},
 		},
 	}
 	data := []struct {
 		desc string
 		req  *Request
-		want int
+		want string
 	}{
-		{"Free Instance", &Request{}, 0},
-		{"Busy Instance", &Request{}, 1},
-		{"Terminated Instance", &Request{Hops: []int{0, 1}}, 3},
-		{"New Instance Required", &Request{Hops: []int{0, 1, 2, 3}}, 4},
+		{"Free Instance", &Request{}, "0"},
+		{"Busy Instance", &Request{}, "1"},
+		{"Terminated Instance", &Request{Hops: []string{"0", "1"}}, "3"},
+		{"New Instance Required", &Request{Hops: []string{"0", "1", "2", "3"}}, "i4-f0"},
 	}
 	for _, d := range data {
 		t.Run(d.desc, func(t *testing.T) {
@@ -197,7 +197,7 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 
 type TestInstance struct {
 	*instance
-	id         int
+	id         string
 	terminated bool
 	lastWorked float64
 }
@@ -206,7 +206,7 @@ func (t *TestInstance) terminate()             { t.terminated = true }
 func (t *TestInstance) scaleDown()             { t.terminated = true }
 func (t *TestInstance) IsTerminated() bool     { return t.terminated }
 func (t *TestInstance) GetLastWorked() float64 { return t.lastWorked }
-func (t *TestInstance) GetId() int             { return t.id }
+func (t *TestInstance) GetId() string          { return t.id }
 func (t *TestInstance) IsWorking() bool        { return false }
 
 func TestTryScaleDown(t *testing.T) {
@@ -218,24 +218,24 @@ func TestTryScaleDown(t *testing.T) {
 	}
 	var testData = []TestData{
 		{"NoInstances", &loadBalancer{
-			warmUp: 0,
+			warmUp:           0,
 			idlenessDeadline: idleness,
 			instances:        make([]IInstance, 0),
 		}, make([]bool, 0)},
 		{"OneInstance", &loadBalancer{
-			warmUp: 0,
+			warmUp:           0,
 			idlenessDeadline: idleness,
-			instances:        []IInstance{&TestInstance{id: 0, terminated: false, lastWorked: -5.0}},
+			instances:        []IInstance{&TestInstance{id: "0", terminated: false, lastWorked: -5.0}},
 		}, []bool{true}},
 		{"ManyInstances", &loadBalancer{
-			warmUp: 0,
+			warmUp:           0,
 			idlenessDeadline: idleness,
 			instances: []IInstance{
-				&TestInstance{id: 0, terminated: false, lastWorked: -5.0},
-				&TestInstance{id: 1, terminated: false, lastWorked: 0.0},
-				&TestInstance{id: 2, terminated: false, lastWorked: -5.0},
-				&TestInstance{id: 3, terminated: false, lastWorked: -1.0},
-				&TestInstance{id: 4, terminated: false, lastWorked: -8.0},
+				&TestInstance{id: "0", terminated: false, lastWorked: -5.0},
+				&TestInstance{id: "1", terminated: false, lastWorked: 0.0},
+				&TestInstance{id: "2", terminated: false, lastWorked: -5.0},
+				&TestInstance{id: "3", terminated: false, lastWorked: -1.0},
+				&TestInstance{id: "4", terminated: false, lastWorked: -8.0},
 			},
 		}, []bool{true, false, true, false, true}},
 	}
@@ -255,9 +255,9 @@ func TestTryScaleDown(t *testing.T) {
 
 func TestTryScaleDownWorkingInstance(t *testing.T) {
 	idleness, _ := time.ParseDuration("5s")
-	instance := &instance{id: 0, cond: godes.NewBooleanControl(), terminated: false, lastWorked: -5.0}
+	instance := &instance{id: "0", cond: godes.NewBooleanControl(), terminated: false, lastWorked: -5.0}
 	lb := &loadBalancer{
-		warmUp: 0,
+		warmUp:           0,
 		idlenessDeadline: idleness,
 		instances:        []IInstance{instance},
 	}

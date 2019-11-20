@@ -3,6 +3,7 @@ package sim
 import (
 	"errors"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/agoussia/godes"
@@ -97,6 +98,7 @@ func (lb *loadBalancer) nextInstance(r *Request) IInstance {
 }
 
 func (lb *loadBalancer) newInstance(r *Request) IInstance {
+	newInstanceId := lb.getNewInstanceID()
 	var reproducer iInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
 	if lb.optimizedScheduler && r.Status != 503 {
@@ -105,12 +107,17 @@ func (lb *loadBalancer) newInstance(r *Request) IInstance {
 	} else {
 		reproducer = newInputReproducer(nextInstanceInput, lb.warmUp)
 	}
-	newInstance := newInstance(len(lb.instances), lb, lb.idlenessDeadline, reproducer)
+	newInstance := newInstance(newInstanceId, lb, lb.idlenessDeadline, reproducer)
 	godes.AddRunner(newInstance)
 	// inserts the instance ahead of the array
 	lb.instances = append([]IInstance{newInstance}, lb.instances...)
 	return newInstance
+}
 
+func (lb *loadBalancer) getNewInstanceID() string {
+	instanceCount := strconv.Itoa(len(lb.instances))
+	fileId := strconv.Itoa(lb.index)
+	return "i" + instanceCount + "-f" + fileId
 }
 
 func (lb *loadBalancer) Run() {

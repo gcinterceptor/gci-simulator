@@ -38,7 +38,7 @@ func (o *outputWriter) close() {
 }
 
 func saveSimulationMetrics(path string, res sim.Results) error {
-	throughput := float64(res.RequestCount)/(*duration).Seconds()
+	throughput := float64(res.RequestCount) / (*duration).Seconds()
 	totalCost := res.Cost
 	totalEfficiency := res.Efficiency
 	simulationTime := res.SimulationTime
@@ -47,7 +47,7 @@ func saveSimulationMetrics(path string, res sim.Results) error {
 	s += fmt.Sprintf("Total cost of instances: %.5f\n", totalCost)
 	s += fmt.Sprintf("Total efficiency of instances: %.10f\n", totalEfficiency)
 	s += fmt.Sprintf("time running the simulation: %d seconds\n", simulationTime)
-	
+
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("Error trying to create the output file: %q", err)
@@ -58,7 +58,7 @@ func saveSimulationMetrics(path string, res sim.Results) error {
 	}
 	f.Close()
 
-	return nil	
+	return nil
 }
 
 func saveSimulationInstances(path string, instances []sim.IInstance) error {
@@ -74,7 +74,7 @@ func saveSimulationInstances(path string, instances []sim.IInstance) error {
 	}
 	for _, i := range instances {
 		s = fmt.Sprintf(
-			"%d,%t,%t,%t,%f,%f,%f,%f,%f,%f\n",
+			"%s,%t,%t,%t,%f,%f,%f,%f,%f,%f\n",
 			i.GetId(), i.IsTerminated(), i.IsWorking(), i.IsAvailable(),
 			i.GetLastWorked(), i.GetBusyTime(), i.GetUpTime(),
 			i.GetIdleTime(), i.GetEfficiency(), i.GetCreatedTime(),
@@ -85,5 +85,5 @@ func saveSimulationInstances(path string, instances []sim.IInstance) error {
 		}
 	}
 
-	return nil	
+	return nil
 }
