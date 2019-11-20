@@ -25,7 +25,7 @@ func newOutputWriter(path, header string) (*outputWriter, error) {
 }
 
 func (o *outputWriter) RequestFinished(r *sim.Request) {
-	s := fmt.Sprintf("%d,%d,%f,%f,%v\n", r.ID, r.Status, r.CreatedTime, r.ResponseTime*1000, r.Hops)
+	s := fmt.Sprintf("%d,%d,%f,%f,%v,%v\n", r.ID, r.Status, r.CreatedTime, r.ResponseTime, r.Hops, r.Responses)
 	_, err := o.f.WriteString(s)
 	if err != nil {
 		// Crash the simulation binary if we can not write output.

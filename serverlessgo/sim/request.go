@@ -6,6 +6,7 @@ type Request struct {
 	CreatedTime  float64
 	ResponseTime float64
 	Hops         []string
+	Responses    []float64
 }
 
 func newRequest(id int64, createdTime float64) *Request {
@@ -21,6 +22,7 @@ func (r *Request) updateStatus(s int) {
 }
 
 func (r *Request) updateResponseTime(t float64) {
+	r.Responses = append(r.Responses, t)
 	r.ResponseTime += t
 }
 
