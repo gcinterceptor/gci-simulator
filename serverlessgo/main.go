@@ -61,7 +61,8 @@ func main() {
 	default:
 		opname = "-normscheduler"
 	}
-	outputPathAndFileName := *outputPath + *filename + opname
+	simScenarioName := "sim-" + *filename + opname
+	outputPathAndFileName := *outputPath + simScenarioName
 	outputReqsFilePath := outputPathAndFileName + "-reqs.csv"
 	header := "id,status,created_time,response_time,hops,responses\n"
 	reqsOutputWriter, err := newOutputWriter(outputReqsFilePath, header)
@@ -72,16 +73,16 @@ func main() {
 	fmt.Println("RUNNING THE SIMULATION")
 	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *scheduler, *warmUp)
 
-	err = saveSimulatedData(res, outputPathAndFileName)
+	err = saveSimulatedData(res, simScenarioName, outputPathAndFileName)
 	if err != nil {
 		log.Fatalf("Error when save metrics. Error: %q", err)
 	}
 	fmt.Println("SIMULATION FINISHED")
 }
 
-func saveSimulatedData(res sim.Results, outputPathAndFileName string) error {
+func saveSimulatedData(res sim.Results, simScenarioName, outputPathAndFileName string) error {
 	outputMetricsFilePath := outputPathAndFileName + "-metrics.log"
-	err := saveSimulationMetrics(outputMetricsFilePath, res)
+	err := saveSimulationMetrics(simScenarioName, outputMetricsFilePath, res)
 	if err != nil {
 		return err
 	}

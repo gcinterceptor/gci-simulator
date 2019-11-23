@@ -37,17 +37,13 @@ func (o *outputWriter) close() {
 	o.f.Close()
 }
 
-func saveSimulationMetrics(path string, res sim.Results) error {
+func saveSimulationMetrics(scenario, path string, res sim.Results) error {
 	throughput := float64(res.RequestCount) / (*duration).Seconds()
 	totalCost := res.Cost
 	totalEfficiency := res.Efficiency
 	simulationTime := res.SimulationTime
-
-	s := fmt.Sprintf("Throughput: %f\n", throughput)
-	s += fmt.Sprintf("Total cost of instances: %.5f\n", totalCost)
-	s += fmt.Sprintf("Total efficiency of instances: %.10f\n", totalEfficiency)
-	s += fmt.Sprintf("time running the simulation: %d seconds\n", simulationTime)
-
+	s := "scenario,throughput,instances_cost,instances_efficiency,simulation_exec_time\n"
+	s += fmt.Sprintf("%s,%f,%.5f,%.10f,%d\n", scenario, throughput, totalCost, totalEfficiency, simulationTime)
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("Error trying to create the output file: %q", err)
