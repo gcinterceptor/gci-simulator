@@ -21,7 +21,7 @@ var (
 	inputs           = flag.String("inputs", "default.csv", "Comma-separated file paths (one per instance)")
 	outputPath       = flag.String("output", "", "file path to output results")
 	filename         = flag.String("filename", "simoutput", "file name of output results")
-	optimized        = flag.Bool("optimized", false, "Define if the simulation must use the optimized scheduler")
+	scheduler        = flag.Int("scheduler", 0, "Define the scheduler used on simulation. 0 mean normal scheduler, 1 mean optimized scheduler and 2 mean optimized scheduler including GCI. The defaul value is 0")
 	warmUp           = flag.Int("warmup", 0, "The Warm Up value to remove , default value is 500")
 )
 
@@ -52,8 +52,13 @@ func main() {
 			entries = append(entries, e)
 		}()
 	}
-	opname := "-opscheduler"
-	if !*optimized {
+	var opname string
+	switch *scheduler {
+	case 1:
+		opname = "-opscheduler"
+	case 2:
+		opname = "-opgcischeduler"
+	default:
 		opname = "-normscheduler"
 	}
 	outputPathAndFileName := *outputPath + *filename + opname
@@ -65,7 +70,7 @@ func main() {
 		log.Fatalf("Error creating LB's reqsOutputWriter: %q", err)
 	}
 	fmt.Println("RUNNING THE SIMULATION")
-	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *optimized, *warmUp)
+	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *scheduler, *warmUp)
 
 	err = saveSimulatedData(res, outputPathAndFileName)
 	if err != nil {
