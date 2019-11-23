@@ -25,11 +25,11 @@ type loadBalancer struct {
 	index              int
 	listener           Listener
 	finishedReqs       int
-	optimizedScheduler bool
+	scheduler          int
 	warmUp             int
 }
 
-func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, optimized bool, warmUp int) *loadBalancer {
+func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, listener Listener, scheduler int, warmUp int) *loadBalancer {
 	return &loadBalancer{
 		Runner:             &godes.Runner{},
 		arrivalQueue:       godes.NewFIFOQueue("arrival"),
@@ -38,7 +38,7 @@ func newLoadBalancer(idlenessDeadline time.Duration, inputs [][]InputEntry, list
 		idlenessDeadline:   idlenessDeadline,
 		inputs:             inputs,
 		listener:           listener,
-		optimizedScheduler: optimized,
+		scheduler:          scheduler,
 		warmUp:             warmUp,
 	}
 }
@@ -101,10 +101,16 @@ func (lb *loadBalancer) newInstance(r *Request) IInstance {
 	newInstanceId := lb.getNewInstanceID()
 	var reproducer iInputReproducer
 	nextInstanceInput := lb.nextInstanceInputs()
-	if lb.optimizedScheduler && r.Status != 503 {
+	switch lb.scheduler {
+	case 1: // Optimized Scheduler
+		if r.Status != 503 {
+			reproducer = newWarmedInputReproducer(nextInstanceInput, lb.warmUp)	
+		} else {
+			reproducer = newInputReproducer(nextInstanceInput, lb.warmUp)	
+		}	
+	case 2: // Optimized Scheduler considering GCI
 		reproducer = newWarmedInputReproducer(nextInstanceInput, lb.warmUp)
-
-	} else {
+	default: // Normal Scheduler
 		reproducer = newInputReproducer(nextInstanceInput, lb.warmUp)
 	}
 	newInstance := newInstance(newInstanceId, lb, lb.idlenessDeadline, reproducer)

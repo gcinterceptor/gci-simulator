@@ -17,9 +17,9 @@ type Results struct {
 
 // Run executes a simulation.
 // TODO(david): document each parameters.
-func Run(duration, idlenessDeadline time.Duration, ia InterArrival, entries [][]InputEntry, listener Listener, optimized bool, warmUp int) Results {
+func Run(duration, idlenessDeadline time.Duration, ia InterArrival, entries [][]InputEntry, listener Listener, scheduler int, warmUp int) Results {
 	before := time.Now()
-	lb := newLoadBalancer(idlenessDeadline, entries, listener, optimized, warmUp)
+	lb := newLoadBalancer(idlenessDeadline, entries, listener, scheduler, warmUp)
 	reqID := int64(0)
 
 	godes.AddRunner(lb)

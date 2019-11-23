@@ -21,6 +21,7 @@ type IInstance interface {
 	GetIdleTime() float64
 	GetEfficiency() float64
 	GetCreatedTime() float64
+	getReproducer() iInputReproducer
 }
 
 type instance struct {
@@ -167,4 +168,8 @@ func (i *instance) GetEfficiency() float64 {
 
 func (i *instance) GetCreatedTime() float64 {
 	return i.createdTime
+}
+
+func (i *instance) getReproducer() iInputReproducer {
+	return i.reproducer
 }

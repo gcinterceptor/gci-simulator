@@ -167,10 +167,10 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 		arrivalCond: godes.NewBooleanControl(),
 		inputs:      [][]InputEntry{{{200, 0.5, "body", 0, 0.5}}},
 		instances: []IInstance{
-			&instance{id: "0", terminated: false, cond: godes.NewBooleanControl()},
-			&instance{id: "1", terminated: false, cond: godes.NewBooleanControl()},
-			&instance{id: "2", terminated: true, cond: godes.NewBooleanControl()},
-			&instance{id: "3", terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: "i0-f0", terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: "i1-f0", terminated: false, cond: godes.NewBooleanControl()},
+			&instance{id: "i2-f0", terminated: true, cond: godes.NewBooleanControl()},
+			&instance{id: "i3-f0", terminated: false, cond: godes.NewBooleanControl()},
 		},
 	}
 	data := []struct {
@@ -178,9 +178,9 @@ func TestNextInstance_HopedRequest(t *testing.T) {
 		req  *Request
 		want string
 	}{
-		{"Free Instance", &Request{}, "0"},
-		{"Busy Instance", &Request{}, "1"},
-		{"Terminated Instance", &Request{Hops: []string{"0", "1"}}, "3"},
+		{"Free Instance", &Request{}, "i0-f0"},
+		{"Busy Instance", &Request{}, "i1-f0"},
+		{"Terminated Instance", &Request{Hops: []string{"0", "1"}}, "i3-f0"},
 		{"New Instance Required", &Request{Hops: []string{"0", "1", "2", "3"}}, "i4-f0"},
 	}
 	for _, d := range data {
@@ -270,5 +270,31 @@ func TestTryScaleDownWorkingInstance(t *testing.T) {
 	want := false
 	if want != got[0] {
 		t.Fatalf("Want: %v, got: %v", want, got)
+	}
+}
+
+func TestNextInstanceGCIOptimal(t *testing.T) {
+	lb := &loadBalancer{
+		warmUp:    0,
+		scheduler: 2,
+		instances: make([]IInstance, 0),
+		inputs: [][]InputEntry{{
+			{Status: 200, ResponseTime: 1, Body: "coldstart"},
+			{Status: 200, ResponseTime: 0.1, Body: "normal"},
+			{Status: 503, ResponseTime: 0.01, Body: "shed"},
+		}},
+	}
+	iNoShed := lb.newInstance(&Request{Status: 200})
+	statusGot, responseGot, bodyGot, befGot, aftGot := iNoShed.getReproducer().next()
+	got := &InputEntry{statusGot, responseGot, bodyGot, befGot, aftGot}
+	want := &InputEntry{200, 0.1, "normal", 0, 0}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("Testing request 200, Want: %v, got: %v", want, got)
+	}
+	iAfterShed := lb.newInstance(&Request{Status: 503})
+	statusGot, responseGot, bodyGot, befGot, aftGot = iAfterShed.getReproducer().next()
+	got = &InputEntry{statusGot, responseGot, bodyGot, befGot, aftGot}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("Testing request 503, Want: %v, got: %v", want, got)
 	}
 }
