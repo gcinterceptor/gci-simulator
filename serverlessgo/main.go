@@ -20,7 +20,7 @@ var (
 	lambda           = flag.Float64("lambda", 150.0, "The lambda of the Poisson distribution used on workload.")
 	inputs           = flag.String("inputs", "default.csv", "Comma-separated file paths (one per instance)")
 	outputPath       = flag.String("output", "", "file path to output results")
-	filename         = flag.String("filename", "simoutput", "file name of output results")
+	scenario         = flag.String("scenario", "simoutput", "The scenario to compose the name of output file results")
 	scheduler        = flag.Int("scheduler", 0, "Define the scheduler used on simulation. 0 mean normal scheduler, 1 mean optimized scheduler and 2 mean optimized scheduler including GCI. The defaul value is 0")
 	warmUp           = flag.Int("warmup", 0, "The Warm Up value to remove , default value is 500")
 )
@@ -52,17 +52,16 @@ func main() {
 			entries = append(entries, e)
 		}()
 	}
-	var opname string
+	var schedulerName string
 	switch *scheduler {
 	case 1:
-		opname = "-opscheduler"
+		schedulerName = "-opscheduler"
 	case 2:
-		opname = "-opgcischeduler"
+		schedulerName = "-opgcischeduler"
 	default:
-		opname = "-normscheduler"
+		schedulerName = "-normscheduler"
 	}
-	simScenarioName := "sim-" + *filename + opname
-	outputPathAndFileName := *outputPath + simScenarioName
+	outputPathAndFileName := *outputPath + "sim-" + *scenario + schedulerName
 	outputReqsFilePath := outputPathAndFileName + "-reqs.csv"
 	header := "id,status,created_time,response_time,hops,responses\n"
 	reqsOutputWriter, err := newOutputWriter(outputReqsFilePath, header)
@@ -73,16 +72,16 @@ func main() {
 	fmt.Println("RUNNING THE SIMULATION")
 	res := sim.Run(*duration, *idlenessDeadline, sim.NewPoissonInterArrival(*lambda), entries, reqsOutputWriter, *scheduler, *warmUp)
 
-	err = saveSimulatedData(res, simScenarioName, outputPathAndFileName)
+	err = saveSimulatedData(res, *scenario, schedulerName, outputPathAndFileName)
 	if err != nil {
 		log.Fatalf("Error when save metrics. Error: %q", err)
 	}
 	fmt.Println("SIMULATION FINISHED")
 }
 
-func saveSimulatedData(res sim.Results, simScenarioName, outputPathAndFileName string) error {
+func saveSimulatedData(res sim.Results, scenario, schedulerName, outputPathAndFileName string) error {
 	outputMetricsFilePath := outputPathAndFileName + "-metrics.log"
-	err := saveSimulationMetrics(simScenarioName, outputMetricsFilePath, res)
+	err := saveSimulationMetrics(scenario, schedulerName, outputMetricsFilePath, res)
 	if err != nil {
 		return err
 	}
