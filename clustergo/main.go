@@ -16,12 +16,13 @@ import (
 var (
 	duration = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
 	warmup   = flag.Duration("warmup", 240*time.Second, "Server warmup duration, discarded from the input files.")
-	rate     = flag.Int("rate", 30, "Number of requests processed per second.")
+	rate     = flag.Float64("rate", 30, "Number of requests processed per second.")
 	inputs   = flag.String("i", "", "Comma-separated file paths (one per server)")
 )
 
 var arrivalQueue = godes.NewFIFOQueue("arrival")
 var arrivalCond = godes.NewBooleanControl()
+var arrivalDist = godes.NewExpDistr(false)
 
 func main() {
 	flag.Parse()
@@ -43,10 +44,10 @@ func main() {
 
 	reqID := int64(0)
 	godes.Run()
-	for godes.GetSystemTime() < duration.Seconds() {
+	for godes.GetSystemTime() < float64(duration.Milliseconds()) {
 		arrivalQueue.Place(&request{id: reqID})
 		arrivalCond.Set(true)
-		godes.Advance(1.0 / float64(*rate))
+		godes.Advance(arrivalDist.Get(*rate))
 		reqID++
 	}
 	lb.terminate()
@@ -54,18 +55,54 @@ func main() {
 		s.terminate()
 	}
 	godes.WaitUntilDone()
+	fmt.Printf("NSERVERS: %d\n", lb.nServers)
+	fmt.Printf("Proc: %f\n", lb.nRequests)
+	fmt.Printf("EvI: %f\n", lb.nReqEvictedByInstance)
+	fmt.Printf("EvS: %f\n", lb.nReqEvictedByService)
+	fmt.Printf("Succ: %f\n", lb.nSucc)
+	fmt.Printf("Succ Ratio: %.4f\n", lb.nSucc/lb.nRequests)
+	fmt.Printf("PVN: %.4f\n", lb.nReqEvictedByService/lb.nRequests)
+	fmt.Printf("PCP: %.4f\n", lb.nReqEvictedByInstance/lb.nRequests)
 }
 
 type loadBalancer struct {
 	*godes.Runner
-	servers      []*server
-	next         int
-	isTerminated bool
+	replicaQueue          *godes.FIFOQueue
+	next                  int
+	nServers              int
+	isTerminated          bool
+	nRequests             float64
+	nSucc                 float64
+	nReqEvictedByInstance float64
+	nReqEvictedByService  float64
 }
 
-func (lb *loadBalancer) nextServer() *server {
-	lb.next = (lb.next + 1) % len(lb.servers)
-	return lb.servers[lb.next]
+func (lb *loadBalancer) schedule(r *request) {
+	// Ignore requests when there is no available replica
+	if lb.replicaQueue.Len() == 0 {
+		return
+	}
+	lb.replicaQueue.Get().(*server).newRequest(r)
+}
+
+func (lb *loadBalancer) reqFinished(s *server, r *request) {
+	// Sending server back to the availability queue.
+	switch {
+	case r.status == 200:
+		fmt.Printf("%d,%d,%.1f,%.4f,%d,%v\n", r.id, r.status, r.latency, r.ts, len(r.hops), r.hops)
+		lb.nSucc++
+	case r.status == 503:
+		lb.nReqEvictedByInstance++
+		if len(r.hops) < lb.nServers {
+			lb.schedule(r)
+		} else {
+			lb.nReqEvictedByService++
+			fmt.Printf("%d,%d,%.1f,%.4f,%d,%v\n", r.id, r.status, r.latency, r.ts, len(r.hops), r.hops)
+		}
+	default:
+		// Stop simulation when we don't what to do.
+		panic(fmt.Sprintf("I don't know what to do with this request:%+v server:%+v", *r, *s))
+	}
 }
 
 func (lb *loadBalancer) terminate() {
@@ -74,16 +111,12 @@ func (lb *loadBalancer) terminate() {
 }
 
 func (lb *loadBalancer) Run() {
-	fmt.Println("id,status,latency,nhops,hops")
+	fmt.Println("id,status,latency,ts,nhops,hops")
 	for {
 		arrivalCond.Wait(true)
 		if arrivalQueue.Len() > 0 {
-			r := arrivalQueue.Get().(*request)
-			if r.status != 200 && len(r.hops) < len(lb.servers) {
-				lb.nextServer().newRequest(r)
-			} else {
-				fmt.Printf("%d,%d,%.1f,%d,%v\n", r.id, r.status, r.latency*1000, len(r.hops), r.hops)
-			}
+			lb.nRequests++
+			lb.schedule(arrivalQueue.Get().(*request))
 		}
 		if lb.isTerminated && arrivalQueue.Len() == 0 {
 			break
@@ -95,7 +128,22 @@ func (lb *loadBalancer) Run() {
 }
 
 func newLoadBalancer(servers []*server) *loadBalancer {
-	return &loadBalancer{&godes.Runner{}, servers, 0, false}
+	lb := &loadBalancer{
+		Runner:                &godes.Runner{},
+		next:                  0,
+		isTerminated:          false,
+		nRequests:             0,
+		nReqEvictedByService:  0,
+		nSucc:                 0,
+		nReqEvictedByInstance: 0}
+	q := godes.NewFIFOQueue("serverQueue")
+	for _, s := range servers {
+		s.lb = lb
+		q.Place(s)
+	}
+	lb.replicaQueue = q
+	lb.nServers = q.Len()
+	return lb
 }
 
 type server struct {
@@ -105,7 +153,9 @@ type server struct {
 	index        int
 	cond         *godes.BooleanControl
 	queue        *godes.FIFOQueue
+	lb           *loadBalancer
 	isTerminated bool
+	unavailable  *godes.BooleanControl
 }
 
 func (s *server) Run() {
@@ -113,17 +163,28 @@ func (s *server) Run() {
 		s.cond.Wait(true)
 		if s.queue.Len() > 0 {
 			// Processing request.
+
 			duration, status := s.next()
 			r := s.queue.Get().(*request)
 			r.latency += duration
 			r.status = status
+			r.ts = godes.GetSystemTime()
 			r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: status})
 
-			// Sending updated request back to the load balancer.
-			arrivalQueue.Place(r)
-			arrivalCond.Set(true)
 			// Advancing simulation time.
 			godes.Advance(duration)
+
+			if r.status == 200 {
+				s.lb.replicaQueue.Place(s)
+				s.lb.reqFinished(s, r) // Sending the request back to the loadbalancer.
+			} else {
+				s.lb.reqFinished(s, r) // Sending the request back to the loadbalancer.
+				fmt.Println("starting unavailability", godes.GetSystemTime())
+				s.unavailable.WaitAndTimeout(true, r.latency) // Only comes back to the queue after the duration period.
+				s.lb.replicaQueue.Place(s)
+				fmt.Println("backing to the queue", godes.GetSystemTime())
+			}
+
 		}
 		if s.isTerminated && arrivalQueue.Len() == 0 {
 			break
@@ -166,25 +227,28 @@ func newServer(p string, id int) (*server, error) {
 	if len(records) <= 1 {
 		return nil, fmt.Errorf("Can not create a server with no requests (empty or header-only input file): %s", p)
 	}
-
-	first, err := strconv.ParseFloat(records[1][0], 64)
-	if err != nil {
-		log.Fatalf("Error parsing timestamp in row (%v): %q", records[1], err)
-	}
-	delta := warmup.Seconds()
+	delta := float64(warmup.Milliseconds())
 
 	// Processing request entries after warmup period.
 	var entries []inputEntry
-	for _, row := range records[1:] {
+	for _, row := range records {
 		timestamp, e, err := toEntry(row)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if timestamp >= first+delta {
+		if timestamp >= delta {
 			entries = append(entries, e)
 		}
 	}
-	return &server{&godes.Runner{}, id, entries, 0, godes.NewBooleanControl(), godes.NewFIFOQueue(fmt.Sprintf("server%d", id)), false}, nil
+	return &server{
+		Runner:       &godes.Runner{},
+		id:           id,
+		entries:      entries,
+		index:        0,
+		cond:         godes.NewBooleanControl(),
+		queue:        godes.NewFIFOQueue(fmt.Sprintf("server%d", id)),
+		unavailable:  godes.NewBooleanControl(),
+		isTerminated: false}, nil
 }
 
 func toEntry(row []string) (float64, inputEntry, error) {
@@ -214,6 +278,7 @@ type request struct {
 	latency float64
 	status  int
 	hops    []hop
+	ts      float64
 }
 
 type hop struct {
