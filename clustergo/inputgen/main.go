@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"time"
 )
 
 var outPrefix = flag.String("pref", "input", "")
@@ -16,14 +17,8 @@ var bigOmega = flag.Float64("bigOmega", 0.5, "")
 var duration = flag.Float64("duration", 1000, "")
 
 func main() {
-	/*
-		ModelEntropySimple.r = replicas;
-		ModelEntropySimple.omega = 0.0001;
-		ModelEntropySimple.mu = 0.0036;
-		ModelEntropySimple.pImpact = 0.003;
-		ModelEntropySimple.lambda = 1;
-	*/
 	flag.Parse()
+	rand.Seed(time.Now().UnixNano())
 	for i := 1; i <= *nReplicas; i++ {
 		ev := 0
 		succ := 0
@@ -38,8 +33,7 @@ func main() {
 			for ts < *duration {
 				rt := rand.ExpFloat64() / *mu
 				st := 200
-				unav := rand.Float64() <= *bigOmega
-				if unav {
+				if rand.Float64() <= *bigOmega {
 					rt = rand.ExpFloat64() / *littleOmega
 					st = 503
 					ev++

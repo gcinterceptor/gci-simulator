@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ func main() {
 	if *inputs == "" {
 		log.Fatal("At least one server description should be passed. Have you set the --i flag?")
 	}
+	rand.Seed(time.Now().UnixNano())
 	var servers []*server
 	for i, f := range strings.Split(*inputs, ",") {
 		s, err := newServer(f, i)
@@ -49,7 +51,7 @@ func main() {
 	for godes.GetSystemTime() < float64(duration.Milliseconds()) {
 		arrivalQueue.Place(&request{id: reqID})
 		arrivalCond.Set(true)
-		godes.Advance(arrivalDist.Get(*rate))
+		godes.Advance(arrivalDist.Get(1 / *rate))
 		reqID++
 	}
 	//fmt.Println("terminating simulation", godes.GetSystemTime())
@@ -60,7 +62,7 @@ func main() {
 	godes.WaitUntilDone()
 
 	finishTime := godes.GetSystemTime()
-	fmt.Printf("NSERVERS: %d\n", lb.nServers)
+	fmt.Printf("NSERVERS: %d\n", len(servers))
 	fmt.Printf("FINISH TIME: %f\n", finishTime)
 	fmt.Printf("NIGNORED: %d\n", lb.nIgnored)
 
@@ -105,7 +107,6 @@ func main() {
 type loadBalancer struct {
 	*godes.Runner
 	servers      *godes.FIFOQueue
-	nServers     int
 	isTerminated bool
 	nIgnored     int64
 }
@@ -116,27 +117,13 @@ func (lb *loadBalancer) schedule(r *request) {
 		return // ignoring incoming requests when all servers are busy.
 	}
 	s := lb.servers.Get().(*server)
-	//fmt.Println("schedule", s.id, godes.GetSystemTime())
 	s.newRequest(r)
 
 }
 
 func (lb *loadBalancer) reqFinished(s *server, r *request) {
 	lb.servers.Place(s) // Sending server back to the availability queue
-	//fmt.Println("reqFinished", s.id, lb.servers.Len())
-	switch {
-	case r.status == 200:
-		fmt.Printf("%d,%d,%.1f,%.4f,%d,%v\n", r.id, r.status, r.latency, r.ts, len(r.hops), r.hops)
-	case r.status == 503:
-		if len(r.hops) < lb.nServers {
-			lb.schedule(r)
-		} else {
-			fmt.Printf("%d,%d,%.1f,%.4f,%d,%v\n", r.id, r.status, r.latency, r.ts, len(r.hops), r.hops)
-		}
-	default:
-		// Stop simulation when we don't what to do.
-		panic(fmt.Sprintf("I don't know what to do with this request:%+v server:%+v", *r, *s))
-	}
+	fmt.Printf("%d,%d,%.1f,%.4f,%d\n", r.id, r.status, r.ts, r.ts, r.sID)
 }
 
 func (lb *loadBalancer) terminate() {
@@ -145,7 +132,7 @@ func (lb *loadBalancer) terminate() {
 }
 
 func (lb *loadBalancer) Run() {
-	fmt.Println("id,status,latency,ts,nhops,hops")
+	fmt.Println("id,status,ts,rt,sID")
 	for {
 		arrivalCond.Wait(true)
 		if lb.isTerminated {
@@ -163,11 +150,9 @@ func newLoadBalancer(servers []*server) *loadBalancer {
 		Runner:       &godes.Runner{},
 		isTerminated: false,
 		servers:      godes.NewFIFOQueue("servers"),
-		nServers:     len(servers),
 	}
 	for _, s := range servers {
 		s.lb = lb
-		fmt.Println("Placing server ", s.id)
 		lb.servers.Place(s)
 	}
 	return lb
@@ -183,6 +168,7 @@ type server struct {
 	req            *request
 	isTerminated   bool
 	unavIntervals  interval.LimitSet
+	unavCond       *godes.BooleanControl
 	uptime         float64
 	unavTime       float64
 	unavMarksCount int64
@@ -192,10 +178,8 @@ type server struct {
 
 func (s *server) Run() {
 	for {
-		//fmt.Println("beforeCond", s.id, godes.GetSystemTime())
 		s.cond.Wait(true)
 		if s.isTerminated {
-			//fmt.Println("terminated", s.id, godes.GetSystemTime())
 			break
 		}
 
@@ -205,37 +189,28 @@ func (s *server) Run() {
 
 			// If not unavailable, get next line of the input file.
 			duration, status := s.next()
+			r.rt = duration
+			r.status = status
+			r.ts = godes.GetSystemTime()
+			r.sID = s.id
 
 			// Unavailability mark found.
 			if status == 503 {
-				//fmt.Println("unav mark", s.id, duration, godes.GetSystemTime())
-				st := godes.GetSystemTime()
-				godes.Advance(duration)
-
-				// request
-				r.status = 503
-				r.latency = duration
-				r.ts = godes.GetSystemTime()
-				r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: 503})
+				s.unavCond.WaitAndTimeout(true, duration) // stop processing requests.
 
 				// metrics
-				s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: st, End: godes.GetSystemTime()})
+				s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: r.ts, End: r.ts + r.rt})
 				s.unavTime += duration
 				s.unavMarksCount++
 				return
 			}
 
 			// All good, process request
-			//fmt.Println("proc", s.id, godes.GetSystemTime())
-			r.latency += duration
-			r.status = status
-			r.ts = godes.GetSystemTime()
-			r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: 200})
 			godes.Advance(duration)
 
 			// metrics
 			s.procReqCount++
-			s.procTime += r.latency
+			s.procTime += r.rt
 		}(s.req)
 	}
 }
@@ -243,7 +218,6 @@ func (s *server) Run() {
 func (s *server) newRequest(r *request) {
 	s.req = r
 	s.cond.Set(true)
-	//fmt.Println("newReq", s.id, godes.GetSystemTime())
 }
 
 func (s *server) next() (float64, int) {
@@ -293,6 +267,7 @@ func newServer(p string, id int) (*server, error) {
 		entries:       entries,
 		index:         0,
 		cond:          godes.NewBooleanControl(),
+		unavCond:      godes.NewBooleanControl(),
 		isTerminated:  false,
 		unavIntervals: interval.LimitSet{ID: id}}, nil
 }
@@ -320,15 +295,9 @@ type inputEntry struct {
 }
 
 type request struct {
-	id      int64
-	latency float64
-	status  int
-	hops    []hop
-	ts      float64
-}
-
-type hop struct {
-	serverID int
-	duration float64
-	status   int
+	id     int64
+	rt     float64
+	status int
+	sID    int
+	ts     float64
 }
