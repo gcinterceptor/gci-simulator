@@ -53,3 +53,23 @@ func TestIntersect_Many(t *testing.T) {
 	is.Equal(1., i[3].Limits[1].Start)   // 1+2+4 1. inicio
 	is.Equal(1.2, i[3].Limits[1].End)    // 1+2+4 1. fim
 }
+
+func TestUnite(t *testing.T) {
+	is := is.New(t)
+	is.Equal(0, len(Unite().Limits)) // união vazia
+
+	a := LimitSet{1, []Limit{{1, 2}}}
+	is.Equal(map[int]struct{}{a.ID: {}}, Unite(a).Participants) // união unitária
+	is.Equal(a.Limits, Unite(a).Limits)                         // união unitária
+
+	is.Equal(map[int]struct{}{a.ID: {}}, Unite(a, a).Participants) // união identitária
+	is.Equal(a.Limits, Unite(a, a).Limits)                         // união identitária
+
+	b := LimitSet{2, []Limit{{0, 0.2}, {3, 4}}}
+	is.Equal(map[int]struct{}{a.ID: {}, b.ID: {}}, Unite(a, b).Participants) // intervalos disjuntos
+	is.Equal([]Limit{{0, 0.2}, {1, 2}, {3, 4}}, Unite(a, b).Limits)          // intervalos disjuntos
+
+	c := LimitSet{2, []Limit{{0.3, 0.5}, {2, 3}, {3, 4}}}
+	is.Equal(map[int]struct{}{a.ID: {}, b.ID: {}, c.ID: {}}, Unite(a, b, c).Participants) // intervalos disjuntos + fusão
+	is.Equal([]Limit{{0, 0.2}, {0.3, 0.5}, {1, 4}}, Unite(a, b, c).Limits)                // // intervalos disjuntos + fusão
+}

@@ -35,11 +35,76 @@ func (in Intersection) Len() int           { return len(in.Limits) }
 func (in Intersection) Less(i, j int) bool { return in.Limits[i].Start < in.Limits[j].Start }
 func (in Intersection) Swap(i, j int)      { in.Limits[i], in.Limits[j] = in.Limits[j], in.Limits[i] }
 
+type Union struct {
+	Limits       []Limit
+	Participants map[int]struct{}
+}
+
 type intersections []Intersection
 
 func (in intersections) Len() int           { return len(in) }
 func (in intersections) Less(i, j int) bool { return len(in[i].Participants) < len(in[j].Participants) }
 func (in intersections) Swap(i, j int)      { in[i], in[j] = in[j], in[i] }
+
+// Unite calcula a união de todos os intervalos passados como parâmetro.
+func Unite(limits ...LimitSet) Union {
+	if len(limits) == 0 {
+		return Union{}
+	}
+	if len(limits) == 1 {
+		return Union{Limits: limits[0].Limits, Participants: map[int]struct{}{limits[0].ID: {}}}
+	}
+
+	var u Union
+	for _, ls := range limits {
+		if len(ls.Limits) == 0 {
+			continue
+		}
+		u = u.unite(Union{
+			Participants: map[int]struct{}{ls.ID: {}},
+			Limits:       uniteL(ls.Limits...),
+		})
+	}
+	return u
+}
+
+func (u Union) unite(u1 Union) Union {
+	// Juntando os participantes
+	p := u.Participants
+	if p == nil {
+		p = make(map[int]struct{})
+	}
+	for k := range u1.Participants {
+		p[k] = struct{}{}
+	}
+	// Unindo tudo.
+	return Union{
+		Participants: p,
+		Limits:       uniteL(append(u.Limits, u1.Limits...)...),
+	}
+}
+
+func uniteL(ls ...Limit) []Limit {
+	if len(ls) == 0 {
+		return []Limit{}
+	}
+	if len(ls) == 1 {
+		return ls
+	}
+	var res []Limit
+	sort.Sort(limits(ls)) // essa ordenação é importante!
+	last := ls[0]
+	for _, l := range ls[1:] {
+		// Os intervalos são disjuntos
+		if l.Start > last.End {
+			res = append(res, last)
+			last = l
+		} else { // Fusão de intervalos
+			last = Limit{math.Min(last.Start, l.Start), math.Max(last.End, l.End)}
+		}
+	}
+	return append(res, last)
+}
 
 // Intersect calcula a interseção entre todas as combinações de conjuntos de intervalos passados como parâmetro.
 // Primeiro calcula as intersecções dos pares de conjuntos 2 a 2, depois 3 a 3 e assim sucessivamente.
