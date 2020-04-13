@@ -1,2 +1,4 @@
 github.com/agoussia/godes v0.0.0-20180605170806-4952b44f646a h1:QVIUa+IBZqFcZZgHGRC38bGVVeVA+Lw0rDkzJUqkBU0=
 github.com/agoussia/godes v0.0.0-20180605170806-4952b44f646a/go.mod h1:3dR4HcwVDonXNST+oNjI/4R6e/Dfdc9SF3t1+kmX7e0=
+github.com/matryer/is v1.3.0 h1:9qiso3jaJrOe6qBRJRBt2Ldht05qDiFP9le0JOIhRSI=
+github.com/matryer/is v1.3.0/go.mod h1:2fLPjFQM9rhQ15aVEtbuwhJinnOqrmgXPNdZsdwlWXA=

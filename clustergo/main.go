@@ -43,29 +43,35 @@ func main() {
 	lb := newLoadBalancer(servers)
 	godes.AddRunner(lb)
 
-	reqID := int64(0)
 	godes.Run()
+
+	reqID := int64(0)
 	for godes.GetSystemTime() < float64(duration.Milliseconds()) {
 		arrivalQueue.Place(&request{id: reqID})
 		arrivalCond.Set(true)
 		godes.Advance(arrivalDist.Get(*rate))
 		reqID++
 	}
+	//fmt.Println("terminating simulation", godes.GetSystemTime())
 	lb.terminate()
 	for _, s := range servers {
 		s.terminate()
 	}
 	godes.WaitUntilDone()
+
 	finishTime := godes.GetSystemTime()
 	fmt.Printf("NSERVERS: %d\n", lb.nServers)
 	fmt.Printf("FINISH TIME: %f\n", finishTime)
+	fmt.Printf("NIGNORED: %d\n", lb.nIgnored)
 
 	var nProc int64
 	var unav []interval.LimitSet
+	var procTime float64
 	for _, s := range servers {
 		unav = append(unav, s.unavIntervals)
-		nProc += s.nProc
-		fmt.Printf("SERVER: %d UPTIME:%f NPROC:%d PROCTIME:%f UNAVTIME:%f\n", s.id, s.uptime, s.nProc, s.procTime, s.unavTime)
+		nProc += s.procReqCount
+		procTime += s.procTime
+		fmt.Printf("SERVER: %d UPTIME:%f NPROC:%d PROCTIME:%f NUNAV_MARKS:%d UNAVTIME:%f\n", s.id, s.uptime, s.procReqCount, s.procTime, s.unavMarksCount, s.unavTime)
 	}
 	fmt.Printf("NPROC: %d\n", nProc)
 
@@ -74,35 +80,50 @@ func main() {
 	for _, i := range union.Limits {
 		unavTime += i.End - i.Start
 	}
-	fmt.Printf("UNITED UNAVAILABILITY:%f PROB:%f\n", unavTime, unavTime/finishTime)
+	fmt.Printf("PCP:%f UNIONTIME:%f\n", unavTime/(procTime+unavTime), unavTime)
 
 	var msUnav float64
-	intersect := interval.Intersect(unav...)
-	for _, i := range intersect {
-		if len(i.Participants) == len(servers) {
-			for _, l := range i.Limits {
+	if len(servers) == 1 {
+		for _, u := range unav {
+			for _, l := range u.Limits {
 				msUnav += l.End - l.Start
 			}
 		}
+	} else {
+		intersect := interval.Intersect(unav...)
+		for _, i := range intersect {
+			if len(i.Participants) == len(servers) {
+				for _, l := range i.Limits {
+					msUnav += l.End - l.Start
+				}
+			}
+		}
 	}
-	fmt.Printf("MICROSERVICE UNAVAILABILITY:%f %f\n", msUnav, msUnav/finishTime)
+	fmt.Printf("PVN:%f %f\n", msUnav/(procTime+unavTime), msUnav)
 }
 
 type loadBalancer struct {
 	*godes.Runner
-	servers      []*server
-	next         int
+	servers      *godes.FIFOQueue
 	nServers     int
 	isTerminated bool
+	nIgnored     int64
 }
 
 func (lb *loadBalancer) schedule(r *request) {
-	lb.next = (lb.next + 1) % len(lb.servers)
-	lb.servers[lb.next].newRequest(r)
+	if lb.servers.Len() == 0 {
+		lb.nIgnored++
+		return // ignoring incoming requests when all servers are busy.
+	}
+	s := lb.servers.Get().(*server)
+	//fmt.Println("schedule", s.id, godes.GetSystemTime())
+	s.newRequest(r)
+
 }
 
 func (lb *loadBalancer) reqFinished(s *server, r *request) {
-	// Sending server back to the availability queue.
+	lb.servers.Place(s) // Sending server back to the availability queue
+	//fmt.Println("reqFinished", s.id, lb.servers.Len())
 	switch {
 	case r.status == 200:
 		fmt.Printf("%d,%d,%.1f,%.4f,%d,%v\n", r.id, r.status, r.latency, r.ts, len(r.hops), r.hops)
@@ -127,12 +148,10 @@ func (lb *loadBalancer) Run() {
 	fmt.Println("id,status,latency,ts,nhops,hops")
 	for {
 		arrivalCond.Wait(true)
-		if arrivalQueue.Len() > 0 {
-			lb.schedule(arrivalQueue.Get().(*request))
-		}
-		if lb.isTerminated && arrivalQueue.Len() == 0 {
+		if lb.isTerminated {
 			break
 		}
+		lb.schedule(arrivalQueue.Get().(*request))
 		if arrivalQueue.Len() == 0 {
 			arrivalCond.Set(false)
 		}
@@ -140,83 +159,91 @@ func (lb *loadBalancer) Run() {
 }
 
 func newLoadBalancer(servers []*server) *loadBalancer {
-	return &loadBalancer{
+	lb := &loadBalancer{
 		Runner:       &godes.Runner{},
-		next:         0,
 		isTerminated: false,
-		servers:      servers}
+		servers:      godes.NewFIFOQueue("servers"),
+		nServers:     len(servers),
+	}
+	for _, s := range servers {
+		s.lb = lb
+		fmt.Println("Placing server ", s.id)
+		lb.servers.Place(s)
+	}
+	return lb
 }
 
 type server struct {
 	*godes.Runner
-	id            int
-	entries       []inputEntry
-	index         int
-	cond          *godes.BooleanControl
-	queue         *godes.FIFOQueue
-	lb            *loadBalancer
-	isTerminated  bool
-	unavailable   *godes.BooleanControl
-	unavIntervals interval.LimitSet
-	uptime        float64
-	unavTime      float64
-	procTime      float64
-	nProc         int64
+	id             int
+	entries        []inputEntry
+	index          int
+	cond           *godes.BooleanControl
+	lb             *loadBalancer
+	req            *request
+	isTerminated   bool
+	unavIntervals  interval.LimitSet
+	uptime         float64
+	unavTime       float64
+	unavMarksCount int64
+	procTime       float64
+	procReqCount   int64
 }
 
 func (s *server) Run() {
 	for {
+		//fmt.Println("beforeCond", s.id, godes.GetSystemTime())
 		s.cond.Wait(true)
 		if s.isTerminated {
+			//fmt.Println("terminated", s.id, godes.GetSystemTime())
 			break
 		}
-		if s.queue.Len() > 0 {
-			func() {
-				r := s.queue.Get().(*request)
 
-				if s.unavailable.GetState() {
-					r.hops = append(r.hops, hop{serverID: s.id, duration: 0, status: 503})
-					s.lb.reqFinished(s, r)
-					return
-				}
+		func(r *request) {
+			defer s.lb.reqFinished(s, r)
+			defer s.cond.Set(false)
 
-				duration, status := s.next()
+			// If not unavailable, get next line of the input file.
+			duration, status := s.next()
 
-				// Unavailability mark found.
-				if status == 503 {
-					s.unavailable.Set(true)
-					st := godes.GetSystemTime()
-					s.unavailable.WaitAndTimeout(false, duration) // Only comes back to the queue after the duration period.
-					s.unavailable.Set(false)
-
-					// metrics
-					s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: st, End: st + r.latency})
-					s.unavTime += r.latency
-					return
-				}
-
-				// All good, process request
-				r.latency += duration
-				r.status = status
-				r.ts = godes.GetSystemTime()
-				r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: 200})
+			// Unavailability mark found.
+			if status == 503 {
+				//fmt.Println("unav mark", s.id, duration, godes.GetSystemTime())
+				st := godes.GetSystemTime()
 				godes.Advance(duration)
-				s.lb.reqFinished(s, r)
+
+				// request
+				r.status = 503
+				r.latency = duration
+				r.ts = godes.GetSystemTime()
+				r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: 503})
 
 				// metrics
-				s.nProc++
-				s.procTime += r.latency
-			}()
-		}
-		if s.queue.Len() == 0 {
-			s.cond.Set(false)
-		}
+				s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: st, End: godes.GetSystemTime()})
+				s.unavTime += duration
+				s.unavMarksCount++
+				return
+			}
+
+			// All good, process request
+			//fmt.Println("proc", s.id, godes.GetSystemTime())
+			r.latency += duration
+			r.status = status
+			r.ts = godes.GetSystemTime()
+			r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: 200})
+			godes.Advance(duration)
+
+			// metrics
+			s.procReqCount++
+			s.procTime += r.latency
+		}(s.req)
 	}
 }
 
 func (s *server) newRequest(r *request) {
-	s.queue.Place(r)
+	s.req = r
 	s.cond.Set(true)
+	//fmt.Println("newReq", s.id, godes.GetSystemTime())
 }
 
 func (s *server) next() (float64, int) {
@@ -266,8 +293,6 @@ func newServer(p string, id int) (*server, error) {
 		entries:       entries,
 		index:         0,
 		cond:          godes.NewBooleanControl(),
-		queue:         godes.NewFIFOQueue(fmt.Sprintf("server%d", id)),
-		unavailable:   godes.NewBooleanControl(),
 		isTerminated:  false,
 		unavIntervals: interval.LimitSet{ID: id}}, nil
 }

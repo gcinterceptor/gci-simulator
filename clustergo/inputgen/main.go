@@ -10,7 +10,6 @@ import (
 
 var outPrefix = flag.String("pref", "input", "")
 var nReplicas = flag.Int("r", 1, "")
-var lambda = flag.Float64("lambda", 1, "")
 var mu = flag.Float64("mu", 1, "")
 var littleOmega = flag.Float64("littleOmega", 1, "")
 var bigOmega = flag.Float64("bigOmega", 0.5, "")
@@ -37,18 +36,18 @@ func main() {
 
 			ts := float64(0)
 			for ts < *duration {
-				ts += rand.ExpFloat64() / *lambda
 				rt := rand.ExpFloat64() / *mu
 				st := 200
-				if rand.Float64() > *bigOmega { // Unavailability
+				unav := rand.Float64() <= *bigOmega
+				if unav {
 					rt = rand.ExpFloat64() / *littleOmega
 					st = 503
 					ev++
 				} else {
 					succ++
 				}
-				fmt.Fprintf(f, "%.4f;%d;%.4f;%.4f\n", ts*1000, st, rt*1000, rt*1000)
-
+				fmt.Fprintf(f, "%.4f;%d;%.4f;%.4f\n", ts, st, rt, rt)
+				ts += rt
 			}
 			fmt.Println("Succ:", succ)
 			fmt.Println("Ev:", ev)
