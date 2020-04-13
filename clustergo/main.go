@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/agoussia/godes"
+	"github.com/gcinterceptor/gci-simulator/clustergo/interval"
 )
 
 var (
@@ -55,34 +56,49 @@ func main() {
 		s.terminate()
 	}
 	godes.WaitUntilDone()
+	finishTime := godes.GetSystemTime()
 	fmt.Printf("NSERVERS: %d\n", lb.nServers)
-	fmt.Printf("Proc: %f\n", lb.nRequests)
-	fmt.Printf("EvI: %f\n", lb.nReqEvictedByInstance)
-	fmt.Printf("EvS: %f\n", lb.nReqEvictedByService)
-	fmt.Printf("Succ: %f\n", lb.nSucc)
-	fmt.Printf("Succ Ratio: %.4f\n", lb.nSucc/lb.nRequests)
-	fmt.Printf("PVN: %.4f\n", lb.nReqEvictedByService/lb.nRequests)
-	fmt.Printf("PCP: %.4f\n", lb.nReqEvictedByInstance/lb.nRequests)
+	fmt.Printf("FINISH TIME: %f\n", finishTime)
+
+	var nProc int64
+	var unav []interval.LimitSet
+	for _, s := range servers {
+		unav = append(unav, s.unavIntervals)
+		nProc += s.nProc
+		fmt.Printf("SERVER: %d UPTIME:%f NPROC:%d PROCTIME:%f UNAVTIME:%f\n", s.id, s.uptime, s.nProc, s.procTime, s.unavTime)
+	}
+	fmt.Printf("NPROC: %d\n", nProc)
+
+	unavTime := float64(0)
+	union := interval.Unite(unav...)
+	for _, i := range union.Limits {
+		unavTime += i.End - i.Start
+	}
+	fmt.Printf("UNITED UNAVAILABILITY:%f PROB:%f\n", unavTime, unavTime/finishTime)
+
+	var msUnav float64
+	intersect := interval.Intersect(unav...)
+	for _, i := range intersect {
+		if len(i.Participants) == len(servers) {
+			for _, l := range i.Limits {
+				msUnav += l.End - l.Start
+			}
+		}
+	}
+	fmt.Printf("MICROSERVICE UNAVAILABILITY:%f %f\n", msUnav, msUnav/finishTime)
 }
 
 type loadBalancer struct {
 	*godes.Runner
-	replicaQueue          *godes.FIFOQueue
-	next                  int
-	nServers              int
-	isTerminated          bool
-	nRequests             float64
-	nSucc                 float64
-	nReqEvictedByInstance float64
-	nReqEvictedByService  float64
+	servers      []*server
+	next         int
+	nServers     int
+	isTerminated bool
 }
 
 func (lb *loadBalancer) schedule(r *request) {
-	// Ignore requests when there is no available replica
-	if lb.replicaQueue.Len() == 0 {
-		return
-	}
-	lb.replicaQueue.Get().(*server).newRequest(r)
+	lb.next = (lb.next + 1) % len(lb.servers)
+	lb.servers[lb.next].newRequest(r)
 }
 
 func (lb *loadBalancer) reqFinished(s *server, r *request) {
@@ -90,13 +106,10 @@ func (lb *loadBalancer) reqFinished(s *server, r *request) {
 	switch {
 	case r.status == 200:
 		fmt.Printf("%d,%d,%.1f,%.4f,%d,%v\n", r.id, r.status, r.latency, r.ts, len(r.hops), r.hops)
-		lb.nSucc++
 	case r.status == 503:
-		lb.nReqEvictedByInstance++
 		if len(r.hops) < lb.nServers {
 			lb.schedule(r)
 		} else {
-			lb.nReqEvictedByService++
 			fmt.Printf("%d,%d,%.1f,%.4f,%d,%v\n", r.id, r.status, r.latency, r.ts, len(r.hops), r.hops)
 		}
 	default:
@@ -115,7 +128,6 @@ func (lb *loadBalancer) Run() {
 	for {
 		arrivalCond.Wait(true)
 		if arrivalQueue.Len() > 0 {
-			lb.nRequests++
 			lb.schedule(arrivalQueue.Get().(*request))
 		}
 		if lb.isTerminated && arrivalQueue.Len() == 0 {
@@ -128,66 +140,73 @@ func (lb *loadBalancer) Run() {
 }
 
 func newLoadBalancer(servers []*server) *loadBalancer {
-	lb := &loadBalancer{
-		Runner:                &godes.Runner{},
-		next:                  0,
-		isTerminated:          false,
-		nRequests:             0,
-		nReqEvictedByService:  0,
-		nSucc:                 0,
-		nReqEvictedByInstance: 0}
-	q := godes.NewFIFOQueue("serverQueue")
-	for _, s := range servers {
-		s.lb = lb
-		q.Place(s)
-	}
-	lb.replicaQueue = q
-	lb.nServers = q.Len()
-	return lb
+	return &loadBalancer{
+		Runner:       &godes.Runner{},
+		next:         0,
+		isTerminated: false,
+		servers:      servers}
 }
 
 type server struct {
 	*godes.Runner
-	id           int
-	entries      []inputEntry
-	index        int
-	cond         *godes.BooleanControl
-	queue        *godes.FIFOQueue
-	lb           *loadBalancer
-	isTerminated bool
-	unavailable  *godes.BooleanControl
+	id            int
+	entries       []inputEntry
+	index         int
+	cond          *godes.BooleanControl
+	queue         *godes.FIFOQueue
+	lb            *loadBalancer
+	isTerminated  bool
+	unavailable   *godes.BooleanControl
+	unavIntervals interval.LimitSet
+	uptime        float64
+	unavTime      float64
+	procTime      float64
+	nProc         int64
 }
 
 func (s *server) Run() {
 	for {
 		s.cond.Wait(true)
-		if s.queue.Len() > 0 {
-			// Processing request.
-
-			duration, status := s.next()
-			r := s.queue.Get().(*request)
-			r.latency += duration
-			r.status = status
-			r.ts = godes.GetSystemTime()
-			r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: status})
-
-			// Advancing simulation time.
-			godes.Advance(duration)
-
-			if r.status == 200 {
-				s.lb.replicaQueue.Place(s)
-				s.lb.reqFinished(s, r) // Sending the request back to the loadbalancer.
-			} else {
-				s.lb.reqFinished(s, r) // Sending the request back to the loadbalancer.
-				fmt.Println("starting unavailability", godes.GetSystemTime())
-				s.unavailable.WaitAndTimeout(true, r.latency) // Only comes back to the queue after the duration period.
-				s.lb.replicaQueue.Place(s)
-				fmt.Println("backing to the queue", godes.GetSystemTime())
-			}
-
-		}
-		if s.isTerminated && arrivalQueue.Len() == 0 {
+		if s.isTerminated {
 			break
+		}
+		if s.queue.Len() > 0 {
+			func() {
+				r := s.queue.Get().(*request)
+
+				if s.unavailable.GetState() {
+					r.hops = append(r.hops, hop{serverID: s.id, duration: 0, status: 503})
+					s.lb.reqFinished(s, r)
+					return
+				}
+
+				duration, status := s.next()
+
+				// Unavailability mark found.
+				if status == 503 {
+					s.unavailable.Set(true)
+					st := godes.GetSystemTime()
+					s.unavailable.WaitAndTimeout(false, duration) // Only comes back to the queue after the duration period.
+					s.unavailable.Set(false)
+
+					// metrics
+					s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: st, End: st + r.latency})
+					s.unavTime += r.latency
+					return
+				}
+
+				// All good, process request
+				r.latency += duration
+				r.status = status
+				r.ts = godes.GetSystemTime()
+				r.hops = append(r.hops, hop{serverID: s.id, duration: duration, status: 200})
+				godes.Advance(duration)
+				s.lb.reqFinished(s, r)
+
+				// metrics
+				s.nProc++
+				s.procTime += r.latency
+			}()
 		}
 		if s.queue.Len() == 0 {
 			s.cond.Set(false)
@@ -207,8 +226,9 @@ func (s *server) next() (float64, int) {
 }
 
 func (s *server) terminate() {
-	s.cond.Set(true)
+	s.uptime = godes.GetSystemTime()
 	s.isTerminated = true
+	s.cond.Set(true)
 }
 
 func newServer(p string, id int) (*server, error) {
@@ -241,14 +261,15 @@ func newServer(p string, id int) (*server, error) {
 		}
 	}
 	return &server{
-		Runner:       &godes.Runner{},
-		id:           id,
-		entries:      entries,
-		index:        0,
-		cond:         godes.NewBooleanControl(),
-		queue:        godes.NewFIFOQueue(fmt.Sprintf("server%d", id)),
-		unavailable:  godes.NewBooleanControl(),
-		isTerminated: false}, nil
+		Runner:        &godes.Runner{},
+		id:            id,
+		entries:       entries,
+		index:         0,
+		cond:          godes.NewBooleanControl(),
+		queue:         godes.NewFIFOQueue(fmt.Sprintf("server%d", id)),
+		unavailable:   godes.NewBooleanControl(),
+		isTerminated:  false,
+		unavIntervals: interval.LimitSet{ID: id}}, nil
 }
 
 func toEntry(row []string) (float64, inputEntry, error) {
