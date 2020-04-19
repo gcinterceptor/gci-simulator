@@ -1,0 +1,87 @@
+---
+title: "Untitled"
+author: "Daniel Fireman (danielfireman@gmail.com)"
+date: "April 14, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(ggplot2)
+require(dplyr)
+```
+
+```{r}
+
+# Extract
+# cat *.out | grep PCP | cut -d' ' -f1 | cut -d: -f2
+# cat *.out | grep PVN | cut -d' ' -f1 | cut -d: -f2
+
+# 1 replica
+# Run: cd inputgen/; go run main.go --duration=3600000 --r=10 --mu=0.0036 --bigOmega=0.003 --littleOmega=0.0001; cd ..; for i in `seq 1 10`; do go run main.go --rate=1 --warmup=0 --d=1h --i=inputgen/input_$i.csv > r1_$i.out; done
+# Pack output: zip sim_1_out.zip r1_*.out
+
+sim_1 <- data.frame("n"=1, "pcp"=c(0.096868, 0.116235, 0.084960, 0.110168, 0.130572, 0.132739, 0.070176, 0.093550, 0.091497, 0.085696), "pvn"=c(0.096868, 0.116235, 0.084960, 0.110168, 0.130572, 0.132739, 0.070176, 0.093550, 0.091497, 0.085696))
+
+# 2 replicas
+# Run: cd clustergo; for i in `seq 1 10`; do cd inputgen/; go run main.go --duration=3600000 --r=2 --mu=0.0036 --bigOmega=0.003 --littleOmega=0.0001; cd ..;  go run main.go --rate=1 --warmup=0 --d=1h --i=inputgen/input_1.csv,inputgen/input_2.csv > r2_$i.out; rm inputgen/input_*.csv; done
+# Pack output: zip sim_2_out.zip r2_*.out; rm *.out
+
+sim_2 <- data.frame("n"=2, "pcp"=c(0.101995, 0.088672, 0.095657, 0.099675, 0.101012, 0.084414, 0.091564, 0.102835, 0.080741, 0.091958), "pvn"=c(0.004911, 0.006290, 0.005024, 0.001487, 0.003283, 0.004326, 0.004150, 0.006982, 0.003488, 0.003268))
+
+# 3 replicas
+# Run: for i in `seq 1 10`; do cd inputgen/; go run main.go --duration=3600000 --r=3 --mu=0.0036 --bigOmega=0.003 --littleOmega=0.0001; cd ..;  go run main.go --rate=1 --warmup=0 --d=1h --i=inputgen/input_1.csv,inputgen/input_2.csv,inputgen/input_3.csv > r3_$i.out; rm inputgen/input_*.csv; done
+# Pack output: zip sim_3_out.zip r3_*.out; rm *.out
+
+sim_3 <- data.frame("n"=3, "pcp"=c(0.076665, 0.099287, 0.084492, 0.081343, 0.095050, 0.087707, 0.091867, 0.071911, 0.090259, 0.081107), "pvn"=c(0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000))
+
+# 4 Replicas
+# Run: for i in `seq 1 10`; do cd inputgen/; go run main.go --duration=3600000 --r=4 --mu=0.0036 --bigOmega=0.003 --littleOmega=0.0001; cd ..;  go run main.go --rate=1 --warmup=0 --d=1h --i=inputgen/input_1.csv,inputgen/input_2.csv,inputgen/input_3.csv,inputgen/input_4.csv > r4_$i.out; rm inputgen/input_*.csv; done
+# Pack output: zip sim_4_out.zip r4_*.out; rm *.out
+
+sim_4 <- data.frame("n"=4, "pcp"=c(0.089460, 0.086109, 0.079032, 0.073925, 0.089927, 0.093196, 0.087492, 0.072702, 0.077475, 0.071132), "pvn"=c(0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000))
+
+# 5 Replicas
+# Run: for i in `seq 1 10`; do cd inputgen/; go run main.go --duration=3600000 --r=5 --mu=0.0036 --bigOmega=0.003 --littleOmega=0.0001; cd ..;  go run main.go --rate=1 --warmup=0 --d=1h --i=inputgen/input_1.csv,inputgen/input_2.csv,inputgen/input_3.csv,inputgen/input_4.csv,inputgen/input_5.csv > r5_$i.out; rm inputgen/input_*.csv; done
+# Pack output: zip sim_5_out.zip r5_*.out; rm *.out
+
+sim_5 <- data.frame("n"=5, "pcp"=c(0.098370, 0.076470, 0.080757, 0.094711, 0.080790, 0.091174, 0.070913, 0.078000, 0.071904, 0.084757), "pvn"=c(0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000))
+
+analytical <- data.frame("n"=c(1,2,3,4,5), "pvn"=c(0.097157, 0.010380, 0.001120, 0.000121, 0.000013), "pcp"=c(0.097157, 0.106840, 0.107875, 0.107986, 0.107999), "modelo"="Analítico")
+  
+
+# Calculates mean, sd, se and IC
+# Inspired by: https://www.r-graph-gallery.com/4-barplot-with-error-bar.html
+sim_raw_data <- cbind(rbind(sim_1, sim_2, sim_3, sim_4, sim_5),"modelo"="Simulado")
+sim_data <- sim_raw_data %>%
+  group_by(n) %>%
+  summarise( 
+    count=n(),
+    pvn_mean=mean(pvn),
+    pvn_sd=sd(pvn),
+    pcp_mean=mean(pcp),
+    pcp_sd=sd(pcp)
+  ) %>%
+  mutate(pvn_se=pvn_sd/sqrt(count))  %>%
+  mutate(pvn_ic=pvn_se * qt((1-0.05)/2 + .5, count-1)) %>%
+  mutate(pcp_se=pcp_sd/sqrt(count))  %>%
+  mutate(pcp_ic=pcp_se * qt((1-0.05)/2 + .5, count-1))
+
+sim_2
+analytical$pvn
+
+ggplot(sim_data) +
+  geom_point(aes(x=n, y=pvn_mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_point(data=analytical, aes(x=n, y=pvn), stat="identity", fill="forestgreen", alpha=0.5, color="red") +
+  geom_errorbar(aes(x=n, ymin=pvn_mean-pvn_ic, ymax=pvn_mean+pvn_ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("PVN using confidence interval")
+
+ggplot(sim_data) +
+  geom_point(aes(x=n, y=pcp_mean), stat="identity", fill="forestgreen", alpha=0.5) +
+  geom_point(data=analytical, aes(x=n, y=pcp), stat="identity", fill="forestgreen", alpha=0.5, color="red") +
+  geom_errorbar(aes(x=n, ymin=pcp_mean-pcp_ic, ymax=pcp_mean+pcp_ic), width=0.4, colour="orange", alpha=0.9, size=1.5) +
+  ggtitle("PCP using confidence interval")
+```
+
+
+
