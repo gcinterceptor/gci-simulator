@@ -20,6 +20,7 @@ var (
 	warmup   = flag.Duration("warmup", 240*time.Second, "Server warmup duration, discarded from the input files.")
 	rate     = flag.Float64("rate", 30, "Number of requests processed per second.")
 	inputs   = flag.String("i", "", "Comma-separated file paths (one per server)")
+	outsufix = flag.String("out-suffix", "", "Suffix to be used in outputfiles")
 )
 
 var arrivalQueue = godes.NewFIFOQueue("arrival")
@@ -34,12 +35,14 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	var servers []*server
 	for i, f := range strings.Split(*inputs, ",") {
-		s, err := newServer(f, i)
-		if err != nil {
-			log.Fatalf("Error loading file \"%s\":%q", f, err)
+		if strings.Trim(f, " ,;") != "" {
+			s, err := newServer(f, i)
+			if err != nil {
+				log.Fatalf("Error loading file \"%s\":%q", f, err)
+			}
+			godes.AddRunner(s)
+			servers = append(servers, s)
 		}
-		godes.AddRunner(s)
-		servers = append(servers, s)
 	}
 
 	lb := newLoadBalancer(servers)
