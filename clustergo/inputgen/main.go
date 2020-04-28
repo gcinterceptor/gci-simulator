@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -28,6 +29,8 @@ func main() {
 				log.Fatal(err)
 			}
 			defer f.Close()
+			w := bufio.NewWriter(f)
+			defer w.Flush()
 
 			ts := float64(0)
 			for ts < *duration {
@@ -40,7 +43,7 @@ func main() {
 				} else {
 					succ++
 				}
-				fmt.Fprintf(f, "%.4f;%d;%.4f;%.4f\n", ts, st, rt, rt)
+				fmt.Fprintf(w, "%.4f;%d;%.4f;%.4f\n", ts, st, rt, rt)
 				ts += rt
 			}
 			fmt.Println("Succ:", succ)

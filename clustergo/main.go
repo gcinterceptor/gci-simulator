@@ -71,21 +71,34 @@ func main() {
 
 	var nProc int64
 	var unav []interval.LimitSet
-	var procTime float64
+	var proc []interval.LimitSet
+	var procSum float64
 	for _, s := range servers {
 		unav = append(unav, s.unavIntervals)
+		proc = append(proc, s.procIntervals)
 		nProc += s.procReqCount
-		procTime += s.procTime
-		fmt.Printf("SERVER: %d UPTIME:%f NPROC:%d PROCTIME:%f NUNAV_MARKS:%d UNAVTIME:%f\n", s.id, s.uptime, s.procReqCount, s.procTime, s.unavMarksCount, s.unavTime)
+		procSum += s.procTime
+		fmt.Printf("SERVER: %d UPTIME:%f NPROC:%d PROCTIME:%f\n", s.id, s.uptime, s.procReqCount, s.procTime)
 	}
-	fmt.Printf("NPROC: %d\n", nProc)
+	procTime := float64(0)
+	procUnion := interval.Unite(proc...)
+	for _, i := range procUnion.Limits {
+		procTime += i.End - i.Start
+	}
+	fmt.Printf("NPROC: %d PROC_UNION:%f PROC_SUM:%f\n", nProc, procTime, procSum)
 
+	unavSum := float64(0)
+	for _, u := range unav {
+		for _, l := range u.Limits {
+			unavSum += l.End - l.Start
+		}
+	}
 	unavTime := float64(0)
-	union := interval.Unite(unav...)
-	for _, i := range union.Limits {
+	unavUnion := interval.Unite(unav...)
+	for _, i := range unavUnion.Limits {
 		unavTime += i.End - i.Start
 	}
-	fmt.Printf("PCP:%f UNIONTIME:%f\n", unavTime/(procTime+unavTime), unavTime)
+	fmt.Printf("PCP:%f\n", unavSum/procSum)
 
 	var msUnav float64
 	if len(servers) == 1 {
@@ -104,7 +117,7 @@ func main() {
 			}
 		}
 	}
-	fmt.Printf("PVN:%f %f\n", msUnav/(procTime+unavTime), msUnav)
+	fmt.Printf("PVN:%f\n", msUnav/procSum)
 }
 
 type loadBalancer struct {
@@ -163,20 +176,19 @@ func newLoadBalancer(servers []*server) *loadBalancer {
 
 type server struct {
 	*godes.Runner
-	id             int
-	entries        []inputEntry
-	index          int
-	cond           *godes.BooleanControl
-	lb             *loadBalancer
-	req            *request
-	isTerminated   bool
-	unavIntervals  interval.LimitSet
-	unavCond       *godes.BooleanControl
-	uptime         float64
-	unavTime       float64
-	unavMarksCount int64
-	procTime       float64
-	procReqCount   int64
+	id            int
+	entries       []inputEntry
+	index         int
+	cond          *godes.BooleanControl
+	lb            *loadBalancer
+	req           *request
+	isTerminated  bool
+	unavIntervals interval.LimitSet
+	unavCond      *godes.BooleanControl
+	uptime        float64
+	procTime      float64
+	procIntervals interval.LimitSet
+	procReqCount  int64
 }
 
 func (s *server) Run() {
@@ -185,36 +197,22 @@ func (s *server) Run() {
 		if s.isTerminated {
 			break
 		}
+		duration, status := s.next()
+		s.req.rt = duration
+		s.req.status = status
+		s.req.ts = godes.GetSystemTime()
+		s.req.sID = s.id
 
-		func(r *request) {
-			defer s.lb.reqFinished(s, r)
-			defer s.cond.Set(false)
-
-			// If not unavailable, get next line of the input file.
-			duration, status := s.next()
-			r.rt = duration
-			r.status = status
-			r.ts = godes.GetSystemTime()
-			r.sID = s.id
-
-			// Unavailability mark found.
-			if status == 503 {
-				s.unavCond.WaitAndTimeout(true, duration) // stop processing requests.
-
-				// metrics
-				s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: r.ts, End: r.ts + r.rt})
-				s.unavTime += duration
-				s.unavMarksCount++
-				return
-			}
-
-			// All good, process request
-			godes.Advance(duration)
-
-			// metrics
+		if status == 200 {
+			s.procIntervals.Limits = append(s.procIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
 			s.procReqCount++
-			s.procTime += r.rt
-		}(s.req)
+			s.procTime += s.req.rt
+		} else {
+			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
+		}
+		godes.Advance(duration)
+		s.cond.Set(false)
+		s.lb.reqFinished(s, s.req)
 	}
 }
 
@@ -272,7 +270,8 @@ func newServer(p string, id int) (*server, error) {
 		cond:          godes.NewBooleanControl(),
 		unavCond:      godes.NewBooleanControl(),
 		isTerminated:  false,
-		unavIntervals: interval.LimitSet{ID: id}}, nil
+		unavIntervals: interval.LimitSet{ID: id},
+		procIntervals: interval.LimitSet{ID: id}}, nil
 }
 
 func toEntry(row []string) (float64, inputEntry, error) {

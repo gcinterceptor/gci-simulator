@@ -19,6 +19,22 @@ func TestIntersect_Pair(t *testing.T) {
 	is.Equal(1.5, i[0].Limits[1].End)   // 2. fim
 }
 
+func TestIntersect_All(t *testing.T) {
+	is := is.New(t)
+	a := LimitSet{1, []Limit{{1, 2}, {2.5, 3}, {4, 5.2}}}
+	b := LimitSet{2, []Limit{{0.5, 1.5}, {2., 3.}, {5., 5.5}}}
+	c := LimitSet{3, []Limit{{0.5, 1.2}}}
+	i := Intersect(a, b, c)
+	all := i[len(i)-1]
+	is.Equal(3, len(all.Participants))
+	is.Equal(struct{}{}, all.Participants[1])
+	is.Equal(struct{}{}, all.Participants[2])
+	is.Equal(struct{}{}, all.Participants[3])
+	is.Equal(1, len(all.Limits))
+	is.Equal(1.0, all.Limits[0].Start)
+	is.Equal(1.2, all.Limits[0].End)
+}
+
 func TestIntersect_Many(t *testing.T) {
 	is := is.New(t)
 	a := LimitSet{1, []Limit{{1, 2}, {0.3, 0.6}}}
@@ -69,7 +85,7 @@ func TestUnite(t *testing.T) {
 	is.Equal(map[int]struct{}{a.ID: {}, b.ID: {}}, Unite(a, b).Participants) // intervalos disjuntos
 	is.Equal([]Limit{{0, 0.2}, {1, 2}, {3, 4}}, Unite(a, b).Limits)          // intervalos disjuntos
 
-	c := LimitSet{2, []Limit{{0.3, 0.5}, {2, 3}, {3, 4}}}
+	c := LimitSet{3, []Limit{{0.3, 0.5}, {2, 3}, {3, 4}}}
 	is.Equal(map[int]struct{}{a.ID: {}, b.ID: {}, c.ID: {}}, Unite(a, b, c).Participants) // intervalos disjuntos + fusão
 	is.Equal([]Limit{{0, 0.2}, {0.3, 0.5}, {1, 4}}, Unite(a, b, c).Limits)                // // intervalos disjuntos + fusão
 }

@@ -151,7 +151,7 @@ func pairI(a LimitSet, b Intersection) Intersection {
 		return b
 	}
 	p := map[int]struct{}{
-		a.ID: struct{}{},
+		a.ID: {},
 	}
 	for k, v := range b.Participants {
 		p[k] = v
@@ -173,8 +173,8 @@ func pairL(a LimitSet, b LimitSet) Intersection {
 	return Intersection{
 		id: idLimits(a, b),
 		Participants: map[int]struct{}{
-			a.ID: struct{}{},
-			b.ID: struct{}{},
+			a.ID: {},
+			b.ID: {},
 		},
 		Limits: inter(a.Limits, b.Limits),
 	}

@@ -1,3 +1,7 @@
 vendor/
 simgo
 clustergo
+*.png
+*.zip
+*.pcp
+*.pvn
