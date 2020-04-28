@@ -26,8 +26,6 @@ sim_1 <- data.frame("n"=1,
                     "pcp"=c(0.231876,0.097039,0.051976,0.093941,0.045551,0.152682,0.107873,0.135808,0.083458,0.079348,0.116016,0.069067,0.105772,0.201415,0.172598,0.131679,0.139450,0.083581,0.053739,0.201057,0.059495,0.191902,0.061721,0.133258,0.080955,0.085603,0.073845,0.142468,0.140606,0.109979),
                     "pvn"=c(0.231876,0.097039,0.051976,0.093941,0.045551,0.152682,0.107873,0.135808,0.083458,0.079348,0.116016,0.069067,0.105772,0.201415,0.172598,0.131679,0.139450,0.083581,0.053739,0.201057,0.059495,0.191902,0.061721,0.133258,0.080955,0.085603,0.073845,0.142468,0.140606,0.109979))
 
-NROW(sim_1)
-
 # 2 replicas
 # Run: cd clustergo; for i in `seq 1 10`; do cd inputgen/; go run main.go --duration=3600000 --r=2 --mu=0.0036 --bigOmega=0.003 --littleOmega=0.0001; cd ..;  go run main.go --rate=1 --warmup=0 --d=1h --i=inputgen/input_1.csv,inputgen/input_2.csv > r2_$i.out; rm inputgen/input_*.csv; done
 # Pack output: zip sim_2_out.zip r2_*.out; rm *.out
@@ -88,11 +86,11 @@ cmp_data <- cmp_raw_data %>%
 ggplot(cmp_data, aes(x=n, y=pcp_mean, ymin=pcp_mean-pcp_ic, ymax=pcp_mean+pcp_ic)) +
   geom_bar(aes(fill = modelo), position = position_dodge(), stat="identity") +
   geom_errorbar(position=position_dodge(), width=.5) +
-  ylim(0,.5) +
+  scale_y_continuous(limit=0:1, labels = function(x) paste0(x*100, "%")) +
   scale_fill_brewer(palette="Dark2") +
   labs(
     x="Número de réplicas",
-    y="PCP (%)",
+    y="PCP",
     fill="Modelo") +
   theme_pubr() +
   theme(
@@ -100,16 +98,16 @@ ggplot(cmp_data, aes(x=n, y=pcp_mean, ymin=pcp_mean-pcp_ic, ymax=pcp_mean+pcp_ic
     panel.grid.major.x = element_line(colour = "darkgray", linetype = 3),
     panel.grid.minor.y = element_line(colour = "lightgray", linetype = 3, size=0.25),
     panel.grid.major.y = element_line(colour = "darkgray", linetype = 3))
-ggsave("validation_pvn.png")
+ggsave("validation_pcp.png")
 
 ggplot(cmp_data, aes(x=n, y=pvn_mean, ymin=pvn_mean-pvn_ic, ymax=pvn_mean+pvn_ic)) +
   geom_bar(aes(fill = modelo), position = position_dodge(), stat="identity") +
   geom_errorbar(position=position_dodge(), width=.5) +
-  ylim(0,.5) +
+  scale_y_continuous(limit=0:1, labels = function(x) paste0(x*100, "%")) +
   scale_fill_brewer(palette="Dark2") +
   labs(
     x="Número de réplicas",
-    y="PCP (%)",
+    y="PVN",
     fill="Modelo") +
   theme_pubr() +
   theme(
