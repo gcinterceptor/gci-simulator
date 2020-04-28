@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 require(ggplot2)
 require(dplyr)
+require(ggpubr)
 ```
 
 ```{r}
@@ -67,8 +68,9 @@ analytical <- data.frame("n"=c(1,2,3,4,5),
 # Calculates mean, sd, se and IC
 # Inspired by: https://www.r-graph-gallery.com/4-barplot-with-error-bar.html
 sim_raw_data <- cbind(rbind(sim_1, sim_2, sim_3, sim_4, sim_5),"modelo"="Simulado")
-sim_data <- sim_raw_data %>%
-  group_by(n) %>%
+cmp_raw_data <- rbind(sim_raw_data, analytical)
+cmp_data <- cmp_raw_data %>%
+  group_by(n, modelo) %>%
   summarise( 
     count=n(),
     pvn_mean=mean(pvn),
@@ -81,25 +83,41 @@ sim_data <- sim_raw_data %>%
   mutate(pcp_se=pcp_sd/sqrt(count))  %>%
   mutate(pcp_ic=pcp_se * qt((1-0.05)/2 + .5, count-1))
 
-mean(sim_2$pvn)
-sim_2$pvn
-analytical$pvn
+# Graphing results
 
-ggplot(sim_data) +
-  geom_point(aes(x=n, y=pvn_mean), stat="identity", fill="forestgreen", alpha=0.5) +
-  geom_point(data=analytical, aes(x=n, y=pvn), stat="identity", fill="forestgreen", alpha=0.5, color="red") +
-  geom_errorbar(aes(x=n, ymin=pvn_mean-pvn_ic, ymax=pvn_mean+pvn_ic), width=0.4, colour="orange", alpha=0.9, size=1) +
+ggplot(cmp_data, aes(x=n, y=pcp_mean, ymin=pcp_mean-pcp_ic, ymax=pcp_mean+pcp_ic)) +
+  geom_bar(aes(fill = modelo), position = position_dodge(), stat="identity") +
+  geom_errorbar(position=position_dodge(), width=.5) +
   ylim(0,.5) +
-  ggtitle("PVN using mean confidence interval")
-ggsave("validation_pvn_30_900000.png")
+  scale_fill_brewer(palette="Dark2") +
+  labs(
+    x="Número de réplicas",
+    y="PCP (%)",
+    fill="Modelo") +
+  theme_pubr() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.x = element_line(colour = "darkgray", linetype = 3),
+    panel.grid.minor.y = element_line(colour = "lightgray", linetype = 3, size=0.25),
+    panel.grid.major.y = element_line(colour = "darkgray", linetype = 3))
+ggsave("validation_pvn.png")
 
-ggplot(sim_data) +
-  geom_point(aes(x=n, y=pcp_mean), stat="identity", fill="forestgreen", alpha=0.5) +
-  geom_point(data=analytical, aes(x=n, y=pcp), stat="identity", fill="forestgreen", alpha=0.5, color="red") +
-  geom_errorbar(aes(x=n, ymin=pcp_mean-pcp_ic, ymax=pcp_mean+pcp_ic), width=0.4, colour="orange", alpha=0.9, size=1) +
+ggplot(cmp_data, aes(x=n, y=pvn_mean, ymin=pvn_mean-pvn_ic, ymax=pvn_mean+pvn_ic)) +
+  geom_bar(aes(fill = modelo), position = position_dodge(), stat="identity") +
+  geom_errorbar(position=position_dodge(), width=.5) +
   ylim(0,.5) +
-  ggtitle("PCP using confidence interval")
-ggsave("validation_pcp_30_900000.png")
+  scale_fill_brewer(palette="Dark2") +
+  labs(
+    x="Número de réplicas",
+    y="PCP (%)",
+    fill="Modelo") +
+  theme_pubr() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.x = element_line(colour = "darkgray", linetype = 3),
+    panel.grid.minor.y = element_line(colour = "lightgray", linetype = 3, size=0.25),
+    panel.grid.major.y = element_line(colour = "darkgray", linetype = 3))
+ggsave("validation_pvn.png")
 ```
 
 
