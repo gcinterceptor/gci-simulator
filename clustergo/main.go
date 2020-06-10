@@ -93,11 +93,6 @@ func main() {
 			unavSum += l.End - l.Start
 		}
 	}
-	unavTime := float64(0)
-	unavUnion := interval.Unite(unav...)
-	for _, i := range unavUnion.Limits {
-		unavTime += i.End - i.Start
-	}
 	fmt.Printf("PCP:%f\n", unavSum/procSum)
 
 	var msUnav float64
@@ -139,7 +134,7 @@ func (lb *loadBalancer) schedule(r *request) {
 
 func (lb *loadBalancer) reqFinished(s *server, r *request) {
 	lb.servers.Place(s) // Sending server back to the availability queue
-	fmt.Printf("%d,%d,%.1f,%.4f,%d\n", r.id, r.status, r.ts, r.ts, r.sID)
+	fmt.Printf("%d,%.1f,%d,%.4f,%d\n", r.id, r.ts, r.status, r.rt, r.sID)
 }
 
 func (lb *loadBalancer) terminate() {
