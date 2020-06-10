@@ -37,7 +37,7 @@ func main() {
 				rt := rand.ExpFloat64() / *mu
 				st := 200
 				if rand.Float64() <= *bigOmega {
-					rt = rand.ExpFloat64() / *littleOmega
+					rt += rand.ExpFloat64() / *littleOmega
 					st = 503
 					ev++
 				} else {
