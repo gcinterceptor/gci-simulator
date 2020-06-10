@@ -5,8 +5,8 @@ set -x
 LITTLE_OMEGA=0.0001
 BIG_OMEGA=0.003
 MU=0.0036
-DURATIONMS=${DURATIONMS:=7200000}
-NRUNS=${NRUNS:=50}  # number of repetitions
+DURATIONMS=${DURATIONMS:=1200000}
+NRUNS=${NRUNS:=30}  # number of repetitions
 NREPLICAS=${NREPLICAS:=1} # comma-separated number of replicas
 
 for n in ${NREPLICAS//,/ }
@@ -22,7 +22,7 @@ do
         do
             input+="inputgen/input_${i}.csv,"
         done
-        go run main.go --rate=1 --warmup=0 --d=$(( DURATIONMS * n ))ms --i=$input > r${n}_${run}.out
+        go run main.go --rate=1 --warmup=0 --d=$(( DURATIONMS ))ms --i=$input > r${n}_${run}.out
         echo -e "\n\n## Finished run $n : ${run} ##\n\n"
     done
     cat *.out | grep PCP | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.pcp
