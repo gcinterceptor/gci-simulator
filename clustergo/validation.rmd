@@ -137,11 +137,13 @@ ggsave("validation_pcp.png")
 ```
 
 ```{r}
-sim_res <- read.csv("response_times/sim.csv")
+# for i in `seq 1 30`; do grep -h -w "^[[:digit:]].*\,[503\,|200\,].*" r2_$i.out >> sim_$i.out; done
+# cat sim_*.out | shuf -n 20000 >> sim_20000.csv
+sim_res <- read.csv("results_30_1200000/sim_20000.csv")
 colnames(sim_res) <- c("id", "ts", "status", "rt", "sid")
 sim_res$rt <- sim_res$rt/1000
 sim_res <- filter(sim_res, status == 200) %>% select("ts", "rt")
-sim_res$Model <- "Simulado"
+sim_res$Modelo <- "Simulado"
 
 analytics_res <- read.csv("response_times/analytics.csv")
 colnames(analytics_res) <- c("ts", "não", "sim")
@@ -152,25 +154,25 @@ analytics_res <- melt(
   measure.vars=c("sim", "não"),
   value.name = "rt")
 analytics_res <- filter(analytics_res, variable=="sim") %>% select("ts", "rt")
-analytics_res$Model <- "Analítico"
+analytics_res$Modelo <- "Analítico"
 
 ggplot() +
   geom_line(
     data=analytics_res,
     size=1.5,
     color="yellowgreen",
-    alpha=0.5,
+    alpha=0.4,
     aes(
       x=ts,
       y=rt,
-      group=Model,
-      linetype=Model)) +
+      group=Modelo,
+      linetype=Modelo)) +
   stat_ecdf(
     data=sim_res,
     size=1.5,
     color="yellowgreen",
-    alpha=0.8,
-    aes(x=rt, group=Model, linetype=Model)) +
+    alpha=0.9,
+    aes(x=rt, group=Modelo, linetype=Modelo)) +
   guides(color=FALSE) +
   labs(
     x="Tempo de Resposta (ms)",
@@ -180,7 +182,80 @@ ggplot() +
     legend.position="bottom",
     panel.grid.major.x = element_line(colour = "darkgray", linetype = 3))
 ggsave("validation_rt.png")
-# grep -h -w "^[[:digit:]].*\,[503\,|200\,].*" r*_*.out >> sim.out
-# head -n 1 sim.csv > sim_40000.csv; tail -n +2 sim.csv | shuf -n 40000 >> sim_40000.csv
+```
+```{r}
+# cd results_30_1200000
+# for i in 1 2 4 8 16 32 64; do unzip sim_${i}_out.zip; rm -rf inputgen/; done
+# for i in 1; do echo $i; grep -h -w "^[[:digit:]].*\,[503\,|200\,].*" r${i}_*.out > sim_${i}.csv; done
+# for i in 1 2 4 8 16 32 64; do wc -l sim_${i}.csv; done
+cat("Quantidade de requisições simuladas")
+qtd <- data.frame(
+  "n"=c(1,2,4,8,16,32,64),
+  "qtd"=c(117778, 234232, 467706, 935877, 1873515, 3730299, 3493312)
+)
+sum(qtd$qtd)
+```
+
+```{r}
+# cd results_30_1200000
+# for i in 1 2 4 8 16 32 64; do unzip sim_${i}_out.zip; rm -rf inputgen/; done
+# for i in 1; do echo $i; grep -h -w "^[[:digit:]].*\,[503\,|200\,].*" r${i}_*.out > sim_${i}.csv; done
+# 
+cat("Comparação dos percentis")
+# Calcula o tempo de resposta de um determinado percentil nos resultados
+# do modelo analítico.
+quantile_analytics <- function(x){
+  analytics_res$ts[which(analytics_res$rt >= x)[[1]]]  
+}
+
+load_sim_res <- function(n) {
+  sim_res <- read.csv(paste("results_30_1200000/sim_", n, ".csv", sep = ""))
+  colnames(sim_res) <- c("id", "ts", "status", "rt", "sid")
+  sim_res$rt <- sim_res$rt/1000
+  sim_res <- filter(sim_res, status == 200) %>% select("ts", "rt")
+  sim_res$rt
+}
+
+# Tentamos fazer com o arquivo todo e ficou muito grande. Optamos por dividir
+# em 7 arquivos (um por cenário experimental).
+res <- data.frame()
+for (i in c(1,2,4,8,16,32,64)){
+  r <- load_sim_res(i)
+  res <- rbind(
+    res,
+    quantile(r, probs=c(0.5, 0.9, 0.99, 0.999, 0.9999))
+  )
+}
+colnames(res) <- c("p50", "p90", "p99", "p999", "p9999")
+
+print.ci <- function(x) {
+  a<-mean(x)
+  s<-sd(x)
+  n<-length(x)
+  error <- qnorm(0.975)*s/sqrt(n)
+  left <- signif(a-error, digits=3)
+  right <- signif(a+error, digits=3)
+  paste("sim",left,right)
+}
+
+paste("p50")
+paste("analytics", quantile_analytics(0.5))
+print.ci(res$p50)
+
+paste("p90")
+paste("analytics", quantile_analytics(0.9))
+print.ci(res$p90)
+
+paste("p99")
+paste("analytics", quantile_analytics(0.99))
+print.ci(res$p99)
+
+paste("p999")
+paste("analytics", quantile_analytics(0.999))
+print.ci(res$p999)
+
+paste("p9999")
+paste("analytics", quantile_analytics(0.9999))
+print.ci(res$p9999)
 ```
 
