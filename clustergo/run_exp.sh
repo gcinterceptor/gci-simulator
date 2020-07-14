@@ -2,12 +2,13 @@
 
 set -x
 
-LITTLE_OMEGA=0.0001
-BIG_OMEGA=0.003
-MU=0.0036
+LITTLE_OMEGA=${LITTLE_OMEGA:=0.0001}
+BIG_OMEGA=${BIG_OMEGA:=0.003}
+MU=${MU:=0.0036}
 DURATIONMS=${DURATIONMS:=1200000}
 NRUNS=${NRUNS:=30}  # number of repetitions
 NREPLICAS=${NREPLICAS:=1} # comma-separated number of replicas
+HT=${HT:=-1} # Hedging threshold (-1 means no hedging)
 
 for n in ${NREPLICAS//,/ }
 do
@@ -22,11 +23,13 @@ do
         do
             input+="inputgen/input_${i}.csv,"
         done
-        go run main.go --rate=1 --warmup=0 --d=$(( DURATIONMS ))ms --i=$input > r${n}_${run}.out
+        go run main.go --rate=1 --warmup=0 --d=$(( DURATIONMS ))ms --ht=${HT} --i=$input > r${n}_${run}.out
         echo -e "\n\n## Finished run $n : ${run} ##\n\n"
     done
     cat *.out | grep PCP | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.pcp
     cat *.out | grep PVN | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.pvn
+    cat *.out | grep THROUGHPUT | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.tp
+    cat *.out | grep HEDGED | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.hedged
 
     rm sim_${n}_out.zip
     zip sim_${n}_out.zip *.out inputgen/*.csv
@@ -44,7 +47,14 @@ do
     echo "REPLICAS: ${n}"
     echo -n "PCP: "
     awk -v ORS=, '{ print $0 }' sim_${n}.pcp
-    echo ""; echo -n "PVN: "
+    echo ""
+    echo -n "PVN: "
     awk -v ORS=, '{ print $0 }' sim_${n}.pvn
+    echo ""
+    echo -n "THROUGHPUT: "
+    awk -v ORS=, '{ print $0 }' sim_${n}.tp
+    echo ""
+    echo -n "HEDGED: "
+    awk -v ORS=, '{ print $0 }' sim_${n}.hedged
     echo ""
 done
