@@ -16,11 +16,11 @@ import (
 )
 
 var (
-	duration = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
-	warmup   = flag.Duration("warmup", 240*time.Second, "Server warmup duration, discarded from the input files.")
-	rate     = flag.Float64("rate", 30, "Number of requests processed per second.")
-	inputs   = flag.String("i", "", "Comma-separated file paths (one per server)")
-	outsufix = flag.String("out-suffix", "", "Suffix to be used in outputfiles")
+	duration         = flag.Duration("d", 300*time.Second, "Duration of the simulation.")
+	warmup           = flag.Duration("warmup", 240*time.Second, "Server warmup duration, discarded from the input files.")
+	rate             = flag.Float64("rate", 30, "Number of requests processed per second.")
+	inputs           = flag.String("i", "", "Comma-separated file paths (one per server)")
+	hedgingThreshold = flag.Float64("hedging-threshold", -1, "Threshold of the response to time to start hedging requests. -1 means no hedging.")
 )
 
 var arrivalQueue = godes.NewFIFOQueue("arrival")
@@ -36,7 +36,7 @@ func main() {
 	var servers []*server
 	for i, f := range strings.Split(*inputs, ",") {
 		if strings.Trim(f, " ,;") != "" {
-			s, err := newServer(f, i)
+			s, err := newServer(f, i, *hedgingThreshold)
 			if err != nil {
 				log.Fatalf("Error loading file \"%s\":%q", f, err)
 			}
@@ -113,32 +113,77 @@ func main() {
 		}
 	}
 	fmt.Printf("PVN:%f\n", msUnav/procSum)
+	fmt.Printf("THROUGHPUT: %f\n", float64(lb.nTerminatedSucc)/finishTime)
+	fmt.Printf("PERC_HEDGED: %f\n", float64(lb.nHedged)/float64(lb.nProc))
 }
 
 type loadBalancer struct {
 	*godes.Runner
 	servers      *godes.FIFOQueue
+	queueWaiter  *godes.BooleanControl
 	isTerminated bool
-	nIgnored     int64
+
+	// Metrics
+	nIgnored        int64
+	nTerminatedSucc int64
+	nTerminatedFail int64
+	nHedged         int64
+	nProc           int64
 }
 
 func (lb *loadBalancer) schedule(r *request) {
 	if lb.servers.Len() == 0 {
 		lb.nIgnored++
-		return // ignoring incoming requests when all servers are busy.
+		return // ignoring new incoming requests when all servers are busy.
 	}
 	s := lb.servers.Get().(*server)
+	if lb.servers.Len() == 0 {
+		lb.queueWaiter.Set(false) // hedged requests must wait in queue.
+	}
 	s.newRequest(r)
-
 }
 
 func (lb *loadBalancer) reqFinished(s *server, r *request) {
-	lb.servers.Place(s) // Sending server back to the availability queue
+	lb.servers.Place(s)      // Sending server back to the availability queue
+	lb.queueWaiter.Set(true) // Needed for hedged requests.
 	fmt.Printf("%d,%.1f,%d,%.4f,%d\n", r.id, r.ts, r.status, r.rt, r.sID)
+	lb.nProc++
+	if r.status == 200 {
+		lb.nTerminatedSucc++
+	} else {
+		lb.nTerminatedFail++
+	}
+}
+
+func (lb *loadBalancer) reqHedged(s *server, r *request, remainingTime float64) *server {
+	lb.nHedged++
+	r.hedged = true
+
+	// The server always wait for the server queue cond before calling this method.
+	// Furthermore, there one unfinished request, which will block the arrival queue.
+	s1 := lb.servers.Get().(*server)
+	dur, _ := s1.peek()
+
+	// The duration on the new service will be greater than the previous one.
+	// So, both servers only need to wait for the remaining time of the task
+	// The previous service will declare the task as finished and the new one
+	// only goes back to the queue.
+	if dur >= remainingTime {
+		godes.Advance(remainingTime)
+		lb.reqFinished(s, s.req)
+		lb.servers.Place(s1)     // Sending server back to the availability queue
+		lb.queueWaiter.Set(true) // Needed for hedged requests.
+		return nil
+	}
+
+	// Otherwise the previous service waits for the duration of the new processing.
+	s1.newRequest(r)
+	return s1
 }
 
 func (lb *loadBalancer) terminate() {
 	arrivalCond.Set(true)
+	lb.queueWaiter.Set(true)
 	lb.isTerminated = true
 }
 
@@ -161,6 +206,7 @@ func newLoadBalancer(servers []*server) *loadBalancer {
 		Runner:       &godes.Runner{},
 		isTerminated: false,
 		servers:      godes.NewFIFOQueue("servers"),
+		queueWaiter:  godes.NewBooleanControl(),
 	}
 	for _, s := range servers {
 		s.lb = lb
@@ -184,6 +230,7 @@ type server struct {
 	procTime      float64
 	procIntervals interval.LimitSet
 	procReqCount  int64
+	ht            float64
 }
 
 func (s *server) Run() {
@@ -192,22 +239,53 @@ func (s *server) Run() {
 		if s.isTerminated {
 			break
 		}
+
+		// Updating request info.
 		duration, status := s.next()
 		s.req.rt = duration
 		s.req.status = status
 		s.req.ts = godes.GetSystemTime()
 		s.req.sID = s.id
 
-		if status == 200 {
+		switch {
+		// If it is an unavailability signal.
+		case s.req.status != 200:
+			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
+			godes.Advance(s.req.rt)
+			s.lb.reqFinished(s, s.req)
+
+		// If the request must be reissued.
+		// There is no mean to know in advance where the request will be processed.
+		// So, the replica re-issues the request and will keep itself blocked, waiting
+		// for the processing of the re-issued request.
+		case s.ht > 0 && s.req.rt > s.ht:
+			diff := s.req.rt - s.ht
+			fin := godes.GetSystemTime() + diff
+			s.lb.queueWaiter.WaitAndTimeout(true, diff)
+
+			// The request has finished in this server before a server was able to serve the request.
+			if godes.GetSystemTime() == fin {
+				s.lb.reqFinished(s, s.req)
+
+			} else { // If both servers must execute the request.
+				s1 := s.lb.reqHedged(s, s.req, diff)
+				if s1 != nil { // wait for the other server to finish processing.
+					s1.cond.Wait(false)
+					s.lb.servers.Place(s)      // Sending server back to the availability queue
+					s.lb.queueWaiter.Set(true) // Needed for hedged requests.
+				}
+			}
+
+		// If the request must be processed by this replica without re-issuing.
+		default:
 			s.procIntervals.Limits = append(s.procIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
 			s.procReqCount++
 			s.procTime += s.req.rt
-		} else {
-			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
+			godes.Advance(s.req.rt)
+			s.lb.reqFinished(s, s.req)
 		}
-		godes.Advance(duration)
+
 		s.cond.Set(false)
-		s.lb.reqFinished(s, s.req)
 	}
 }
 
@@ -222,13 +300,21 @@ func (s *server) next() (float64, int) {
 	return i.duration, i.status
 }
 
+// peerk returns information about the next request processing.
+// The difference from next() is that peek() does not advance the
+// incremental pointer of the request processing history.
+func (s *server) peek() (float64, int) {
+	i := s.entries[s.index]
+	return i.duration, i.status
+}
+
 func (s *server) terminate() {
 	s.uptime = godes.GetSystemTime()
 	s.isTerminated = true
 	s.cond.Set(true)
 }
 
-func newServer(p string, id int) (*server, error) {
+func newServer(p string, id int, ht float64) (*server, error) {
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
@@ -266,7 +352,8 @@ func newServer(p string, id int) (*server, error) {
 		unavCond:      godes.NewBooleanControl(),
 		isTerminated:  false,
 		unavIntervals: interval.LimitSet{ID: id},
-		procIntervals: interval.LimitSet{ID: id}}, nil
+		procIntervals: interval.LimitSet{ID: id},
+		ht:            ht}, nil
 }
 
 func toEntry(row []string) (float64, inputEntry, error) {
@@ -297,4 +384,5 @@ type request struct {
 	status int
 	sID    int
 	ts     float64
+	hedged bool
 }
