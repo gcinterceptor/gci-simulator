@@ -21,6 +21,7 @@ var (
 	rate             = flag.Float64("rate", 30, "Number of requests processed per second.")
 	inputs           = flag.String("i", "", "Comma-separated file paths (one per server)")
 	hedgingThreshold = flag.Float64("ht", -1, "Threshold of the response to time to start hedging requests. -1 means no hedging.")
+	enableCCT        = flag.Bool("cct", true, "Wheter CTC should be enabled.")
 )
 
 var arrivalQueue = godes.NewFIFOQueue("arrival")
@@ -93,7 +94,6 @@ func main() {
 			unavSum += l.End - l.Start
 		}
 	}
-	fmt.Printf("PCP:%f\n", unavSum/procSum)
 
 	var msUnav float64
 	if len(servers) == 1 {
@@ -112,8 +112,14 @@ func main() {
 			}
 		}
 	}
+
+	// Grouped metrics. When changing any of those, please also change
+	// the run_exp.sh script.
+	fmt.Printf("PCP:%f\n", unavSum/procSum)
 	fmt.Printf("PVN:%f\n", msUnav/procSum)
-	fmt.Printf("THROUGHPUT:%f\n", float64(lb.nTerminatedSucc)/(finishTime/1000)) // Throughput is always in requests per second.
+	fmt.Printf("NUM_PROC_SUCC:%d\n", lb.nTerminatedSucc)
+	fmt.Printf("NUM_PROC_FAILED:%d\n", lb.nTerminatedFail)
+	fmt.Printf("DURATION:%f\n", finishTime)
 	fmt.Printf("HEDGED:%d\n", lb.nHedged)
 }
 
@@ -288,8 +294,8 @@ func (s *server) Run() {
 		s.req.sID = s.id
 
 		switch {
-		// If it is an unavailability signal.
-		case s.req.status != 200:
+		// If it is an unavailability signal and CCT is enabled.
+		case *enableCCT && s.req.status == 503:
 			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
 			godes.Advance(s.req.rt)
 			s.lb.reqFinished(s, s.req)

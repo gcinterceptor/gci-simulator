@@ -16,6 +16,7 @@ var mu = flag.Float64("mu", 1, "")
 var littleOmega = flag.Float64("littleOmega", 1, "")
 var bigOmega = flag.Float64("bigOmega", 0.5, "")
 var duration = flag.Float64("duration", 1000, "")
+var enableCCT = flag.Bool("cct", true, "")
 
 func main() {
 	flag.Parse()
@@ -37,9 +38,14 @@ func main() {
 				rt := rand.ExpFloat64() / *mu
 				st := 200
 				if rand.Float64() <= *bigOmega {
-					rt += rand.ExpFloat64() / *littleOmega
-					st = 503
-					ev++
+					if *enableCCT {
+						rt = rand.ExpFloat64() / *littleOmega
+						st = 503
+						ev++
+					} else {
+						rt += rand.ExpFloat64() / *littleOmega
+						succ++
+					}
 				} else {
 					succ++
 				}
