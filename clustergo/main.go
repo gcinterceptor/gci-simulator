@@ -121,7 +121,7 @@ func main() {
 	fmt.Printf("NUM_PROC_FAILED:%d\n", lb.nTerminatedFail)
 	fmt.Printf("DURATION:%f\n", finishTime)
 	fmt.Printf("HEDGED:%d\n", lb.nHedged)
-	fmt.Printf("HEDGE_WAIST:%d\n", lb.hedgingWaist)
+	fmt.Printf("HEDGE_WAIST:%f\n", lb.hedgingWaist)
 }
 
 type loadBalancer struct {
