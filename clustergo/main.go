@@ -121,6 +121,7 @@ func main() {
 	fmt.Printf("NUM_PROC_FAILED:%d\n", lb.nTerminatedFail)
 	fmt.Printf("DURATION:%f\n", finishTime)
 	fmt.Printf("HEDGED:%d\n", lb.nHedged)
+	fmt.Printf("HEDGE_WAIST:%d\n", lb.hedgingWaist)
 }
 
 type loadBalancer struct {
@@ -136,6 +137,7 @@ type loadBalancer struct {
 	nTerminatedFail int64
 	nHedged         int64
 	nProc           int64
+	hedgingWaist    float64
 }
 
 func (lb *loadBalancer) schedule(r *request) {
@@ -167,7 +169,7 @@ func (lb *loadBalancer) reqFinished(s *server, r *request) {
 	}
 }
 
-func (lb *loadBalancer) reqHedged(s *server, r *request, remainingTime float64) *server {
+func (lb *loadBalancer) reqHedged(s *server, r *request, remainingTime float64) (*server, bool) {
 	lb.nHedged++
 	r.hedged = true
 
@@ -183,7 +185,7 @@ func (lb *loadBalancer) reqHedged(s *server, r *request, remainingTime float64) 
 		// processed by the other server. So, let it go.
 		// Need to take extra care of float64 comparison
 		if remainingTime-(godes.GetSystemTime()-t) < 1 {
-			return nil
+			return nil, false
 		}
 
 		// Case the server has been gotten in between the check above and now.
@@ -213,12 +215,12 @@ func (lb *loadBalancer) reqHedged(s *server, r *request, remainingTime float64) 
 
 		lb.servers.Place(s1)     // Sending server back to the availability queue
 		lb.queueWaiter.Set(true) // Needed for hedged requests.
-		return nil
+		return nil, true
 	}
 
 	// Otherwise the previous service waits for the duration of the new processing.
 	s1.newRequest(r)
-	return s1
+	return s1, true
 }
 
 func (lb *loadBalancer) terminate() {
@@ -299,21 +301,27 @@ func (s *server) Run() {
 			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
 			godes.Advance(s.req.rt)
 			s.lb.reqFinished(s, s.req)
+
 		// If the request must be reissued.
 		// There is no mean to know in advance where the request will be processed.
 		// So, the replica re-issues the request and will keep itself blocked, waiting
 		// for the processing of the re-issued request.
 		// We only accept one hedge.
 		case s.ht > 0 && s.req.rt > s.ht && !s.req.hedged:
-			s1 := s.lb.reqHedged(s, s.req, s.req.rt-s.ht)
+			hs := godes.GetSystemTime()
+			s1, hedged := s.lb.reqHedged(s, s.req, s.req.rt-s.ht)
 			if s1 != nil { // wait for the other server to finish processing.
 				s1.cond.Wait(false)
-
 				s.lb.servers.Place(s)      // Sending server back to the availability queue
 				s.lb.queueWaiter.Set(true) // Needed for hedged requests.
 			} else { // The request has finished in this server before a server was able to serve the request.
 				s.lb.reqFinished(s, s.req)
 			}
+			if hedged {
+				// Calculate the duration spent in both services. Either processing or waiting in queue.
+				s.lb.hedgingWaist += godes.GetSystemTime() - hs
+			}
+
 		// If the request must be processed by this replica without re-issuing.
 		default:
 			s.procIntervals.Limits = append(s.procIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
