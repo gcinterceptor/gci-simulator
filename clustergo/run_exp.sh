@@ -6,7 +6,7 @@ LITTLE_OMEGA=${LITTLE_OMEGA:=0.0001}
 BIG_OMEGA=${BIG_OMEGA:=0.003}
 MU=${MU:=0.0036}
 DURATIONMS=${DURATIONMS:=1200000}
-NRUNS=${NRUNS:=30}  # number of repetitions
+NRUNS=${NRUNS:=10}  # number of repetitions
 NREPLICAS=${NREPLICAS:=1} # comma-separated number of replicas (int32)
 HT=${HT:=-1} # Hedging threshold (float64, default -1 and means no hedging)
 HEDGE_CANCELLATION=${HEDGE_CANCELLATION:=true} # Whether to cancel hedge requests
@@ -34,6 +34,7 @@ do
     cat *.out | grep NUM_PROC_SUCC | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.succ
     cat *.out | grep NUM_PROC_FAILED | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.fail
     cat *.out | grep HEDGED | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.hedged
+    cat *.out | grep HEDGE_WAIST | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.hwaist
 
     rm sim_${n}_out.zip
     zip sim_${n}_out.zip *.out inputgen/*.csv
@@ -66,5 +67,8 @@ do
     echo ""
     echo -n "NUM_PROC_FAILED: "
     awk -v ORS=, '{ print $0 }' sim_${n}.fail
+    echo ""
+    echo -n "HEDGE_WAIST: "
+    awk -v ORS=, '{ print $0 }' sim_${n}.hwaist
     echo ""
 done
