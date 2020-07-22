@@ -155,24 +155,27 @@ func (lb *loadBalancer) schedule(r *request) {
 	s.newRequest(r)
 }
 
+func (lb *loadBalancer) computReqMetrics(r *request) {
+	// Metrics
+	lb.nProc++
+	if r.status == 200 {
+		lb.nTerminatedSucc++
+	} else {
+		lb.nTerminatedFail++
+	}
+}
+
 func (lb *loadBalancer) reqFinished(s *server, r *request) {
 	defer func() {
 		// Bringing server back to the availability queue.
 		lb.servers.Place(s)      // Sending server back to the availability queue
 		lb.queueWaiter.Set(true) // Needed for hedged requests.
-
-		// Metrics
-		lb.nProc++
-		if r.status == 200 {
-			lb.nTerminatedSucc++
-		} else {
-			lb.nTerminatedFail++
-		}
 	}()
 
 	// Printing CSV.
 	if !r.hedged {
 		fmt.Printf("%d,%.1f,%d,%.4f,%d\n", r.id, r.ts, r.status, r.rt, r.sID)
+		lb.computReqMetrics(r)
 		return
 	}
 
@@ -180,8 +183,10 @@ func (lb *loadBalancer) reqFinished(s *server, r *request) {
 	if _, ok := lb.hedgeReqs[r.id]; !ok {
 		lb.hedgeReqs[r.id] = struct{}{}
 		fmt.Printf("%d,%.1f,%d,%.4f,%d,T\n", r.id, r.ts, r.status, r.rt, r.sID)
+		lb.computReqMetrics(r)
 		return
 	}
+
 	// Second finished copy of this hedge request request. Happens when cancelation is not being used.
 	fmt.Printf("%d,%.1f,%d,%.4f,%d,F\n", r.id, r.ts, r.status, r.rt, r.sID)
 	lb.hedgingWaist += r.rt
@@ -345,7 +350,7 @@ func (s *server) Run() {
 			hs := godes.GetSystemTime()
 
 			// The other sever took too long and the request must be finished by this server.
-			if s1 := s.lb.reqHedged(s, s.req, s.req.rt-s.ht); s1 != nil {
+			if s1 := s.lb.reqHedged(s, s.req, s.req.rt-s.ht); s1 == nil {
 				s.lb.reqFinished(s, s.req)
 
 			} else { // The other server will be faster on finishing this request. Let's wait.
@@ -354,6 +359,7 @@ func (s *server) Run() {
 				s.lb.queueWaiter.Set(true) // Needed for hedged requests.
 			}
 
+			// Whatever double computation happened here, it is waist. Either this or the other server.
 			s.lb.hedgingWaist += godes.GetSystemTime() - hs
 
 		// If the request must be processed by this replica without re-issuing.
