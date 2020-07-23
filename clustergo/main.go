@@ -134,10 +134,9 @@ type loadBalancer struct {
 	ht            float64
 	hCancellation bool
 
-	// Queues and controll of request processing flow.
-	hedgedReqs    *godes.FIFOQueue
-	hedgeMap      map[int64]struct{}
-	finishedQueue *godes.FIFOQueue
+	// Queues and control of request processing flow.
+	hedgedReqs *godes.FIFOQueue
+	hedgeMap   map[int64]struct{}
 
 	// Metrics
 	nIgnored        int64
@@ -156,36 +155,25 @@ func (lb *loadBalancer) Run() {
 			break
 		}
 
-		if lb.finishedQueue.Len() > 0 {
-			r := lb.finishedQueue.Get().(*request)
-			lb.computeReqMetrics(r)
-			fmt.Printf("%d,%d,%.1f,%.4f,%d,%t,%t,%t\n", r.id, r.status, r.ts, r.rt, r.sid, r.hedged, r.waist, r.cancel)
-			continue
-		}
-
 		// First wait for a server and process hedged requests.
 		lb.serversBusy.Wait(false)
 
 		if lb.hedgedReqs.Len() > 0 {
 			r := lb.hedgedReqs.Get().(*request)
-			if lb.servers.Len() == 0 {
-				lb.hedgedReqs.Place(r)
-				godes.Yield()
-			} else {
-				lb.schedule(r)
-			}
+			lb.schedule(r)
 			continue
 		}
 
 		// Then wait for a request that arrived.
 		arrivalCond.Wait(true)
+
+		// Ignoring arrived requests if there is available server.
+		if lb.servers.Len() == 0 {
+			continue
+		}
 		r := arrivalQueue.Get().(*request)
 		if arrivalQueue.Len() == 0 {
 			arrivalCond.Set(false)
-		}
-		if lb.servers.Len() == 0 {
-			godes.Yield()
-			continue
 		}
 		lb.schedule(r)
 	}
@@ -218,10 +206,14 @@ func (lb *loadBalancer) computeReqMetrics(r *request) {
 	}
 }
 
-func (lb *loadBalancer) reqCancelled(r *request) {
-	defer lb.finishedQueue.Place(r)
+func print(r *request) {
+	fmt.Printf("%d,%d,%.1f,%.4f,%d,%t,%t,%t\n", r.id, r.status, r.ts, r.rt, r.sid, r.hedged, r.waist, r.cancel)
+}
 
-	r.rt = godes.GetSystemTime() - r.ts
+func (lb *loadBalancer) reqCancelled(r *request) {
+	defer lb.computeReqMetrics(r)
+	defer print(r)
+
 	r.status = 0
 	r.cancel = true
 	r.waist = true
@@ -231,19 +223,24 @@ func (lb *loadBalancer) reqCancelled(r *request) {
 }
 
 func (lb *loadBalancer) reqFinished(r *request) {
-	defer lb.finishedQueue.Place(r)
+	defer lb.computeReqMetrics(r)
+	defer print(r)
 
 	if r.finish != nil {
 		r.finish.Set(true)
 	}
 
-	// If the policy is no-hedging or hedging-cancellation
+	// Hedging is deactivated
 	if lb.ht <= 0 || lb.hCancellation {
 		return
 	}
 
-	// Policy is hedging, but no cancellation.
-	// First finished version of this hedge request. Used when cancellation is not active.
+	// Policy is hedging, the request has a hedge, but the cancellation policy is not active.
+	if r.hedge == nil {
+		return
+	}
+
+	// First finished copy of this hedge request.
 	if _, ok := lb.hedgeMap[r.id]; !ok {
 		r.waist = false
 		r.cancel = false
@@ -251,7 +248,7 @@ func (lb *loadBalancer) reqFinished(r *request) {
 		return
 	}
 
-	// Second finished copy of this hedge request request. Happens when cancelation is not active.
+	// Second finished copy of this hedge request request.
 	r.cancel = false
 	r.waist = true
 	delete(lb.hedgeMap, r.id)
@@ -273,7 +270,6 @@ func newLoadBalancer(servers []*server, ht float64, hc bool) *loadBalancer {
 		hCancellation: hc,
 		hedgeMap:      make(map[int64]struct{}),
 		hedgedReqs:    godes.NewFIFOQueue("hedgedReqs"),
-		finishedQueue: godes.NewFIFOQueue("fininshedReqs"),
 	}
 	for _, s := range servers {
 		s.lb = lb
@@ -329,30 +325,46 @@ func (s *server) Run() {
 				// So, the replica re-issues the request and will keep itself blocked, waiting
 				// for the processing of the re-issued request.
 				s.req.finish = godes.NewBooleanControl()
-				hedgeReq := &request{id: s.req.id, ts: godes.GetSystemTime(), hedged: true, hedge: s.req}
+				s.req.finish.Set(false)
+				hedgeReq := &request{id: s.req.id, ts: s.req.ts + s.ht, hedged: true, hedge: s.req}
 				s.lb.hedgedReqs.Place(hedgeReq)
-				s.req.finish.Wait(true)
-			} else {
 
+				// If the other finishes first, this request will be cancelled (and finished). The timeout won't be reached.
+				ts := godes.GetSystemTime()
+				s.req.finish.WaitAndTimeout(true, s.req.rt-s.ht)
+				waitTime := godes.GetSystemTime() - ts
+				remaining := s.req.rt - s.ht
+
+				if waitTime-remaining < 0.05 { // same as waitTime == remaining, but accounting for float64 comparisons.
+					s.lb.reqFinished(s.req)
+				} else { // The other server finished fist
+					s.req.rt = s.ht + waitTime
+					s.lb.reqCancelled(s.req)
+				}
+
+			} else {
 				// When the cancellation polity is not active, simply trigger a new hedge request and finish the processing one.
-				hedgeReq := &request{id: s.req.id, ts: godes.GetSystemTime(), hedged: true}
+				hedgeReq := &request{id: s.req.id, ts: s.req.ts + s.ht, hedged: true, hedge: s.req}
+				s.req.hedge = hedgeReq
 				s.lb.hedgedReqs.Place(hedgeReq)
-				godes.Advance(s.req.rt)
+				godes.Advance(s.req.rt - s.ht)
 				s.lb.reqFinished(s.req)
 			}
 
 		// The processing request has been reissued. and the cancellation policy is active.
 		case s.ht > 0 && s.lb.hCancellation && s.req.hedged:
-			// The request will finish on the other server first.
-			otherServerFinishTime := s.req.hedge.ts + s.req.hedge.rt
-			if otherServerFinishTime <= (godes.GetSystemTime() + s.req.rt) {
-				godes.Advance(math.Max(0, otherServerFinishTime-godes.GetSystemTime()))
-				s.lb.reqFinished(s.req.hedge)
-				s.lb.reqCancelled(s.req)
-			} else {
+			ts := godes.GetSystemTime()
+			otherServerFinishTime := s.req.hedge.ts + s.req.hedge.rt // when the other server would finish (that can be past already)
+			remaining := otherServerFinishTime - ts                  // how long until the other server finishes
+
+			if s.req.rt <= remaining { // This server finished first
 				godes.Advance(s.req.rt)
 				s.lb.reqFinished(s.req)
-				s.lb.reqCancelled(s.req.hedge)
+			} else { // the other server finished first
+				waitTime := math.Max(0, remaining)
+				godes.Advance(waitTime)
+				s.req.rt = waitTime
+				s.lb.reqCancelled(s.req)
 			}
 
 		// If the request must be processed by this replica without re-issuing.
