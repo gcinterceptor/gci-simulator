@@ -1,12 +1,13 @@
 #!/bin/bash
 
 set -x
+set -e
 
 LITTLE_OMEGA=${LITTLE_OMEGA:=0.0001}
 BIG_OMEGA=${BIG_OMEGA:=0.003}
 MU=${MU:=0.0036}
 DURATIONMS=${DURATIONMS:=1200000}
-NRUNS=${NRUNS:=10}  # number of repetitions
+NRUNS=${NRUNS:=5}  # number of repetitions
 NREPLICAS=${NREPLICAS:=1} # comma-separated number of replicas (int32)
 HT=${HT:=-1} # Hedging threshold (float64, default -1 and means no hedging)
 HEDGE_CANCELLATION=${HEDGE_CANCELLATION:=true} # Whether to cancel hedge requests
@@ -25,8 +26,7 @@ do
         do
             input+="inputgen/input_${i}.csv,"
         done
-        go run main.go --rate=1 --warmup=0 --d=$(( DURATIONMS ))ms --ht=${HT} --hedge-cancellation=${HEDGE_CANCELLATION} --cct=${ENABLE_CCT} --i=$input > r${n}_${run}.out
-        echo -e "\n\n## Finished run $n : ${run} ##\n\n"
+        go run main.go --rate=1 --warmup=0 --d=$(( DURATIONMS ))ms --ht=${HT} --hedge-cancellation=${HEDGE_CANCELLATION} --cct=${ENABLE_CCT} --i=$input > r${n}_${run}.out        echo -e "\n\n## Finished run $n : ${run} ##\n\n"
     done
     cat *.out | grep DURATION | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.dur
     cat *.out | grep PCP | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.pcp
@@ -36,10 +36,10 @@ do
     cat *.out | grep HEDGED | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.hedged
     cat *.out | grep HEDGE_WAIST | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.hwaist
 
-    rm sim_${n}_out.zip
+    rm -f sim_${n}_out.zip
     zip sim_${n}_out.zip *.out inputgen/*.csv
-    rm *.out
-    rm inputgen/*.csv
+    rm -f *.out
+    rm -f inputgen/*.csv
 done
 
 set +x
