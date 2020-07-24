@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -55,7 +54,10 @@ func main() {
 
 	reqID := int64(0)
 	for godes.GetSystemTime() < float64(duration.Milliseconds()) {
-		arrivalQueue.Place(&request{id: reqID, ts: godes.GetSystemTime()})
+		arrivalQueue.Place(&request{
+			id:     reqID,
+			finish: godes.NewBooleanControl(),
+		})
 		arrivalCond.Set(true)
 		godes.Advance(arrivalDist.Get(1 / *rate))
 		reqID++
@@ -149,7 +151,8 @@ type loadBalancer struct {
 }
 
 func (lb *loadBalancer) Run() {
-	fmt.Println("id,status,ts,rt,sID,hedge,waist,canc")
+	// id, status, start time, finish time, response time, server id, copy, waist, cancelled
+	fmt.Println("id,status,ts,ft,rt,sID,hedge,waist,canc")
 	for {
 		if lb.isTerminated {
 			break
@@ -157,6 +160,10 @@ func (lb *loadBalancer) Run() {
 
 		// First wait for a server and process hedged requests.
 		lb.serversBusy.Wait(false)
+		if lb.servers.Len() == 0 { // needed due a nil pointer ref at schedule that I couldn't spot the cause.
+			godes.Yield()
+			continue
+		}
 
 		if lb.hedgedReqs.Len() > 0 {
 			r := lb.hedgedReqs.Get().(*request)
@@ -168,9 +175,6 @@ func (lb *loadBalancer) Run() {
 		arrivalCond.Wait(true)
 
 		// Ignoring arrived requests if there is available server.
-		if lb.servers.Len() == 0 {
-			continue
-		}
 		r := arrivalQueue.Get().(*request)
 		if arrivalQueue.Len() == 0 {
 			arrivalCond.Set(false)
@@ -180,6 +184,12 @@ func (lb *loadBalancer) Run() {
 }
 
 func (lb *loadBalancer) schedule(r *request) {
+	// The model which computes the emergent behavior of CTC (for PVN) does not account for
+	// the time in queue. This is equivalent to ignore requests that arrive and all server
+	// were busy
+	if !r.hedged {
+		r.startTime = godes.GetSystemTime()
+	}
 	lb.servers.Get().(*server).newRequest(r)
 	if lb.servers.Len() == 0 {
 		lb.serversBusy.Set(true)
@@ -207,13 +217,16 @@ func (lb *loadBalancer) computeReqMetrics(r *request) {
 }
 
 func print(r *request) {
-	fmt.Printf("%d,%d,%.1f,%.4f,%d,%t,%t,%t\n", r.id, r.status, r.ts, r.rt, r.sid, r.hedged, r.waist, r.cancel)
+	fmt.Printf("%d,%d,%.2f,%.2f,%.2f,%d,%t,%t,%t\n", r.id, r.status, r.startTime, r.finishTime, r.rt, r.sid, r.hedged, r.waist, r.cancel)
 }
 
 func (lb *loadBalancer) reqCancelled(r *request) {
 	defer lb.computeReqMetrics(r)
 	defer print(r)
 
+	r.finishTime = godes.GetSystemTime()
+	r.rt = r.finishTime - r.startTime
+	r.finish.Set(true)
 	r.status = 0
 	r.cancel = true
 	r.waist = true
@@ -226,9 +239,9 @@ func (lb *loadBalancer) reqFinished(r *request) {
 	defer lb.computeReqMetrics(r)
 	defer print(r)
 
-	if r.finish != nil {
-		r.finish.Set(true)
-	}
+	r.finishTime = godes.GetSystemTime()
+	r.rt = r.finishTime - r.startTime
+	r.finish.Set(true)
 
 	// Hedging is deactivated
 	if lb.ht <= 0 || lb.hCancellation {
@@ -305,74 +318,85 @@ func (s *server) Run() {
 
 		// Updating request info.
 		duration, status := s.next()
-		s.req.rt = duration
+		s.req.startTime = godes.GetSystemTime()
 		s.req.status = status
 		s.req.sid = s.id
 
 		switch {
 		// If it is an unavailability signal and CCT is enabled.
 		case *enableCCT && s.req.status == 503:
-			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
-			godes.Advance(s.req.rt)
+			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.startTime, End: s.req.startTime + s.req.rt})
+			godes.Advance(duration)
 			s.lb.reqFinished(s.req)
 
 		// The processing request must be reissued.
-		case s.ht > 0 && s.req.rt > s.ht && !s.req.hedged: // We only accept one hedge.
+		case s.ht > 0 && duration > s.ht && !s.req.hedged: // We only accept one hedge.
 			godes.Advance(s.ht)
+
 			if s.lb.hCancellation {
 				// If the request must be reissued and the cancellation policy is active.
 				// There is no mean to know in advance where the request will be processed.
 				// So, the replica re-issues the request and will keep itself blocked, waiting
 				// for the processing of the re-issued request.
-				s.req.finish = godes.NewBooleanControl()
-				s.req.finish.Set(false)
-				hedgeReq := &request{id: s.req.id, ts: s.req.ts + s.ht, hedged: true, hedge: s.req}
+				hedgeReq := &request{
+					id:     s.req.id,
+					hedged: true,
+					hedge:  s.req,
+					finish: godes.NewBooleanControl(),
+				}
 				s.lb.hedgedReqs.Place(hedgeReq)
 
-				// If the other finishes first, this request will be cancelled (and finished). The timeout won't be reached.
+				// Wait for the other server, but timeout if this very own request finishes first.
+				remaining := duration - s.ht
 				ts := godes.GetSystemTime()
-				s.req.finish.WaitAndTimeout(true, s.req.rt-s.ht)
+				hedgeReq.finish.WaitAndTimeout(true, remaining)
 				waitTime := godes.GetSystemTime() - ts
-				remaining := s.req.rt - s.ht
 
-				if waitTime-remaining < 0.05 { // same as waitTime == remaining, but accounting for float64 comparisons.
+				// If the other finishes first, this request will be cancelled (and finished). The timeout won't be reached.
+
+				if remaining-waitTime < 0.05 { // same as waitTime == remaining, but accounting for float64 comparisons.
 					s.lb.reqFinished(s.req)
-				} else { // The other server finished fist
-					s.req.rt = s.ht + waitTime
+				} else { // The other server finished first
 					s.lb.reqCancelled(s.req)
 				}
 
 			} else {
 				// When the cancellation polity is not active, simply trigger a new hedge request and finish the processing one.
-				hedgeReq := &request{id: s.req.id, ts: s.req.ts + s.ht, hedged: true, hedge: s.req}
+				hedgeReq := &request{
+					id:     s.req.id,
+					hedged: true,
+					hedge:  s.req,
+					finish: godes.NewBooleanControl(),
+				}
 				s.req.hedge = hedgeReq
 				s.lb.hedgedReqs.Place(hedgeReq)
-				godes.Advance(s.req.rt - s.ht)
+
+				// Finish processing.
+				godes.Advance(duration - s.ht)
 				s.lb.reqFinished(s.req)
 			}
 
 		// The processing request has been reissued. and the cancellation policy is active.
 		case s.ht > 0 && s.lb.hCancellation && s.req.hedged:
+			// Wait for the other server, but timeout if this very own request finishes first.
 			ts := godes.GetSystemTime()
-			otherServerFinishTime := s.req.hedge.ts + s.req.hedge.rt // when the other server would finish (that can be past already)
-			remaining := otherServerFinishTime - ts                  // how long until the other server finishes
+			s.req.hedge.finish.WaitAndTimeout(true, duration)
+			waitTime := godes.GetSystemTime() - ts
 
-			if s.req.rt <= remaining { // This server finished first
-				godes.Advance(s.req.rt)
+			// If the other finishes first, this request will be cancelled (and finished). The timeout won't be reached.
+			// waitTime == 0 means the other server has finished the request while this one was being enqueue.
+			if waitTime > 0 && waitTime-duration < 0.05 { // same as waitTime == duration, but accounting for float64 comparisons.
 				s.lb.reqFinished(s.req)
-			} else { // the other server finished first
-				waitTime := math.Max(0, remaining)
-				godes.Advance(waitTime)
-				s.req.rt = waitTime
+			} else { // The other server finished first
 				s.lb.reqCancelled(s.req)
 			}
 
 		// If the request must be processed by this replica without re-issuing.
 		default:
-			s.procIntervals.Limits = append(s.procIntervals.Limits, interval.Limit{Start: s.req.ts, End: s.req.ts + s.req.rt})
+			s.procIntervals.Limits = append(s.procIntervals.Limits, interval.Limit{Start: s.req.startTime, End: s.req.startTime + s.req.rt})
 			s.procReqCount++
-			s.procTime += s.req.rt
-			godes.Advance(s.req.rt)
+			s.procTime += duration
+			godes.Advance(duration)
 			s.lb.reqFinished(s.req)
 		}
 
@@ -472,14 +496,15 @@ type inputEntry struct {
 }
 
 type request struct {
-	id     int64
-	rt     float64
-	status int
-	sid    int
-	ts     float64
-	hedged bool
-	cancel bool
-	waist  bool
-	finish *godes.BooleanControl
-	hedge  *request
+	id         int64
+	rt         float64
+	status     int
+	sid        int
+	startTime  float64
+	finishTime float64
+	hedged     bool
+	cancel     bool
+	waist      bool
+	finish     *godes.BooleanControl
+	hedge      *request
 }
