@@ -199,10 +199,10 @@ func (lb *loadBalancer) schedule(r *request) {
 func (lb *loadBalancer) computeReqMetrics(r *request) {
 	// Metrics
 	lb.nProc++
-	switch r.status {
-	case 200:
+	switch {
+	case r.status == 200 && !r.waist:
 		lb.nTerminatedSucc++
-	case 503:
+	case r.status == 503:
 		lb.nTerminatedFail++
 	}
 	if r.hedged {
