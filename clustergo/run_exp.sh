@@ -10,8 +10,8 @@ DURATIONMS=${DURATIONMS:=1200000}
 NRUNS=${NRUNS:=5}  # number of repetitions
 NREPLICAS=${NREPLICAS:=1} # comma-separated number of replicas (int32)
 HT=${HT:=-1} # Hedging threshold (float64, default -1 and means no hedging)
-HEDGE_CANCELLATION=${HEDGE_CANCELLATION:=true} # Whether to cancel hedge requests
-ENABLE_CCT=${ENABLE_CCT:=true} # Whether to enable CCT (true or false)
+HEDGE_CANCELLATION=${HEDGE_CANCELLATION:=false} # Whether to cancel hedge requests
+ENABLE_CCT=${ENABLE_CCT:=false} # Whether to enable CCT (true or false)
 
 for n in ${NREPLICAS//,/ }
 do
@@ -26,7 +26,7 @@ do
         do
             input+="inputgen/input_${i}.csv,"
         done
-        go run main.go --rate=1 --warmup=0 --d=$(( DURATIONMS ))ms --ht=${HT} --hedge-cancellation=${HEDGE_CANCELLATION} --cct=${ENABLE_CCT} --i=$input > r${n}_${run}.out        echo -e "\n\n## Finished run $n : ${run} ##\n\n"
+        go run *.go --rate=1 --warmup=0 --d=$(( DURATIONMS ))ms --ht=${HT} --hedge-cancellation=${HEDGE_CANCELLATION} --cct=${ENABLE_CCT} --i=$input > r${n}_${run}.out        echo -e "\n\n## Finished run $n : ${run} ##\n\n"
     done
     cat *.out | grep DURATION | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.dur
     cat *.out | grep PCP | cut -d' ' -f1 | cut -d: -f2 > sim_${n}.pcp
