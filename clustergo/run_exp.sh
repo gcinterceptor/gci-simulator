@@ -7,7 +7,7 @@ LITTLE_OMEGA=${LITTLE_OMEGA:=0.0001}
 BIG_OMEGA=${BIG_OMEGA:=0.003}
 MU=${MU:=0.0036}
 DURATIONMS=${DURATIONMS:=1200000}
-NRUNS=${NRUNS:=5}  # number of repetitions
+NRUNS=${NRUNS:=2}  # number of repetitions
 NREPLICAS=${NREPLICAS:=1} # comma-separated number of replicas (int32)
 HT=${HT:=-1} # Hedging threshold (float64, default -1 and means no hedging)
 HEDGE_CANCELLATION=${HEDGE_CANCELLATION:=false} # Whether to cancel hedge requests

@@ -126,15 +126,17 @@ func main() {
 }
 
 type request struct {
-	id         int64
-	rt         float64
-	status     int
-	sid        int
-	startTime  float64
-	finishTime float64
-	hedged     bool
-	cancel     bool
-	waist      bool
-	finish     *godes.BooleanControl
-	hedge      *request
+	id            int64
+	rt            float64
+	status        int
+	sid           int
+	startTime     float64
+	finishTime    float64
+	hedged        bool
+	cancel        bool
+	waist         bool
+	finish        *godes.BooleanControl
+	hedge         *request
+	remainingTime float64
+	impact        bool
 }

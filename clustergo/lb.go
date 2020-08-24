@@ -48,7 +48,7 @@ type loadBalancer struct {
 
 func (lb *loadBalancer) Run() {
 	// id, status, start time, finish time, response time, server id, copy, waist, cancelled
-	fmt.Println("id,status,ts,ft,rt,sID,hedge,waist,canc")
+	fmt.Println("id,status,ts,ft,rt,sID,hedge,waist,canc,impact")
 	for {
 		if lb.isTerminated {
 			break
@@ -113,7 +113,7 @@ func (lb *loadBalancer) computeReqMetrics(r *request) {
 }
 
 func print(r *request) {
-	fmt.Printf("%d,%d,%.2f,%.2f,%.2f,%d,%t,%t,%t\n", r.id, r.status, r.startTime, r.finishTime, r.rt, r.sid, r.hedged, r.waist, r.cancel)
+	fmt.Printf("%d,%d,%.2f,%.2f,%.2f,%d,%t,%t,%t,%t\n", r.id, r.status, r.startTime, r.finishTime, r.rt, r.sid, r.hedged, r.waist, r.cancel, r.impact)
 }
 
 func (lb *loadBalancer) reqCancelled(r *request) {
@@ -126,9 +126,6 @@ func (lb *loadBalancer) reqCancelled(r *request) {
 	r.status = 0
 	r.cancel = true
 	r.waist = true
-	if r.finish != nil {
-		r.finish.Set(true)
-	}
 }
 
 func (lb *loadBalancer) reqFinished(r *request) {

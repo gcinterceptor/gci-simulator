@@ -38,15 +38,18 @@ func (s *server) Run() {
 		}
 
 		// Updating request info.
-		duration, status := s.next()
-		s.req.startTime = godes.GetSystemTime()
+		duration, status, impact := s.next()
+		if !s.req.hedged {
+			s.req.startTime = godes.GetSystemTime()
+		}
 		s.req.status = status
 		s.req.sid = s.id
+		s.req.impact = impact
 
 		switch {
 		// If it is an unavailability signal and CCT is enabled.
 		case *enableCCT && s.req.status == 503:
-			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.startTime, End: s.req.startTime + s.req.rt})
+			s.unavIntervals.Limits = append(s.unavIntervals.Limits, interval.Limit{Start: s.req.startTime, End: s.req.startTime + duration})
 			godes.Advance(duration)
 			s.lb.reqFinished(s.req)
 
@@ -59,35 +62,34 @@ func (s *server) Run() {
 				// There is no mean to know in advance where the request will be processed.
 				// So, the replica re-issues the request and will keep itself blocked, waiting
 				// for the processing of the re-issued request.
+				remaining := duration - s.ht
 				hedgeReq := &request{
-					id:     s.req.id,
-					hedged: true,
-					hedge:  s.req,
-					finish: godes.NewBooleanControl(),
+					id:            s.req.id,
+					hedged:        true,
+					hedge:         s.req,
+					finish:        godes.NewBooleanControl(),
+					startTime:     godes.GetSystemTime(),
+					remainingTime: remaining,
 				}
 				s.lb.hedgedReqs.Place(hedgeReq)
 
 				// Wait for the other server, but timeout if this very own request finishes first.
-				remaining := duration - s.ht
-				ts := godes.GetSystemTime()
 				hedgeReq.finish.WaitAndTimeout(true, remaining)
-				waitTime := godes.GetSystemTime() - ts
-
-				// If the other finishes first, this request will be cancelled (and finished). The timeout won't be reached.
-
-				if remaining-waitTime < 0.05 { // same as waitTime == remaining, but accounting for float64 comparisons.
-					s.lb.reqFinished(s.req)
-				} else { // The other server finished first
+				if hedgeReq.finish.GetState() {
 					s.lb.reqCancelled(s.req)
+				} else {
+					s.procReqCount++
+					s.procTime += duration
+					s.lb.reqFinished(s.req)
 				}
-
 			} else {
 				// When the cancellation polity is not active, simply trigger a new hedge request and finish the processing one.
 				hedgeReq := &request{
-					id:     s.req.id,
-					hedged: true,
-					hedge:  s.req,
-					finish: godes.NewBooleanControl(),
+					id:        s.req.id,
+					hedged:    true,
+					hedge:     s.req,
+					finish:    godes.NewBooleanControl(),
+					startTime: godes.GetSystemTime(),
 				}
 				s.req.hedge = hedgeReq
 				s.lb.hedgedReqs.Place(hedgeReq)
@@ -95,26 +97,27 @@ func (s *server) Run() {
 				// Finish processing.
 				godes.Advance(duration - s.ht)
 				s.lb.reqFinished(s.req)
+				s.procReqCount++
+				s.procTime += duration
 			}
 
 		// The processing request has been reissued. and the cancellation policy is active.
 		case s.ht >= 0 && s.hCancellation && s.req.hedged:
-			// Wait for the other server, but timeout if this very own request finishes first.
-			ts := godes.GetSystemTime()
-			s.req.hedge.finish.WaitAndTimeout(true, duration)
-			waitTime := godes.GetSystemTime() - ts
-
-			// If the other finishes first, this request will be cancelled (and finished). The timeout won't be reached.
-			// waitTime == 0 means the other server has finished the request while this one was being enqueue.
-			if waitTime > 0 && waitTime-duration < 0.05 { // same as waitTime == duration, but accounting for float64 comparisons.
-				s.lb.reqFinished(s.req)
-			} else { // The other server finished first
+			//           remaining time            - (queuing time)
+			remaining := s.req.hedge.remainingTime - (godes.GetSystemTime() - s.req.startTime)
+			if remaining > 0 && duration > remaining {
+				godes.Advance(remaining)
 				s.lb.reqCancelled(s.req)
+			} else {
+				godes.Advance(duration)
+				s.lb.reqFinished(s.req)
+				s.procReqCount++
+				s.procTime += duration
 			}
 
 		// If the request must be processed by this replica without re-issuing.
 		default:
-			s.procIntervals.Limits = append(s.procIntervals.Limits, interval.Limit{Start: s.req.startTime, End: s.req.startTime + s.req.rt})
+			s.procIntervals.Limits = append(s.procIntervals.Limits, interval.Limit{Start: s.req.startTime, End: s.req.startTime + duration})
 			s.procReqCount++
 			s.procTime += duration
 			godes.Advance(duration)
@@ -132,18 +135,18 @@ func (s *server) newRequest(r *request) {
 	s.cond.Set(true)
 }
 
-func (s *server) next() (float64, int) {
+func (s *server) next() (float64, int, bool) {
 	i := s.entries[s.index]
 	s.index = (s.index + 1) % len(s.entries)
-	return i.duration, i.status
+	return i.duration, i.status, i.impact
 }
 
 // peerk returns information about the next request processing.
 // The difference from next() is that peek() does not advance the
 // incremental pointer of the request processing history.
-func (s *server) peek() (float64, int) {
+func (s *server) peek() (float64, int, bool) {
 	i := s.entries[s.index]
-	return i.duration, i.status
+	return i.duration, i.status, i.impact
 }
 
 func (s *server) terminate() {
@@ -178,7 +181,9 @@ func newServer(p string, id int, ht float64, hCancellation bool) (*server, error
 			log.Fatal(err)
 		}
 		if timestamp >= delta {
-			entries = append(entries, e)
+			if e.duration > 0 {
+				entries = append(entries, e)
+			}
 		}
 	}
 	return &server{
@@ -209,10 +214,15 @@ func toEntry(row []string) (float64, inputEntry, error) {
 	if err != nil {
 		return 0, inputEntry{}, fmt.Errorf("Error parsing duration in row (%v): %q", row, err)
 	}
-	return timestamp, inputEntry{duration, state}, nil
+	impact, err := strconv.ParseBool(row[3])
+	if err != nil {
+		return 0, inputEntry{}, fmt.Errorf("Error parsing impact in row (%v): %q", row, err)
+	}
+	return timestamp, inputEntry{duration, state, impact}, nil
 }
 
 type inputEntry struct {
 	duration float64
 	status   int
+	impact   bool
 }
